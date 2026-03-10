@@ -1,0 +1,7 @@
+[user]
+    name = Juan Garassino
+    email = jgarassino@engenious.io
+[core]
+    sshCommand = ssh -i ~/.ssh/id_ed25519_work -F ~/.ssh/config
+[url "git@github-work:"]
+    insteadOf = git@github.com:

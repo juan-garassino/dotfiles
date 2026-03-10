@@ -62,7 +62,6 @@
         "**/tmp/**": true,
         "**/vendor/**": true
     },
-    "git.enabled": false,
     "telemetry.enableTelemetry": false,
     "telemetry.enableCrashReporter": false,
     "[python]":
@@ -75,5 +74,34 @@
     {
         "rubocop": true
     },
-    "workbench.startupEditor": "newUntitledFile"
+    "workbench.startupEditor": "newUntitledFile",
+    "security.workspace.trust.untrustedFiles": "open",
+    "window.zoomLevel": -2,
+    "jupyter.askForKernelRestart": false,
+    "notebook.output.textLineLimit": 100,
+    "terminal.integrated.profiles.linux": {
+      "bash": {
+        "path": "bash",
+        "icon": "terminal-bash"
+      },
+      "zsh": {
+        "path": "zsh"
+      },
+      "fish": {
+        "path": "fish"
+      },
+      "tmux": {
+        "path": "tmux",
+        "icon": "terminal-tmux"
+      },
+      "pwsh": {
+        "path": "pwsh",
+        "icon": "terminal-powershell"
+      },
+      "zsh (2)": {
+        "path": "/usr/bin/zsh"
+      }
+    },
+    "terminal.integrated.defaultProfile.linux": "zsh (2)",
+    "python.defaultInterpreterPath": "/Users/juan-garassino/.pyenv/versions/3.10.6/envs/lewagon"
 }
