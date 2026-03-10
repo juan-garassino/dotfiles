@@ -1,107 +1,139 @@
 {
-    "editor.detectIndentation": false,
-    "editor.formatOnPaste": true,
-    "editor.minimap.enabled": false,
-    "editor.multiCursorModifier": "ctrlCmd",
-    "editor.insertSpaces": true,
-    "editor.tabSize": 2,
-    "editor.rulers":
-    [
-        80,
-        120
-    ],
-    "editor.renderControlCharacters": true,
-    "editor.snippetSuggestions": "top",
-    "editor.trimAutoWhitespace": true,
-    "editor.useTabStops": true,
-    "editor.fontSize": 17,
-    "editor.scrollBeyondLastLine": true,
-    "editor.showFoldingControls": "always",
-    "emmet.includeLanguages":
-    {
-        "erb": "html"
-    },
-    "emmet.triggerExpansionOnTab": true,
-    "explorer.confirmDelete": false,
-    "window.restoreWindows": "none",
-    "workbench.settings.editor": "json",
-    "workbench.settings.openDefaultSettings": true,
-    "workbench.settings.useSplitJSON": true,
-    "workbench.iconTheme": "vscode-great-icons",
-    "files.hotExit": "off",
-    "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true,
-    "files.trimTrailingWhitespace": true,
-    "files.exclude":
-    {
-        "**/.git": true,
-        "**/.DS_Store": true,
-        "node_modules": true,
-        "tmp": true,
-        "log": true,
-        ".asset-cache": true,
-        ".bundle": true,
-        ".ipynb_checkpoints": true,
-        ".pytest_cache": true,
-        ".sass-cache": true,
-        ".svn": true,
-        "__pycache__": true,
-        "_site": true,
-        "build": true,
-        "coverage": true,
-        "dist": true,
-        "public/packs": true,
-        "**/.egg-info": true
-    },
-    "files.watcherExclude":
-    {
-        "**/audits/**": true,
-        "**/coverage/**": true,
-        "**/log/**": true,
-        "**/node_modules/**": true,
-        "**/tmp/**": true,
-        "**/vendor/**": true
-    },
-    "telemetry.enableTelemetry": false,
-    "telemetry.enableCrashReporter": false,
-    "[python]":
-    {
-        "editor.tabSize": 4
-    },
-    "python.pythonPath": "~/.pyenv/shims/python",
-    "python.formatting.provider": "yapf",
-    "ruby.lint":
-    {
-        "rubocop": true
-    },
-    "workbench.startupEditor": "newUntitledFile",
-    "security.workspace.trust.untrustedFiles": "open",
-    "window.zoomLevel": -2,
-    "jupyter.askForKernelRestart": false,
-    "notebook.output.textLineLimit": 100,
-    "terminal.integrated.profiles.linux": {
-      "bash": {
-        "path": "bash",
-        "icon": "terminal-bash"
-      },
-      "zsh": {
-        "path": "zsh"
-      },
-      "fish": {
-        "path": "fish"
-      },
-      "tmux": {
-        "path": "tmux",
-        "icon": "terminal-tmux"
-      },
-      "pwsh": {
-        "path": "pwsh",
-        "icon": "terminal-powershell"
-      },
-      "zsh (2)": {
-        "path": "/usr/bin/zsh"
-      }
-    },
-    "terminal.integrated.defaultProfile.linux": "zsh (2)",
-    "python.defaultInterpreterPath": "/Users/juan-garassino/.pyenv/versions/3.10.6/envs/lewagon"
+  // ─────────────────────────────────────────────────────────
+  // 🎨 Editor Core
+  // ─────────────────────────────────────────────────────────
+  "editor.fontSize": 14,
+  "editor.lineHeight": 1.6,
+  "editor.fontLigatures": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.useTabStops": true,
+  "editor.rulers": [88, 120],
+  "editor.minimap.enabled": false,
+  "editor.scrollBeyondLastLine": false,
+  "editor.renderControlCharacters": true,
+  "editor.showFoldingControls": "always",
+  "editor.snippetSuggestions": "top",
+  "editor.trimAutoWhitespace": true,
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.multiCursorModifier": "ctrlCmd",
+  "editor.suggestSelection": "first",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+
+  // ─────────────────────────────────────────────────────────
+  // 🐍 Python (Pylance + Ruff + Black)
+  // ─────────────────────────────────────────────────────────
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.inlayHints.variableTypes": true,
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "ruff.enable": true,
+  "ruff.fixAll": true,
+  "ruff.organizeImports": true,
+
+  // ─────────────────────────────────────────────────────────
+  // 📓 Jupyter
+  // ─────────────────────────────────────────────────────────
+  "jupyter.askForKernelRestart": false,
+  "notebook.output.textLineLimit": 100,
+  "notebook.lineNumbers": "on",
+  "notebook.formatOnSave.enabled": true,
+
+  // ─────────────────────────────────────────────────────────
+  // 🌿 Git
+  // ─────────────────────────────────────────────────────────
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  "git.pruneOnFetch": true,
+  "diffEditor.ignoreTrimWhitespace": false,
+
+  // ─────────────────────────────────────────────────────────
+  // 📁 Files
+  // ─────────────────────────────────────────────────────────
+  "files.hotExit": "off",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/.ipynb_checkpoints": true,
+    "**/*.egg-info": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/coverage": true,
+    "**/.venv": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/coverage/**": true,
+    "**/log/**": true,
+    "**/tmp/**": true
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // 🖥️  Terminal
+  // ─────────────────────────────────────────────────────────
+  "terminal.integrated.fontSize": 13,
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.profiles.osx": {
+    "zsh": {
+      "path": "/bin/zsh",
+      "args": ["-l"]
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // 🔌 Emmet
+  // ─────────────────────────────────────────────────────────
+  "emmet.includeLanguages": {
+    "erb": "html",
+    "jinja-html": "html"
+  },
+  "emmet.triggerExpansionOnTab": true,
+
+  // ─────────────────────────────────────────────────────────
+  // 🎛️  Workbench
+  // ─────────────────────────────────────────────────────────
+  "workbench.startupEditor": "none",
+  "workbench.iconTheme": "vscode-great-icons",
+  "workbench.settings.editor": "json",
+  "workbench.settings.useSplitJSON": true,
+  "window.restoreWindows": "none",
+  "window.zoomLevel": 0,
+  "explorer.confirmDelete": false,
+  "explorer.compactFolders": false,
+  "breadcrumbs.enabled": true,
+
+  // ─────────────────────────────────────────────────────────
+  // 🔒 Privacy
+  // ─────────────────────────────────────────────────────────
+  "telemetry.telemetryLevel": "off",
+  "security.workspace.trust.untrustedFiles": "open"
 }

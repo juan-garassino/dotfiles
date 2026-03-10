@@ -1,0 +1,38 @@
+# Get External IP / Internet Speed
+alias myip="curl https://ipinfo.io/json" # or /ip for plain-text ip
+alias speedtest="curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python -"
+
+# Quickly serve the current directory as HTTP
+alias serve='ruby -run -e httpd . -p 8000' # Or python -m SimpleHTTPServer :)
+
+# NOTE: On Q3 2021, Le Wagon decided to change the Web Dev curriculum default text editor
+alias stt="echo 'Launching VS Code instead of Sublime Text... (cf ~/.aliases)' && code ."
+
+alias pth='/Applications/Cursor.app/Contents/MacOS/Cursor'
+
+alias hi='echo hello world'
+
+# Git aliases
+
+# alias gs='git status'
+# alias ga='git add'
+# alias gaa='git add --all'
+# alias gc='git commit -m'
+# alias gca='git commit -am'
+# alias gco='git checkout'
+# alias gcb='git checkout -b'
+# alias gd='git diff'
+# alias gl='git log --oneline --graph --decorate'
+# alias gp='git push'
+# alias gpf='git push --force-with-lease'
+# alias gpl='git pull'
+# alias grb='git rebase'
+# alias grs='git reset --soft'
+# alias grh='git reset --hard'
+# alias gst='git stash'
+# alias gstp='git stash pop'
+# alias gclean='git clean -fd'
+# alias gb='git branch'
+# alias gm='git merge'
+
+# [You can add more aliases here as needed]

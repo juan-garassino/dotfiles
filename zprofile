@@ -1,11 +1,21 @@
-# Setup the PATH for pyenv binaries and shims
+###############################################################################
+# 🚀 zprofile — login shell PATH bootstrapping only
+# Runs once at login. Keep this minimal — no functions, no aliases.
+# Heavy config belongs in ~/.zshrc
+###############################################################################
+
+# pyenv — must be in PATH before zshrc loads
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 type -a pyenv > /dev/null && eval "$(pyenv init --path)"
 
-export PYENV_ROOT="$HOME/.pyenv"
-export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init --path)"
+# pipx
+export PATH="$PATH:$HOME/.local/bin"
 
-# Created by `pipx` on 2024-04-10 10:52:25
-export PATH="$PATH:/Users/juan-garassino/.local/bin"
+# Homebrew (Apple Silicon)
+if [[ -f "/opt/homebrew/bin/brew" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+# Homebrew (Intel)
+elif [[ -f "/usr/local/bin/brew" ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
