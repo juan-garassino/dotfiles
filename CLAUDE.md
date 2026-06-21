@@ -8,6 +8,13 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 - Canonical path: `~/Code/000-config/001-dotfiles`
 - Remote: `github.com/juan-garassino/dotfiles` — **PUBLIC** (zero secrets, ever)
 
+> **Claude Code — read this first.** If you're working in this repo, your single most
+> likely task is to **set up / replicate this environment on a machine** (usually a fresh
+> one). Go straight to **[Full machine setup](#full-machine-setup--claude-code-follow-this-end-to-end)**
+> and run it end-to-end, pausing only at the 🙋 (human-only) steps. The other most common
+> task is editing a config + pushing via `/backup-env`. If the user clearly wants something
+> else, ignore this banner and help with that.
+
 ## Repo map
 
 | Path | What | Linked to |
@@ -19,7 +26,7 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 | `editor/settings.json` | VS Code / Cursor settings | editor User dirs (copied by install.sh) |
 | `claude/` | statusline, sanitized settings, `skills/`, `agents/`, `mcp-servers.md` | `~/.claude/…` |
 | `custom_scripts/` | code_manager, repo_scan, backup_env, ai_git_commit, … | run via `$CUSTOM` aliases |
-| `Brewfile` | full toolchain (`brew bundle`) | — |
+| `packages/` | `Brewfile` (macOS `brew bundle`) · `apt.txt`/`dnf.txt` (Linux) · `mysandbox-requirements.txt` | — |
 | `.secrets.sample` | expected API-key names (no values) | seeds `~/.secrets` |
 | `legacy/` | retired configs kept for reference | — |
 
@@ -30,8 +37,9 @@ order, **verify each before moving on**, and **STOP to ask the user** at the hum
 points (marked 🙋 — secrets and keys a machine can't fabricate).
 
 1. **Homebrew** — `command -v brew` or install from https://brew.sh. Verify `brew --version`.
-2. **Run the installer** — `cd <repo> && ./install.sh`. It symlinks all dotfiles, runs
-   `brew bundle`, installs Oh-My-Zsh + Powerlevel10k, wires the Claude statusline, restores
+2. **Run the installer** — `cd <repo> && ./install.sh` (OS-aware: **macOS** → Homebrew + Brewfile;
+   **Linux** → apt/dnf from `packages/`, gh + VS Code repos, pyenv git-clone, uv installer). It then
+   symlinks all dotfiles, installs Oh-My-Zsh + Powerlevel10k, wires the Claude statusline, restores
    `skills/` + `agents/`, and seeds `~/.secrets` from `.secrets.sample`. Verify: `ls -la ~/.zshrc`
    is a symlink into `shell/zshrc`; `brew bundle check --file=<repo>/Brewfile` is satisfied.
 3. 🙋 **Secrets** — `~/.secrets` was seeded with EMPTY values. Ask the user to paste the real
@@ -44,7 +52,7 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
    `j-garassino-engenious`). Verify `gh auth status` shows both.
 6. 🙋 **GCP creds** — ask the user to drop the service-account JSONs into
    `~/Code/000-config/002-gcp-credentials/`. `workon` / `personal` read them.
-7. **Python** — `pyenv install 3.12`, then run `sandbox` once (creates the global pyenv
+7. **Python** — `pyenv install 3.12`, then run `mysandbox` once (creates + seeds the global pyenv
    scratch env). Projects use `usevenv <ver>` (uv-managed). Verify `python --version`.
 8. **Claude Code** — re-enable plugins: context7, superpowers, code-simplifier,
    frontend-design. MCP servers: see `claude/mcp-servers.md`. Skills/agents already restored.
@@ -55,8 +63,9 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
 ## How the environment works (for debugging)
 
 - **uv-first Python** — `usevenv` → `uv venv --python <ver>` (uv manages the version). pyenv's
-  only day-to-day role is the global `sandbox` scratch env. `autoenv_activate` (a `cd` hook)
-  activates a project `.venv` first, else the global sandbox. `usepyenv`/`pyswitch` remain as
+  only day-to-day role is the global `mySandbox` scratch env (command: `mysandbox`, seeded from
+  `packages/mysandbox-requirements.txt`). `autoenv_activate` (a `cd` hook)
+  activates a project `.venv` first, else the global `mySandbox`. `usepyenv`/`pyswitch` remain as
   legacy pyenv helpers.
 - **Dual identity** — gitconfig `includeIf` sets commit identity by directory (`~/Code/`
   personal, `~/Code/002-engenious/` work); the `gh_auto_switch` cd-hook switches the gh CLI

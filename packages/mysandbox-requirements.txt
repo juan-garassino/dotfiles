@@ -1,0 +1,136 @@
+# mysandbox-requirements.txt — the global pyenv `mySandbox` playground (Python 3.12).
+# A curated snapshot of Juan's real mySandbox env (captured 2026-06-21): Le Wagon DS base
+# + the LLM/agents/RAG stack + ML + finance + media/OCR/CAD + dev tools.
+# Local editable projects (agents-bench, framework, blocks-mvp, …) are intentionally excluded.
+# Seed a fresh env with:  mysandbox   (or: uv pip install --active -r packages/mysandbox-requirements.txt)
+# Pins are from the live env — unpin a line if resolution conflicts on a new machine.
+
+# ── Data science · notebooks ─────────────────────────────────────────────────
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+scikit-learn==1.7.2
+scikit-image==0.25.2
+matplotlib==3.10.7
+seaborn==0.13.2
+plotly==6.3.1
+kaleido==1.1.0
+openpyxl==3.1.5
+ydata-profiling==4.12.2
+jupyterlab==4.3.5
+notebook==7.3.2
+ipython==8.32.0
+ipywidgets==8.1.5
+ipympl==0.9.6
+jupyterlab-code-formatter==3.0.2
+jupyterlab-execute-time==3.2.0
+
+# ── Machine learning ─────────────────────────────────────────────────────────
+xgboost==2.1.4
+catboost==1.2.10
+shap==0.48.0
+mlflow==2.22.5
+onnx==1.21.0
+pmdarima==2.0.4
+skops==0.13.0
+imblearn==0.0
+hypothesis==6.148.8
+
+# ── Deep learning · NLP ──────────────────────────────────────────────────────
+torch==2.2.2
+transformers==4.57.1
+sentence-transformers==5.1.2
+keras-nlp==0.19.0
+tf-keras==2.16.0
+tensorflow-datasets==4.9.7
+sentencepiece==0.2.0
+tiktoken==0.11.0
+jiwer==3.0.4
+
+# ── LLM · agents · RAG ───────────────────────────────────────────────────────
+openai==2.24.0
+anthropic==0.40.0
+google-genai==1.65.0
+ollama==0.6.0
+llama-index==0.14.2
+llama-index-core==0.14.15
+llama-index-cli==0.5.1
+llama-cloud-services==0.6.54
+llama-index-llms-azure-openai==0.4.2
+llama-index-llms-gemini==0.6.1
+llama-index-llms-google-genai==0.5.0
+llama-index-llms-ollama==0.7.4
+llama-index-vector-stores-chroma==0.5.5
+langchain==1.2.10
+langchain-core==1.2.17
+langchain-anthropic==1.3.4
+langchain-openai==1.1.10
+langchain-google-genai==4.2.1
+langgraph==1.0.10
+langgraph-checkpoint-postgres==3.0.4
+openai-agents==0.8.0
+fastmcp==2.14.5
+graphrag==2.7.1
+tavily==1.1.0
+chromadb==1.4.1
+usearch==2.23.0
+
+# ── Web · API · infra ────────────────────────────────────────────────────────
+fastapi==0.116.1
+uvicorn==0.35.0
+pydantic==2.12.3
+SQLAlchemy==2.0.35
+psycopg-binary==3.3.3
+streamlit==1.46.1
+streamlit-option-menu==0.4.0
+flask-cors==6.0.2
+slack-sdk==3.42.0
+prefect==2.20.25
+opensearch-py==3.1.0
+structlog==25.5.0
+dependency-injector==4.48.3
+huey==2.6.0
+diskcache==5.6.3
+
+# ── Cloud · storage ──────────────────────────────────────────────────────────
+aioboto3==13.2.0
+s3fs==2026.3.0
+gcsfs==2026.5.0
+google-cloud-documentai==3.11.0
+moto==5.2.1
+
+# ── Finance · trading ────────────────────────────────────────────────────────
+alpaca-py==0.43.4
+ccxt==4.5.52
+yfinance==0.2.66
+
+# ── Media · OCR · docs · CAD · game ──────────────────────────────────────────
+pdfplumber==0.11.9
+pdf2image==1.17.0
+pytesseract==0.3.13
+PyPDF2==3.0.1
+pygame==2.6.1
+pyboy==2.7.0
+svgwrite==1.4.3
+PyAudio==0.2.14
+imageio-ffmpeg==0.6.0
+playwright==1.60.0
+textual==6.3.0
+
+# ── Dev tools ────────────────────────────────────────────────────────────────
+black==25.1.0
+ruff==0.14.10
+mypy==1.18.2
+flake8==7.3.0
+pylint==3.3.4
+pre-commit==4.3.0
+ipdb==0.13.13
+pytest==8.3.4
+pytest-cov==7.0.0
+pytest-mock==3.15.1
+
+# ── Misc utils ───────────────────────────────────────────────────────────────
+kaggle==1.7.4.5
+email-validator==2.3.0
+pathvalidate==3.3.1
+Unidecode==1.3.8

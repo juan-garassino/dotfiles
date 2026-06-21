@@ -243,14 +243,18 @@ fi
 # Clock — burgundy: the system cluster is the red zone
 clock_seg="🕐 ${F_BURG}$(date +%H:%M)${RESET}"
 
-# Free RAM (macOS: free + inactive pages × page size) — calm gray when
-# plenty, yellow under 4G, red BLOCK under 2G
-ram_gb=$(vm_stat | awk '
-    /page size/  { gsub(/[^0-9]/,"",$8); ps=$8 }
-    /Pages free/ { gsub(/\./,"",$3); f=$3 }
-    /Pages inactive/ { gsub(/\./,"",$3); i=$3 }
-    END { printf "%.1f", (f+i)*ps/1024/1024/1024 }
-')
+# Free RAM — calm gray when plenty, yellow under 4G, red BLOCK under 2G.
+# macOS: free+inactive pages × page size; Linux: MemAvailable from /proc/meminfo.
+if [ -r /proc/meminfo ]; then
+    ram_gb=$(awk '/^MemAvailable:/ { printf "%.1f", $2/1024/1024 }' /proc/meminfo)
+else
+    ram_gb=$(vm_stat 2>/dev/null | awk '
+        /page size/  { gsub(/[^0-9]/,"",$8); ps=$8 }
+        /Pages free/ { gsub(/\./,"",$3); f=$3 }
+        /Pages inactive/ { gsub(/\./,"",$3); i=$3 }
+        END { if (ps) printf "%.1f", (f+i)*ps/1024/1024/1024 }
+    ')
+fi
 if [ -n "$ram_gb" ]; then
     ram_level=$(echo "$ram_gb" | awk '{if ($1 < 2) print "err"; else if ($1 < 4) print "warn"; else print "ok"}')
     case "$ram_level" in

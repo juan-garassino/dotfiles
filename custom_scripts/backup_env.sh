@@ -21,7 +21,7 @@ say() { printf '\033[1m%s\033[0m\n' "$*"; }
 
 say "🍺 Refreshing Brewfile..."
 if command -v brew >/dev/null 2>&1; then
-  brew bundle dump --file="$REPO/Brewfile" --force >/dev/null 2>&1 && echo "  ✅ Brewfile updated"
+  brew bundle dump --file="$REPO/packages/Brewfile" --force >/dev/null 2>&1 && echo "  ✅ Brewfile updated"
 else
   echo "  ⚠️  brew not found — skipping"
 fi

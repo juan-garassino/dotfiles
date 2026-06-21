@@ -1,12 +1,20 @@
 #!/bin/zsh
 
 ###############################################################################
-# 🛠️  install.sh — Dotfiles installer
-# Run from inside ~/Code/001-config/001-dotfiles/
+# 🛠️  install.sh — Dotfiles installer (macOS + Linux)
+# Run from inside ~/Code/000-config/001-dotfiles/
 ###############################################################################
 
 set -e
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+OS="$(uname)"   # Darwin | Linux
+PM=""           # Linux package manager
+if [ "$OS" = "Linux" ]; then
+  if command -v apt-get >/dev/null 2>&1; then PM="apt"
+  elif command -v dnf >/dev/null 2>&1; then PM="dnf"
+  elif command -v yum >/dev/null 2>&1; then PM="yum"; fi
+fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
@@ -36,6 +44,69 @@ symlink() {
     echo "  ✅ Already linked: $link"
   fi
 }
+
+###############################################################################
+# 0. Platform packages — macOS: Homebrew · Linux: apt/dnf (adapted from Le Wagon)
+###############################################################################
+echo "🧰 Platform packages ($OS${PM:+/$PM})..."
+
+if [ "$OS" = "Darwin" ]; then
+  if ! xcode-select -p >/dev/null 2>&1; then
+    echo "  📦 Installing Command Line Tools (accept the GUI prompt)..."
+    xcode-select --install || true
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  🍺 Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    [ -f /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
+    [ -f /usr/local/bin/brew ]    && eval "$(/usr/local/bin/brew shellenv)"
+  fi
+
+elif [ "$OS" = "Linux" ]; then
+  pkglist() { grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$1" 2>/dev/null; }
+  if [ "$PM" = "apt" ]; then
+    echo "  📦 apt: core tools + pyenv build deps..."
+    sudo apt-get update -y
+    pkglist "$DOTFILES_DIR/packages/apt.txt" | xargs -r sudo apt-get install -y || echo "  ⚠️  some apt packages failed"
+    if ! command -v gh >/dev/null 2>&1; then
+      echo "  📦 GitHub CLI (apt repo)..."
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+      sudo apt-get update -y && sudo apt-get install -y gh
+    fi
+    if ! command -v code >/dev/null 2>&1; then
+      echo "  📦 VS Code (Microsoft apt repo)..."
+      wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/ms.gpg
+      sudo install -D -o root -g root -m 644 /tmp/ms.gpg /etc/apt/keyrings/packages.microsoft.gpg && rm -f /tmp/ms.gpg
+      echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
+      sudo apt-get update -y && sudo apt-get install -y code
+    fi
+  elif [ "$PM" = "dnf" ] || [ "$PM" = "yum" ]; then
+    echo "  📦 $PM: core tools + pyenv build deps..."
+    pkglist "$DOTFILES_DIR/packages/dnf.txt" | xargs -r sudo "$PM" install -y || echo "  ⚠️  some packages failed"
+    command -v gh >/dev/null 2>&1 || sudo "$PM" install -y gh || true
+    if ! command -v code >/dev/null 2>&1; then
+      echo "  📦 VS Code (Microsoft rpm repo)..."
+      sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc || true
+      printf '[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc\n' | sudo tee /etc/yum.repos.d/vscode.repo >/dev/null
+      sudo "$PM" install -y code || true
+    fi
+  else
+    echo "  ⚠️  No supported package manager (apt/dnf/yum) — install tools manually."
+  fi
+  # pyenv (git clone — no brew on Linux)
+  if [ ! -d "$HOME/.pyenv" ]; then
+    echo "  📦 pyenv + pyenv-virtualenv (git)..."
+    git clone --quiet https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
+    git clone --quiet https://github.com/pyenv/pyenv-virtualenv.git "$HOME/.pyenv/plugins/pyenv-virtualenv"
+  fi
+  # uv (official installer)
+  command -v uv >/dev/null 2>&1 || { echo "  📦 uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
+  # default shell → zsh
+  if command -v zsh >/dev/null 2>&1 && [ "$SHELL" != "$(command -v zsh)" ]; then
+    chsh -s "$(command -v zsh)" 2>/dev/null && echo "  🐚 default shell → zsh (re-login to apply)" || true
+  fi
+fi
 
 ###############################################################################
 # 1. Symlink dotfiles
@@ -80,6 +151,14 @@ if [[ "$(uname)" == "Darwin" ]]; then
       echo "  ✅ Work SSH key added to keychain" || \
       echo "  ℹ️  Work key already in keychain or not found"
   fi
+else
+  # Linux — symlink config + add keys to the ssh-agent (no macOS keychain)
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  backup ~/.ssh/config
+  symlink "$DOTFILES_DIR/ssh/config" ~/.ssh/config
+  eval "$(ssh-agent -s)" >/dev/null 2>&1 || true
+  [ -f ~/.ssh/id_ed25519_personal ] && ssh-add ~/.ssh/id_ed25519_personal 2>/dev/null || true
+  [ -f ~/.ssh/id_ed25519_work ]     && ssh-add ~/.ssh/id_ed25519_work 2>/dev/null || true
 fi
 
 ###############################################################################
@@ -133,25 +212,29 @@ fi
 echo ""
 echo "🍺 Checking Homebrew essentials..."
 
-BREW_PACKAGES=(gh direnv uv pyenv)
-for pkg in "${BREW_PACKAGES[@]}"; do
-  if ! command -v "$pkg" &>/dev/null; then
-    echo "  📦 Installing $pkg..."
-    brew install "$pkg"
-  else
-    echo "  ✅ $pkg already installed"
-  fi
-done
+if [ "$OS" = "Darwin" ]; then
+  BREW_PACKAGES=(gh direnv uv pyenv)
+  for pkg in "${BREW_PACKAGES[@]}"; do
+    if ! command -v "$pkg" &>/dev/null; then
+      echo "  📦 Installing $pkg..."
+      brew install "$pkg"
+    else
+      echo "  ✅ $pkg already installed"
+    fi
+  done
+else
+  echo "  ⏭️  Linux — gh/direnv/uv/pyenv handled in step 0 (apt/dnf + git + curl)"
+fi
 
 ###############################################################################
 # 6. Homebrew bundle — full toolchain (pyenv, uv, docker, minikube, postgres, fonts…)
 ###############################################################################
 echo ""
 echo "🍺 Restoring full Homebrew bundle..."
-if command -v brew &>/dev/null && [ -f "$DOTFILES_DIR/Brewfile" ]; then
-  brew bundle --file="$DOTFILES_DIR/Brewfile" || echo "  ⚠️  Some bundle entries failed — review output above"
+if [ "$OS" = "Darwin" ] && command -v brew &>/dev/null && [ -f "$DOTFILES_DIR/packages/Brewfile" ]; then
+  brew bundle --file="$DOTFILES_DIR/packages/Brewfile" || echo "  ⚠️  Some bundle entries failed — review output above"
 else
-  echo "  ⚠️  brew or Brewfile missing — skipping bundle"
+  echo "  ⏭️  Not macOS / no brew — skipping Brewfile (Linux uses packages/apt.txt|dnf.txt)"
 fi
 
 ###############################################################################

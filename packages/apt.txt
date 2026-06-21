@@ -1,0 +1,40 @@
+# Debian/Ubuntu packages — installed by install.sh on Linux (apt).
+# Adapted from Le Wagon data-setup LINUX.md. One package per line; # comments ignored.
+# NOTE: gh and VS Code are installed from their official apt repos in install.sh.
+#       docker / minikube / kubectl need their own installers (see SETUP.md).
+
+# Core tools
+curl
+git
+zsh
+jq
+tree
+ncdu
+unzip
+vim
+wget
+imagemagick
+direnv
+
+# Postgres
+postgresql
+postgresql-contrib
+
+# pyenv build dependencies (to compile Python for the `sandbox` env)
+make
+build-essential
+libssl-dev
+zlib1g-dev
+libbz2-dev
+libreadline-dev
+sqlite3
+libsqlite3-dev
+llvm
+libncursesw5-dev
+xz-utils
+tk-dev
+libxml2-dev
+libxmlsec1-dev
+libffi-dev
+liblzma-dev
+python3-dev

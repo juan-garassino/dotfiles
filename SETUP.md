@@ -1,8 +1,13 @@
 # SETUP.md — Environment Replication Runbook
 
-How to reproduce Juan's full macOS dev environment on a new machine, and how it works.
+How to reproduce Juan's full **macOS or Linux** dev environment on a new machine, and how it works.
 This repo is **public-safe by design**: every config is clean, and all secrets live in
 `~/.secrets` (chmod 600, outside any repo) — copied manually, never committed.
+
+> **Platforms.** `install.sh` is OS-aware: macOS uses Homebrew (`packages/Brewfile`); Linux uses
+> apt/dnf (`packages/apt.txt` / `packages/dnf.txt`) + the gh & VS Code repos + a git-cloned pyenv + uv.
+> The Linux steps are adapted from the [Le Wagon data-setup](https://github.com/lewagon/data-setup) guides.
+> The global Python playground is the **`mySandbox`** pyenv env, seeded from `packages/mysandbox-requirements.txt`.
 
 ---
 

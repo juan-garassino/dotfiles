@@ -1,6 +1,6 @@
-# 🛠️ Juan's Dotfiles — macOS Environment Kit
+# 🛠️ Juan's Dotfiles — macOS + Linux Environment Kit
 
-A complete, reproducible macOS dev environment: shell, prompt, editor, dual git identity,
+A complete, reproducible **macOS & Linux** dev environment: shell, prompt, editor, dual git identity,
 Python tooling, and Claude Code config. Everything is organized into subdirs and symlinked
 into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys stay in
 `~/.secrets` (chmod 600), outside any repo.
@@ -25,7 +25,7 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 ├── claude/     statusline · settings · skills/ · agents/ · mcp-servers.md
 ├── custom_scripts/  code_manager · repo_scan · backup_env · ai_git_commit · …
 ├── legacy/     retired configs (kept for reference)
-├── Brewfile          full toolchain (brew bundle)
+├── packages/   Brewfile (macOS) · apt.txt / dnf.txt (Linux) · mysandbox-requirements.txt
 ├── .secrets.sample   expected API-key names (no values)
 ├── install.sh        idempotent installer
 ├── SETUP.md          detailed how-it-works runbook
@@ -36,8 +36,11 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 
 ## Quick start (human)
 
+> macOS shown below; on **Linux** the same `./install.sh` installs via **apt/dnf** (not Homebrew),
+> adds the gh + VS Code repos, git-clones pyenv, and installs uv. See `SETUP.md` for Linux details.
+
 ```bash
-# 1. Homebrew
+# 1. Homebrew (macOS)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2. Clone to the canonical path
@@ -54,8 +57,8 @@ cd ~/Code/000-config/001-dotfiles
 #    - gh auth login   (personal: juan-garassino, then work: j-garassino-engenious)
 #    - drop GCP JSONs into ~/Code/000-config/002-gcp-credentials/
 
-# 5. Python sandbox + reload
-pyenv install 3.12 && sandbox
+# 5. Python sandbox + reload  (mysandbox seeds from packages/mysandbox-requirements.txt)
+pyenv install 3.12 && mysandbox
 exec zsh
 ```
 
@@ -65,21 +68,22 @@ exec zsh
 
 ## Daily workflows
 
-### Python — uv-first, pyenv sandbox
+### Python — uv-first, pyenv mySandbox
 
-uv is primary (versions + venvs + packages); pyenv keeps one global **sandbox** scratch env.
+uv is primary (versions + venvs + packages); pyenv keeps one global **`mySandbox`** scratch env
+(the GenAI/ML/finance playground), seeded from `packages/mysandbox-requirements.txt`.
 
 | Command | Does |
 |---|---|
 | `usevenv [3.12] [.venv]` | create/activate a **uv** venv (uv manages the Python version) |
-| `sandbox` | activate the global pyenv scratch env (created on first use) |
+| `mysandbox` | activate the global pyenv `mySandbox` env (created + seeded from requirements on first use) |
 | `usepyenv <name>` | activate a named pyenv virtualenv (legacy) |
 | `pyswitch` | interactive pyenv version selector (legacy) |
 | `freezeenv` / `syncenv` | save / restore deps via requirements.txt (uv) |
 | `pkgupdate <pkgs>` | upgrade packages + update requirements (uv) |
 | `lsenvs` · `venvclean` · `dev-reset` · `envcheck` | inspect / clean / reset / check envs |
 
-`cd` into a project auto-activates its `.venv`; leave it and you fall back to the sandbox.
+`cd` into a project auto-activates its `.venv`; leave it and you fall back to `mySandbox`.
 
 ### Identity — work ↔ personal
 

@@ -18,4 +18,7 @@ if [[ -f "/opt/homebrew/bin/brew" ]]; then
 # Homebrew (Intel)
 elif [[ -f "/usr/local/bin/brew" ]]; then
   eval "$(/usr/local/bin/brew shellenv)"
+# Homebrew on Linux (only if present — Linux primarily uses apt/dnf)
+elif [[ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi

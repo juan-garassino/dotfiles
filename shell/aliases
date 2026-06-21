@@ -2,9 +2,13 @@
 # 🌐 Network
 ###############################################################################
 alias myip="curl -s https://ipinfo.io/json | python3 -m json.tool"
-alias localip="ipconfig getifaddr en0"
+localip() { if [[ "$(uname)" == "Darwin" ]]; then ipconfig getifaddr en0; else hostname -I | awk '{print $1}'; fi; }
 alias speedtest="curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -"
-alias flushdns="sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder && echo '✅ DNS flushed'"
+flushdns() {
+  if [[ "$(uname)" == "Darwin" ]]; then sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
+  else sudo resolvectl flush-caches 2>/dev/null || sudo systemd-resolve --flush-caches 2>/dev/null; fi
+  echo '✅ DNS flushed'
+}
 
 ###############################################################################
 # 🖥️  Editors

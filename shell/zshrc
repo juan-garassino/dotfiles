@@ -226,21 +226,30 @@ usepyenv() {
   echo "⚠️  uv requires --active with pyenv venvs"
 }
 
-# sandbox → activate the global pyenv 'sandbox' scratch env. With uv-first, this is
-# pyenv's main day-to-day role: one persistent global playground (REPL, quick tests).
-# Created on first use from the latest installed 3.12.x.
-sandbox() {
-  if ! pyenv virtualenvs --bare 2>/dev/null | grep -qx "sandbox"; then
+# mysandbox → activate the global pyenv 'mySandbox' playground env. With uv-first, this is
+# pyenv's main day-to-day role: one persistent global scratch env (REPL, quick GenAI/DS tests).
+# Created on first use from the latest installed 3.12.x, seeded from
+# packages/mysandbox-requirements.txt (Le Wagon base + LlamaIndex/LangGraph + ML/finance extras).
+mysandbox() {
+  local req="$HOME/Code/000-config/001-dotfiles/packages/mysandbox-requirements.txt"
+  if ! pyenv virtualenvs --bare 2>/dev/null | grep -qx "mySandbox"; then
     local base
     base=$(pyenv versions --bare 2>/dev/null | grep -E '^3\.12\.' | tail -1)
     base=${base:-$(pyenv versions --bare 2>/dev/null | grep -vE '/' | tail -1)}
     if [ -z "$base" ]; then echo "⚠️  No pyenv Python found — run: pyenv install 3.12"; return 1; fi
-    echo "ℹ️  Creating global 'sandbox' env on Python $base..."
-    pyenv virtualenv "$base" sandbox || return 1
+    echo "ℹ️  Creating global 'mySandbox' env on Python $base..."
+    pyenv virtualenv "$base" mySandbox || return 1
+    pyenv activate mySandbox
+    if [ -f "$req" ]; then
+      echo "📦 Seeding mySandbox (uv pip install --active)..."
+      uv pip install --active -r "$req" || pip install -r "$req"
+    fi
+    [[ -o interactive ]] && echo "▶ mySandbox ready (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
+    return 0
   fi
   deactivate 2>/dev/null || true
-  pyenv activate sandbox
-  [[ -o interactive ]] && echo "▶ sandbox env active (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
+  pyenv activate mySandbox
+  [[ -o interactive ]] && echo "▶ mySandbox active (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
 }
 
 # lsenvs → list all pyenv versions and local .venv dirs
@@ -497,13 +506,13 @@ autoenv_activate() {
     [[ -o interactive ]] && echo "⚠️  .python-version contains invalid entry: '$ver' — using global pyenv"
   fi
 
-  # uv-first: no project env here → drop to the global pyenv 'sandbox' playground
-  if pyenv virtualenvs --bare 2>/dev/null | grep -qx "sandbox"; then
-    if [ "${VIRTUAL_ENV:t}" != "sandbox" ]; then
+  # uv-first: no project env here → drop to the global pyenv 'mySandbox' playground
+  if pyenv virtualenvs --bare 2>/dev/null | grep -qx "mySandbox"; then
+    if [ "${VIRTUAL_ENV:t}" != "mySandbox" ]; then
       deactivate 2>/dev/null || true
       pyenv deactivate 2>/dev/null || true
-      pyenv activate sandbox 2>/dev/null || true
-      [[ -o interactive ]] && echo "▶ No project env — using global sandbox (🐍 $(python --version 2>/dev/null))"
+      pyenv activate mySandbox 2>/dev/null || true
+      [[ -o interactive ]] && echo "▶ No project env — using global mySandbox (🐍 $(python --version 2>/dev/null))"
     fi
   else
     deactivate 2>/dev/null || true

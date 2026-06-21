@@ -1,0 +1,40 @@
+# Fedora/RHEL packages — installed by install.sh on Linux (dnf/yum).
+# Equivalents of packages/apt.txt. One package per line; # comments ignored.
+# NOTE: gh and VS Code are installed from their official rpm repos in install.sh.
+#       docker / minikube / kubectl need their own installers (see SETUP.md).
+
+# Core tools
+curl
+git
+zsh
+jq
+tree
+ncdu
+unzip
+vim
+wget
+ImageMagick
+direnv
+
+# Postgres
+postgresql
+postgresql-server
+
+# pyenv build dependencies (to compile Python for the `sandbox` env)
+make
+gcc
+patch
+zlib-devel
+bzip2
+bzip2-devel
+readline-devel
+sqlite
+sqlite-devel
+openssl-devel
+tk-devel
+libffi-devel
+xz-devel
+libxml2-devel
+xmlsec1-devel
+ncurses-devel
+python3-devel
