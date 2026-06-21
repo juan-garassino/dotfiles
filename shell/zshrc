@@ -1,0 +1,849 @@
+#######################################################################
+# 🖥️  Aliases
+#######################################################################
+alias pth='/Applications/Cursor.app/Contents/MacOS/Cursor'
+
+#######################################################################
+# ⚡ Powerlevel10k Instant Prompt
+#######################################################################
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+#######################################################################
+# ⚙️  Oh-My-Zsh Configuration
+#######################################################################
+ZSH=$HOME/.oh-my-zsh
+plugins=(git gitfast last-working-dir common-aliases zsh-syntax-highlighting history-substring-search pyenv direnv)
+eval "$(direnv hook zsh)"
+export HOMEBREW_NO_ANALYTICS=1
+ZSH_DISABLE_COMPFIX=true
+source "${ZSH}/oh-my-zsh.sh"
+unalias rm
+
+#######################################################################
+# 📂 Path and Environment Settings
+#######################################################################
+# Relative dirs APPENDED, not prepended: a cloned repo's ./bin/git must never
+# shadow the real git (classic PATH-hijack vector).
+export PATH="${PATH}:./bin:./node_modules/.bin:/usr/local/sbin"
+export PATH="$PATH:/Users/juan-garassino/.local/bin"
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export BUNDLER_EDITOR=code
+
+#######################################################################
+# 🐍 / 💎 / 🟢 Version Managers
+#######################################################################
+
+# pyenv (Python) — lazy-loaded. `eval "$(pyenv init -)"` and `eval "$(pyenv
+# virtualenv-init -)"` together are ~200-400ms at every shell start; deferred
+# until the user invokes pyenv/python/python3/pip/pip3. The `autoenv_activate`
+# cd-hook below calls `python` and `pyenv` directly, so the first `cd` after
+# shell open triggers the load — identical end behavior, just shifted.
+export PYENV_VIRTUALENV_DISABLE_PROMPT=1
+if type -a pyenv > /dev/null 2>&1; then
+  _pyenv_lazy_load() {
+    unset -f pyenv python python3 _pyenv_lazy_load 2>/dev/null
+    eval "$(command pyenv init -)"
+    eval "$(command pyenv virtualenv-init -)"
+  }
+  # Skip `pip` / `pip3` here — they're aliased by oh-my-zsh's common-aliases plugin,
+  # so trying to define them as functions throws "defining function based on alias".
+  # Defensive: Claude Code's shell snapshot drops `_`-prefixed helpers — guard so a
+  # dropped helper falls through to the real binary instead of recursing forever.
+  for _cmd in pyenv python python3; do
+    eval "${_cmd}() { if typeset -f _pyenv_lazy_load >/dev/null 2>&1; then _pyenv_lazy_load; ${_cmd} \"\$@\"; else command ${_cmd} \"\$@\"; fi }"
+  done
+  unset _cmd
+fi
+
+# nvm (Node.js) — lazy-loaded. Sourcing nvm.sh is typically the single biggest
+# chunk of shell-startup cost (~150-300ms). The whole chain — nvm.sh,
+# bash_completion, the load-nvmrc auto-hook, and the initial nvmrc check — is
+# deferred until the user invokes nvm/node/npm/npx/yarn/pnpm/corepack.
+export NVM_DIR="$HOME/.nvm"
+_nvm_lazy_load() {
+  unset -f nvm node npm npx yarn pnpm corepack _nvm_lazy_load
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+  autoload -U add-zsh-hook
+  load-nvmrc() {
+    if nvm -v &> /dev/null; then
+      local node_version="$(nvm version)"
+      local nvmrc_path="$(nvm_find_nvmrc)"
+      if [ -n "$nvmrc_path" ]; then
+        local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
+        if [ "$nvmrc_node_version" = "N/A" ]; then
+          nvm install
+        elif [ "$nvmrc_node_version" != "$node_version" ]; then
+          nvm use --silent
+        fi
+      elif [ "$node_version" != "$(nvm version default)" ]; then
+        nvm use default --silent
+      fi
+    fi
+  }
+  add-zsh-hook chpwd load-nvmrc
+  load-nvmrc
+}
+# Defensive: Claude Code's shell snapshot drops `_`-prefixed helpers — guard so a
+# dropped helper falls through to the real binary instead of recursing forever.
+for _cmd in nvm node npm npx yarn pnpm corepack; do
+  eval "${_cmd}() { if typeset -f _nvm_lazy_load >/dev/null 2>&1; then _nvm_lazy_load; ${_cmd} \"\$@\"; else command ${_cmd} \"\$@\"; fi }"
+done
+unset _cmd
+
+#######################################################################
+# 🎨 Powerlevel10k Theme
+#######################################################################
+USE_P10K=true  # 👉 set to false to disable P10K
+
+if [ "$USE_P10K" = true ]; then
+  RPROMPT+='[🐍 $(pyenv_prompt_info)]'
+  [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+  source ~/.powerlevel10k/powerlevel10k.zsh-theme
+else
+  powerlevel10k_plugin_unload 2>/dev/null || true
+  unset RPROMPT
+  echo "⚠️  Powerlevel10k disabled (USE_P10K=false)"
+fi
+
+#######################################################################
+# 📝 Custom Aliases
+#######################################################################
+[[ -f "$HOME/.aliases" ]] && source "$HOME/.aliases"
+
+#######################################################################
+# ☁️  Google Cloud SDK
+#######################################################################
+# NOTE: the cask was renamed google-cloud-sdk → gcloud-cli.
+if [ -f '/usr/local/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc' ]; then
+  . '/usr/local/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc'
+fi
+if [ -f '/usr/local/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc' ]; then
+  . '/usr/local/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc'
+fi
+# Without this, gcloud's launcher picks Homebrew's python3.11, whose
+# site-packages protobuf 7.x breaks gcloud's bundled proto libs.
+export CLOUDSDK_PYTHON=/usr/local/opt/python@3.12/bin/python3.12
+
+# 🔑 GCP credentials — loaded per context (personal/work), not hardcoded
+# Use `workon` or `personal` to activate the right credentials
+# export GOOGLE_APPLICATION_CREDENTIALS=...  ← moved to context switchers below
+
+#######################################################################
+# ☸️  Kubectl & Minikube Completion
+#######################################################################
+# kubectl/minikube completion — registered lazily via compdef stubs. Original
+# `source <(kubectl completion zsh)` ran kubectl on every shell start (~50ms
+# each); a naive cache-to-disk variant was slower because minikube emits a
+# bash-compat shim. Instead, register a stub completer that loads the real
+# completion only when the user first TAB-completes kubectl/minikube.
+if [[ $commands[kubectl] ]]; then
+  _kubectl_completion_lazy() {
+    unfunction _kubectl_completion_lazy
+    source <(command kubectl completion zsh)
+  }
+  compdef _kubectl_completion_lazy kubectl
+fi
+if [[ $commands[minikube] ]]; then
+  _minikube_completion_lazy() {
+    unfunction _minikube_completion_lazy
+    source <(command minikube completion zsh)
+  }
+  compdef _minikube_completion_lazy minikube
+fi
+
+#######################################################################
+# 🎛️  Kiro Integration
+#######################################################################
+[[ "$TERM_PROGRAM" == "kiro" ]] && . "$(kiro --locate-shell-integration-path zsh)"
+
+#######################################################################
+# 🛠️  Shell Config Helpers
+#######################################################################
+
+# editrc → open ~/.zshrc in editor
+editrc() {
+  ${EDITOR:-nano} ~/.zshrc
+}
+
+# reloadrc → reload ~/.zshrc
+reloadrc() {
+  source ~/.zshrc
+  echo "🔄 Reloaded ~/.zshrc"
+}
+
+#######################################################################
+# 🐍 Python / venv Helpers
+#######################################################################
+
+# usevenv → create or activate a uv venv with a specific pyenv Python
+# Usage: usevenv [python_version] [venv_name] [reset]
+# Examples:
+#   usevenv              → uses 3.10.6, creates .venv
+#   usevenv 3.11.4       → uses 3.11.4, creates .venv
+#   usevenv 3.10.6 .venv reset  → destroys and recreates .venv
+usevenv() {
+  local version=${1:-3.10.6}
+  local venv_name=${2:-.venv}
+  local reset=${3:-false}
+
+  deactivate 2>/dev/null || true
+
+  if [ "$reset" = "reset" ]; then
+    echo "⚠️  Resetting $venv_name..."
+    rm -rf "$venv_name"
+    uv venv "$venv_name" --python "$version"
+  elif [ ! -d "$venv_name" ]; then
+    echo "ℹ️  Creating $venv_name with Python $version (uv-managed)..."
+    uv venv "$venv_name" --python "$version"
+  fi
+
+  source "$venv_name/bin/activate"
+  echo "$version" > .python-version
+
+  echo "▶ Using uv venv '$venv_name' (🐍 $(python --version | awk '{print $2}'))"
+  echo "VIRTUAL_ENV=$VIRTUAL_ENV"
+}
+
+# usepyenv → activate a named pyenv virtualenv
+# Usage: usepyenv <env_name>
+usepyenv() {
+  local envname=$1
+  if [ -z "$envname" ]; then
+    echo "⚠️  Usage: usepyenv <env_name>"
+    return 1
+  fi
+
+  deactivate 2>/dev/null || true
+  pyenv activate "$envname"
+  echo "$envname" > .python-version
+
+  echo "▶ Using pyenv venv '$envname' (🐍 $(python --version | awk '{print $2}'))"
+  echo "VIRTUAL_ENV=$VIRTUAL_ENV"
+  echo "⚠️  uv requires --active with pyenv venvs"
+}
+
+# sandbox → activate the global pyenv 'sandbox' scratch env. With uv-first, this is
+# pyenv's main day-to-day role: one persistent global playground (REPL, quick tests).
+# Created on first use from the latest installed 3.12.x.
+sandbox() {
+  if ! pyenv virtualenvs --bare 2>/dev/null | grep -qx "sandbox"; then
+    local base
+    base=$(pyenv versions --bare 2>/dev/null | grep -E '^3\.12\.' | tail -1)
+    base=${base:-$(pyenv versions --bare 2>/dev/null | grep -vE '/' | tail -1)}
+    if [ -z "$base" ]; then echo "⚠️  No pyenv Python found — run: pyenv install 3.12"; return 1; fi
+    echo "ℹ️  Creating global 'sandbox' env on Python $base..."
+    pyenv virtualenv "$base" sandbox || return 1
+  fi
+  deactivate 2>/dev/null || true
+  pyenv activate sandbox
+  [[ -o interactive ]] && echo "▶ sandbox env active (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
+}
+
+# lsenvs → list all pyenv versions and local .venv dirs
+lsenvs() {
+  echo "📦 Pyenv versions and virtualenvs:"
+  pyenv versions --bare | sed 's/^/  - /'
+
+  echo ""
+  echo "📂 Project-local venvs:"
+  for v in .venv*; do
+    if [ -d "$v" ]; then
+      local pyver=$(grep -E 'version' "$v/pyvenv.cfg" 2>/dev/null | sed 's/ *version *= *//')
+      echo "  - $v ($pyver)"
+    fi
+  done
+
+  echo ""
+  echo "⭐ Currently active:"
+  echo "  - VIRTUAL_ENV=${VIRTUAL_ENV:-<none>}"
+  python --version 2>/dev/null || echo "  - Python: <none>"
+}
+
+# venvinfo → show details about the active environment
+venvinfo() {
+  echo "⭐ Environment Info:"
+  echo "  - VIRTUAL_ENV=${VIRTUAL_ENV:-<none>}"
+  python --version 2>/dev/null || echo "  - Python: <none>"
+  if [ -n "$VIRTUAL_ENV" ]; then
+    echo "  - Site-packages: $(python -c 'import site; print(site.getsitepackages()[0])' 2>/dev/null)"
+    echo "  - Packages: $(pip list --disable-pip-version-check 2>/dev/null | wc -l | xargs)"
+  fi
+}
+
+# freezeenv → save current deps to requirements.txt
+freezeenv() {
+  if [ -z "$VIRTUAL_ENV" ]; then
+    echo "⚠️  No active venv to freeze."
+    return 1
+  fi
+  uv pip freeze > requirements.txt
+  echo "📄 Saved requirements.txt from current environment."
+}
+
+# syncenv → sync environment with requirements.txt
+syncenv() {
+  if [ ! -f requirements.txt ]; then
+    echo "⚠️  No requirements.txt found."
+    return 1
+  fi
+  uv pip sync requirements.txt
+  echo "🔄 Synced environment with requirements.txt."
+}
+
+# envcheck → compare .env vs .env.example and show missing vars
+# Usage: envcheck
+envcheck() {
+  if [ ! -f ".env.example" ]; then
+    echo "⚠️  No .env.example found in current directory."
+    return 1
+  fi
+  if [ ! -f ".env" ]; then
+    echo "⚠️  No .env found — you may need to create one from .env.example"
+    return 1
+  fi
+
+  local missing=()
+  while IFS= read -r line; do
+    # skip comments and empty lines
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+    local key="${line%%=*}"
+    if ! grep -q "^${key}=" .env 2>/dev/null; then
+      missing+=("$key")
+    fi
+  done < .env.example
+
+  if [ ${#missing[@]} -eq 0 ]; then
+    echo "✅ .env is complete — all keys from .env.example are present."
+  else
+    echo "❌ Missing keys in .env:"
+    for k in "${missing[@]}"; do
+      echo "  - $k"
+    done
+  fi
+}
+
+# pyswitch → interactively select and switch Python version
+# Usage: pyswitch
+pyswitch() {
+  local versions
+  versions=$(pyenv versions --bare)
+
+  if [ -z "$versions" ]; then
+    echo "⚠️  No pyenv versions installed."
+    return 1
+  fi
+
+  echo "🐍 Available Python versions:"
+  local i=1
+  local -a version_array
+  while IFS= read -r ver; do
+    echo "  $i) $ver"
+    version_array+=("$ver")
+    i=$((i + 1))
+  done <<< "$versions"
+
+  echo -n "Select version (or press Enter to cancel): "
+  read -r choice
+
+  if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#version_array[@]} ]; then
+    echo "↩️  Cancelled."
+    return 1
+  fi
+
+  # zsh arrays are 1-indexed — $choice maps directly, no off-by-one
+  local selected="${version_array[$choice]}"
+  deactivate 2>/dev/null || true
+  pyenv shell "$selected"
+  echo "✅ Switched to Python $selected (🐍 $(python --version 2>/dev/null))"
+}
+
+# pkgupdate → upgrade specific packages and update requirements.txt
+# Usage: pkgupdate numpy pandas
+pkgupdate() {
+  if [ $# -eq 0 ]; then
+    echo "⚠️  Usage: pkgupdate <package_names...>"
+    echo "  Example: pkgupdate numpy pandas requests"
+    return 1
+  fi
+
+  if [ -z "$VIRTUAL_ENV" ]; then
+    echo "⚠️  No active venv. Activate one first."
+    return 1
+  fi
+
+  echo "📦 Upgrading packages: $@"
+  uv pip install --upgrade "$@" || return 1
+
+  echo "💾 Updating requirements.txt..."
+  uv pip freeze > requirements.txt
+  echo "✅ Updated requirements.txt"
+}
+
+# venvclean → interactively remove unused .venv folders
+# Usage: venvclean
+venvclean() {
+  local venvs=()
+  local sizes=()
+
+  for v in .venv*; do
+    if [ -d "$v" ]; then
+      local size
+      size=$(du -sh "$v" 2>/dev/null | awk '{print $1}')
+      venvs+=("$v")
+      sizes+=("$size")
+    fi
+  done
+
+  if [ ${#venvs[@]} -eq 0 ]; then
+    echo "✅ No local venvs to clean."
+    return 0
+  fi
+
+  echo "🧹 Local venvs found:"
+  # zsh-native iteration (the old ${!venvs[@]} / read -a were bash-only)
+  local i
+  for ((i = 1; i <= ${#venvs[@]}; i++)); do
+    echo "  $i) ${venvs[$i]} (${sizes[$i]})"
+  done
+
+  echo -n "Enter numbers to delete (space-separated, or Enter to skip): "
+  local -a choices
+  read -rA choices
+
+  if [ ${#choices[@]} -eq 0 ]; then
+    echo "↩️  Cancelled."
+    return 0
+  fi
+
+  local choice
+  for choice in "${choices[@]}"; do
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#venvs[@]} ]; then
+      local target="${venvs[$choice]}"
+      echo "🗑️  Removing $target..."
+      rm -rf "$target"
+    fi
+  done
+  echo "✅ Cleanup done."
+}
+
+# dev-reset → completely reset environment (for debugging)
+# Usage: dev-reset
+dev-reset() {
+  echo "⚠️  This will deactivate all venvs and reset pyenv..."
+  echo -n "Are you sure? [y/N] "
+  read -r confirm
+
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "↩️  Cancelled."
+    return 0
+  fi
+
+  deactivate 2>/dev/null || true
+  pyenv deactivate 2>/dev/null || true
+
+  if [ -f ".python-version" ]; then
+    rm .python-version
+    echo "  ✓ Removed .python-version"
+  fi
+
+  if [ -d ".venv" ]; then
+    rm -rf .venv
+    echo "  ✓ Removed .venv"
+  fi
+
+  echo "🔄 Environment reset. Next cd will auto-detect."
+}
+
+
+#######################################################################
+# 🤖 autoenv → auto-activate .venv or pyenv on cd
+#######################################################################
+autoenv_activate() {
+  if [ -f ".venv/bin/activate" ]; then
+    if [ "$VIRTUAL_ENV" != "$(pwd)/.venv" ]; then
+      deactivate 2>/dev/null || true
+      pyenv deactivate 2>/dev/null || true
+      source .venv/bin/activate
+      # echoes only in interactive shells — keeps Claude Code / script output clean
+      [[ -o interactive ]] && echo "▶ Activated .venv with uv (🐍 $(python --version 2>/dev/null))"
+    fi
+    return
+  fi
+
+  if [ -f ".python-version" ]; then
+    local ver
+    ver=$(cat .python-version)
+
+    if pyenv versions --bare | grep -qx "$ver"; then
+      if [ "$VIRTUAL_ENV" != "$(pyenv prefix "$ver")" ]; then
+        deactivate 2>/dev/null || true
+        pyenv activate "$ver"
+        [[ -o interactive ]] && echo "▶ Activated pyenv virtualenv: $ver (🐍 $(python --version 2>/dev/null))"
+      fi
+      return
+    fi
+
+    if [[ "$ver" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+      deactivate 2>/dev/null || true
+      pyenv shell "$ver"
+      [[ -o interactive ]] && echo "▶ Using pyenv Python $ver (no venv) (🐍 $(python --version 2>/dev/null))"
+      return
+    fi
+
+    [[ -o interactive ]] && echo "⚠️  .python-version contains invalid entry: '$ver' — using global pyenv"
+  fi
+
+  # uv-first: no project env here → drop to the global pyenv 'sandbox' playground
+  if pyenv virtualenvs --bare 2>/dev/null | grep -qx "sandbox"; then
+    if [ "${VIRTUAL_ENV:t}" != "sandbox" ]; then
+      deactivate 2>/dev/null || true
+      pyenv deactivate 2>/dev/null || true
+      pyenv activate sandbox 2>/dev/null || true
+      [[ -o interactive ]] && echo "▶ No project env — using global sandbox (🐍 $(python --version 2>/dev/null))"
+    fi
+  else
+    deactivate 2>/dev/null || true
+    pyenv deactivate 2>/dev/null || true
+    [[ -o interactive ]] && echo "▶ No project env — using global pyenv (🐍 $(python --version 2>/dev/null))"
+  fi
+  return 0
+}
+
+#######################################################################
+# 🐙 gh auto-switch → work account inside 002-engenious, personal elsewhere
+#######################################################################
+# Reads the active account from hosts.yml (fast file read); only execs
+# `gh auth switch` (~200ms) when actually crossing the context boundary.
+# Git COMMIT identity is separate (gitconfig includeIf) — this switches
+# only the gh CLI (API/PR) account.
+# NOTE: no leading underscore on purpose — Claude Code's shell snapshot
+# drops `_`-prefixed functions, and cd() below calls this.
+gh_auto_switch() {
+  (( $+commands[gh] )) || return 0
+  local want have
+  case "$PWD" in
+    "$HOME/Code/002-engenious"*) want="j-garassino-engenious" ;;
+    *)                           want="juan-garassino" ;;
+  esac
+  have=$(awk '$1 == "user:" {print $2; exit}' ~/.config/gh/hosts.yml 2>/dev/null)
+  if [ -n "$have" ] && [ "$have" != "$want" ]; then
+    if gh auth switch --user "$want" >/dev/null 2>&1; then
+      [[ -o interactive ]] && echo "🐙 gh → $want"
+    fi
+  fi
+  return 0
+}
+
+cd() {
+  builtin cd "$@" || return
+  autoenv_activate
+  (( ${+functions[gh_auto_switch]} )) && gh_auto_switch
+}
+
+#######################################################################
+# 🔧 General Dev Helpers
+#######################################################################
+
+# killport → kill whatever is running on a port
+# Usage: killport 8080
+killport() {
+  if [ -z "$1" ]; then
+    echo "⚠️  Usage: killport <port>"
+    return 1
+  fi
+  local pid
+  pid=$(lsof -ti tcp:$1)
+  if [ -n "$pid" ]; then
+    kill -9 $pid && echo "💀 Killed process $pid on port $1"
+  else
+    echo "ℹ️  No process found on port $1"
+  fi
+}
+
+# portwatch → poll a port until a service responds (useful for docker/APIs)
+# Usage: portwatch 8080
+# Usage: portwatch 8080 30   (timeout after 30s)
+portwatch() {
+  local port=$1
+  local timeout=${2:-60}
+  local elapsed=0
+
+  if [ -z "$port" ]; then
+    echo "⚠️  Usage: portwatch <port> [timeout_seconds]"
+    return 1
+  fi
+
+  echo "👀 Watching port $port (timeout: ${timeout}s)..."
+  while ! nc -z localhost "$port" 2>/dev/null; do
+    sleep 1
+    elapsed=$((elapsed + 1))
+    if [ "$elapsed" -ge "$timeout" ]; then
+      echo "⏱️  Timeout after ${timeout}s — nothing on port $port"
+      return 1
+    fi
+  done
+  echo "✅ Port $port is up! (${elapsed}s)"
+}
+
+# mkcd → make a directory and cd into it
+# Usage: mkcd my-new-project
+mkcd() {
+  if [ -z "$1" ]; then
+    echo "⚠️  Usage: mkcd <directory>"
+    return 1
+  fi
+  mkdir -p "$1" && cd "$1" || return
+}
+
+# ghopen → open current git repo in the browser
+ghopen() {
+  local url
+  url=$(git remote get-url origin 2>/dev/null)
+  if [ -z "$url" ]; then
+    echo "⚠️  No git remote found."
+    return 1
+  fi
+  # convert SSH to HTTPS
+  url=$(echo "$url" | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||')
+  open "$url"
+  echo "🌐 Opening $url"
+}
+
+# newproject → scaffold a new project in the right Code folder
+# Usage: newproject <name> <folder_number>
+# Example: newproject my-tool 004
+newproject() {
+  local name=$1
+  local folder=$2
+
+  if [ -z "$name" ] || [ -z "$folder" ]; then
+    echo "⚠️  Usage: newproject <name> <folder_number>"
+    echo "  Folders:"
+    ls ~/Code | sed 's/^/    /'
+    return 1
+  fi
+
+  local base=$(ls ~/Code | grep "^${folder}")
+  if [ -z "$base" ]; then
+    echo "❌ No folder matching '${folder}' in ~/Code"
+    return 1
+  fi
+
+  local target="$HOME/Code/$base/$name"
+  mkdir -p "$target"
+  cd "$target" || return
+
+  # scaffold — uv-era: pyproject via `uv init`, no requirements.txt
+  touch README.md .env .env.example .gitignore
+  echo "# $name" > README.md
+  echo ".venv/" >> .gitignore
+  echo ".env" >> .gitignore
+  echo "__pycache__/" >> .gitignore
+
+  echo "3.12.9" > .python-version
+
+  git init -q
+  echo "✅ Project '$name' created in ~/Code/$base/"
+  echo "📂 $(pwd)"
+}
+
+#######################################################################
+# 🔀 Git Helpers
+#######################################################################
+
+# gitclean → interactive merged branch cleanup
+gitclean() {
+  local branches
+  branches=$(git branch --merged | grep -v '^\*' | grep -v 'main\|master\|develop')
+
+  if [ -z "$branches" ]; then
+    echo "✅ No merged branches to clean."
+    return 0
+  fi
+
+  echo "🧹 Merged branches that can be deleted:"
+  echo "$branches" | sed 's/^/  /'
+  echo ""
+  echo -n "Delete all of the above? [y/N] "
+  read -r confirm
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    echo "$branches" | xargs git branch -d
+    echo "✅ Done."
+  else
+    echo "↩️  Aborted."
+  fi
+}
+
+#######################################################################
+# 🔄 Context Switchers (personal ↔ work)
+#######################################################################
+
+# workon → switch to Engenious work context
+# Sets gh CLI, GCP credentials, and cds to 002-engenious
+workon() {
+  echo "🏢 Switching to Engenious work context..."
+
+  # Switch gh CLI account
+  gh auth switch --user j-garassino-engenious 2>/dev/null && \
+    echo "  ✅ gh → j-garassino-engenious" || \
+    echo "  ⚠️  gh switch failed — run: gh auth login"
+
+  # Load work GCP credentials if available
+  local work_creds=$(ls ~/Code/000-config/002-gcp-credentials/*engenious*.json 2>/dev/null | head -1)
+  if [ -n "$work_creds" ]; then
+    export GOOGLE_APPLICATION_CREDENTIALS="$work_creds"
+    echo "  ✅ GCP → $(basename $work_creds)"
+  else
+    unset GOOGLE_APPLICATION_CREDENTIALS
+    echo "  ℹ️  No Engenious GCP credentials found in ~/Code/000-config/002-gcp-credentials/"
+  fi
+
+  cd ~/Code/002-engenious || return
+  echo "  ✅ cd → ~/Code/002-engenious"
+  echo ""
+  echo "🏢 Work context active."
+  engopen
+}
+
+# personal → switch back to personal context
+# Sets gh CLI, GCP credentials, and cds to 005-products
+personal() {
+  echo "🏠 Switching to personal context..."
+
+  # Switch gh CLI account
+  gh auth switch --user juan-garassino 2>/dev/null && \
+    echo "  ✅ gh → juan-garassino" || \
+    echo "  ⚠️  gh switch failed"
+
+  # Load personal GCP credentials if available
+  local personal_creds=$(ls ~/Code/000-config/002-gcp-credentials/*personal*.json 2>/dev/null | head -1)
+  if [ -n "$personal_creds" ]; then
+    export GOOGLE_APPLICATION_CREDENTIALS="$personal_creds"
+    echo "  ✅ GCP → $(basename $personal_creds)"
+  else
+    unset GOOGLE_APPLICATION_CREDENTIALS
+    echo "  ℹ️  No personal GCP credentials found."
+  fi
+
+  cd ~/Code/005-products || return
+  echo "  ✅ cd → ~/Code/005-products"
+  echo ""
+  echo "🏠 Personal context active."
+}
+
+# whoami_dev → show current active context (git, gh, GCP)
+whoami_dev() {
+  echo "👤 Current Dev Context"
+  echo "─────────────────────────────────────────"
+  echo "  📁 Directory : $(pwd)"
+  echo "  📧 Git email : $(git config user.email 2>/dev/null || echo '<not in a repo>')"
+  echo "  🐙 gh account: $(gh api user --jq .login 2>/dev/null || echo '<not authenticated>')"
+  echo "  ☁️  GCP creds : ${GOOGLE_APPLICATION_CREDENTIALS:-<not set>}"
+  echo "  🐍 Python    : $(python --version 2>/dev/null || echo '<none>')"
+  echo "  📦 Venv      : ${VIRTUAL_ENV:-<none>}"
+}
+
+# engopen → list Engenious repos and cd into selected one
+engopen() {
+  local repos=(~/Code/002-engenious/*/)
+  if [ ${#repos[@]} -eq 0 ]; then
+    echo "⚠️  No repos found in ~/Code/002-engenious/"
+    return 1
+  fi
+
+  echo "📂 Engenious repos:"
+  local i=1
+  for repo in "${repos[@]}"; do
+    echo "  $i) $(basename $repo)"
+    i=$((i + 1))
+  done
+
+  echo -n "Enter number to cd into (or press Enter to stay): "
+  read -r choice
+  if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#repos[@]} ]; then
+    cd "${repos[$choice]}" || return
+    echo "✅ cd → $(pwd)"
+  fi
+}
+
+#######################################################################
+# 📖 mycmds → grouped help for all custom commands
+#######################################################################
+mycmds() {
+  cat <<'EOF'
+
+╔══════════════════════════════════════════════════════════════╗
+║                  🛠️   Custom Dev Commands                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+🐍  Python / Venv
+─────────────────────────────────────────────────────────────
+  usevenv [ver] [name] [reset]   Create/activate uv venv
+  usepyenv <env>                 Activate a pyenv-managed venv
+  pyswitch                       Interactive Python version selector
+  lsenvs                         List pyenv versions + .venv dirs
+  venvinfo                       Show active environment details
+  freezeenv                      Save deps → requirements.txt
+  syncenv                        Sync deps from requirements.txt
+  pkgupdate <pkgs...>            Upgrade packages + update requirements.txt
+  venvclean                      Remove unused .venv folders
+  envcheck                       Compare .env vs .env.example
+  dev-reset                      Full environment reset (debugging)
+
+🔀  Context Switchers
+─────────────────────────────────────────────────────────────
+  workon                         → Engenious (gh, GCP, cd)
+  personal                       → Personal (gh, GCP, cd)
+  whoami_dev                     Show current active context
+
+🌿  Git Helpers
+─────────────────────────────────────────────────────────────
+  gitclean                       Interactive merged branch cleanup
+  ghopen                         Open current repo in browser
+
+🏗️   Project Scaffolding
+─────────────────────────────────────────────────────────────
+  newproject <name> <folder>     Scaffold project in ~/Code/00X
+  engopen                        Pick and cd into Engenious repo
+  mkcd <dir>                     Make dir and cd into it
+
+🔧  System Helpers
+─────────────────────────────────────────────────────────────
+  killport <port>                Kill process on a port
+  portwatch <port> [timeout]     Wait until a port is up
+
+⚡  Shell Config
+─────────────────────────────────────────────────────────────
+  editrc                         Open ~/.zshrc in editor
+  reloadrc                       Reload ~/.zshrc
+  mycmds                         Show this help
+
+EOF
+}
+
+#######################################################################
+# 🚀 Antigravity
+#######################################################################
+export PATH="/Users/juan-garassino/.antigravity/antigravity/bin:$PATH"
+
+# Added by Antigravity IDE
+export PATH="/Users/juan-garassino/.antigravity-ide/antigravity-ide/bin:$PATH"
+
+#######################################################################
+# 🔑 Secrets (API keys) — NEVER hardcode keys in this file.
+#######################################################################
+# This zshrc lives in a PUBLIC dotfiles repo. Keys live in ~/.secrets
+# (chmod 600, not in any repo): export lines for OPENAI_API_KEY,
+# ANTHROPIC_API_KEY, NVIDIA_API_KEY, PERPLEXITY_API_KEY.
+# New machine setup: copy ~/.secrets over manually (scp/AirDrop).
+[[ -f "$HOME/.secrets" ]] && source "$HOME/.secrets"
+
+# Align gh account with the directory the shell opened in (last-working-dir
+# restores cwd before our cd() wrapper exists, so the hook missed it).
+[[ -o interactive ]] && gh_auto_switch
+
+export DISABLE_UPDATES=1

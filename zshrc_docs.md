@@ -13,6 +13,7 @@
 - [System Helpers](#-system-helpers)
 - [Shell Config](#-shell-config)
 - [Auto-behaviors](#-auto-behaviors)
+- [Improvements](#-improvements)
 - [Environment Structure](#-environment-structure)
 
 ---
@@ -179,6 +180,88 @@ envcheck
 ```
 
 **When to use:** After cloning a repo, or when onboarding a new service.
+
+---
+
+### `pyswitch`
+
+Interactively **select and switch Python versions**.
+
+```zsh
+pyswitch
+```
+
+**Output:**
+```
+🐍 Available Python versions:
+  1) 3.10.6
+  2) 3.11.4
+  3) 3.12.0
+Select version (or press Enter to cancel): 2
+✅ Switched to Python 3.11.4
+```
+
+**When to use:** When you need to test with a different Python version without remembering exact version strings.
+
+---
+
+### `pkgupdate`
+
+Upgrade specific packages **and automatically update** `requirements.txt`.
+
+```zsh
+pkgupdate numpy pandas          # Upgrade multiple packages
+pkgupdate requests              # Upgrade single package
+```
+
+**What it does:**
+- Upgrades the specified packages with `uv pip install --upgrade`
+- Automatically runs `uv pip freeze > requirements.txt`
+- Keeps your requirements.txt in sync
+
+**When to use:** When iterating on dependencies or testing new versions.
+
+---
+
+### `venvclean`
+
+Interactively **remove unused `.venv` folders**.
+
+```zsh
+venvclean
+```
+
+**Output:**
+```
+🧹 Local venvs found:
+  1) .venv (245M)
+  2) .venv-old (512M)
+  3) .venv-test (123M)
+Enter numbers to delete (space-separated, or Enter to skip): 2 3
+🗑️  Removing .venv-old...
+🗑️  Removing .venv-test...
+✅ Cleanup done.
+```
+
+**When to use:** Periodically clean up old venv folders that are no longer needed.
+
+---
+
+### `dev-reset`
+
+**Completely reset your environment** — useful for debugging environment issues.
+
+```zsh
+dev-reset
+```
+
+**What it does:**
+- Deactivates all active venvs and pyenv environments
+- Removes `.python-version` file
+- Removes `.venv` folder
+- Resets to clean slate
+
+**When to use:** When your environment gets into a weird state and you need to start fresh.
 
 ---
 
@@ -374,6 +457,23 @@ If a directory has a `.envrc` file, `direnv` automatically loads/unloads environ
 export DATABASE_URL=postgres://localhost/mydb
 export OPENAI_API_KEY=sk-...
 ```
+
+---
+
+## ✨ Improvements
+
+### Autoenv Smart Logging
+
+The `autoenv_activate` function now clearly indicates **which tool activated your environment**:
+
+```zsh
+▶ Activated .venv with uv (Python 3.10.6)              # uv-based venv
+▶ Activated pyenv virtualenv: my-env (Python 3.10.6)   # pyenv virtualenv
+▶ Using pyenv Python 3.11.4 (no venv) (Python 3.11.4)  # pyenv version only
+⚠️  .python-version contains invalid entry: 'garbage'   # invalid .python-version
+```
+
+This makes it immediately clear what's managing your Python environment — no more guessing.
 
 ---
 
