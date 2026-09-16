@@ -52,8 +52,8 @@ else
   # Envs live at versions/<base>/envs/<name>; symlinks at versions/<name>.
   # Iterate the real env dirs to avoid freezing each env twice.
   for envpath in "$PYENV_ROOT"/versions/*/envs/*(N/); do
-    local envname="${envpath:t}"
-    local out="$SNAP_DIR/$envname.txt"
+    envname="${envpath:t}"
+    out="$SNAP_DIR/$envname.txt"
     if [ -f "$out" ] && [ "$FORCE_SNAPSHOTS" = false ]; then
       echo "  ✅ $envname (snapshot exists)"
       continue
@@ -80,8 +80,8 @@ typeset -i n_ok=0 n_left=0 n_fixed=0 n_todo=0
 find "$HOME/Code" -name .python-version -type f \
     -not -path '*/.venv/*' -not -path '*/node_modules/*' -not -path '*/site-packages/*' \
     2>/dev/null | sort | while IFS= read -r f; do
-  local dir="${f:h}"
-  local content
+  dir="${f:h}"
+  content=""
   content=$(tr -d '[:space:]' < "$f")
 
   # Plain version strings are uv-compatible — nothing to do.
@@ -91,10 +91,10 @@ find "$HOME/Code" -name .python-version -type f \
   fi
 
   # Env-name content — classify ownership.
-  local tracked=no owned=no
+  tracked=no; owned=no
   if git -C "$dir" ls-files --error-unmatch .python-version >/dev/null 2>&1; then
     tracked=yes
-    local origin
+    origin=""
     origin=$(git -C "$dir" remote get-url origin 2>/dev/null || true)
     [[ "$origin" == *github.com*juan-garassino* || "$origin" == *github.com*engenious* ]] && owned=yes
     [ -z "$origin" ] && owned=yes   # tracked but no remote → local-only repo, Juan's
@@ -112,8 +112,8 @@ find "$HOME/Code" -name .python-version -type f \
   fi
 
   # Resolve the env's base Python version for the [r]eplace option
-  local base=""
-  local cfg="$PYENV_ROOT/versions/$content/pyvenv.cfg"
+  base=""
+  cfg="$PYENV_ROOT/versions/$content/pyvenv.cfg"
   [ -f "$cfg" ] && base=$(awk -F' *= *' '$1=="version"||$1=="version_info"{print $2; exit}' "$cfg" | cut -d. -f1-2)
   echo ""
   echo "  ⚙️  $f  (env '$content'${base:+, base $base})"
