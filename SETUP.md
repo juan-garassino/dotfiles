@@ -5,9 +5,10 @@ This repo is **public-safe by design**: every config is clean, and all secrets l
 `~/.secrets` (chmod 600, outside any repo) — copied manually, never committed.
 
 > **Platforms.** `install.sh` is OS-aware: macOS uses Homebrew (`packages/Brewfile`); Linux uses
-> apt/dnf (`packages/apt.txt` / `packages/dnf.txt`) + the gh & VS Code repos + a git-cloned pyenv + uv.
+> apt/dnf (`packages/apt.txt` / `packages/dnf.txt`) + the gh & VS Code repos + uv.
 > The Linux steps are adapted from the [Le Wagon data-setup](https://github.com/lewagon/data-setup) guides.
-> The global Python playground is the **`mySandbox`** pyenv env, seeded from `packages/mysandbox-requirements.txt`.
+> Python is **uv-only** (no pyenv). The global playground is the uv venv **`~/.venv-sandbox`**,
+> seeded from `packages/mysandbox-requirements.txt`. Migrating machines? → **MIGRATION.md**.
 
 ---
 
@@ -33,8 +34,8 @@ chmod 600 ~/.secrets
 #    - gh auth login   (personal: juan-garassino, then work: j-garassino-engenious)
 #    - Place SSH keys ~/.ssh/id_ed25519_personal and ~/.ssh/id_ed25519_work (chmod 600)
 
-# 6. Python versions
-pyenv install 3.10.6 3.11.4 3.12.9 && pyenv global 3.10.6
+# 6. Python (uv-only — install.sh already ran `uv python install 3.11 3.12`)
+mysandbox        # creates + seeds the global ~/.venv-sandbox playground
 
 # 7. Reload
 exec zsh
@@ -44,29 +45,31 @@ exec zsh
 
 ---
 
-## 1. Shell & Python environments (pyenv + uv + venv + direnv)
+## 1. Shell & Python environments (uv-only + venv + direnv)
 
 **Auto-activation on `cd`** — `autoenv_activate()` (hooked into `cd()`), priority order:
 1. local `.venv/bin/activate` (uv venv)
-2. `.python-version` matching a pyenv virtualenv name → `pyenv activate <name>`
-3. `.python-version` as a version string (e.g. `3.10.6`) → `pyenv shell <version>`
-4. fallback to global pyenv. Messages print only in interactive shells.
+2. `.python-version` with a plain version but no `.venv` → one-line hint to run `usevenv <ver>`
+   (a legacy pyenv env NAME is quietly ignored — once per dir per session)
+3. fallback to the global uv sandbox `~/.venv-sandbox` (if built; else plain brew python).
+Messages print only in interactive shells.
 
 **Commands:**
 
 | Command | Does | Args |
 |---|---|---|
-| `usevenv` | create/activate a uv venv at a Python version | `[version] [name=.venv] [reset]` |
-| `usepyenv` | activate a named pyenv virtualenv | `<env_name>` |
-| `pyswitch` | interactive Python version selector | — |
+| `usevenv` | create/activate a uv venv at a Python version | `[version=3.12] [name=.venv] [reset]` |
+| `mysandbox` | create/activate the global uv playground `~/.venv-sandbox` | `[reset]` |
 | `pkgupdate` | upgrade packages + update requirements.txt | `<pkgs…>` |
 | `freezeenv` / `syncenv` | save / restore deps via requirements.txt | — |
 | `venvclean` | remove unused `.venv` dirs (interactive) | — |
 | `dev-reset` | deactivate + remove `.python-version` & `.venv` | — |
 | `envcheck` | compare `.env` vs `.env.example`, report missing | — |
-| `lsenvs` | list pyenv versions + project `.venv` dirs | — |
+| `lsenvs` | list uv Pythons + sandbox + project `.venv` dirs | — |
 
-**Reproduce:** `brew install pyenv pyenv-virtualenv uv direnv`; direnv hook is in zshrc; per-project `.envrc` needs `direnv allow .`.
+**Reproduce:** `brew install uv direnv` + `uv python install 3.11 3.12`; direnv hook is in
+zshrc; per-project `.envrc` needs `direnv allow .`. Existing projects: `uv sync` (pyproject)
+or `usevenv 3.12 && uv pip install -r requirements.txt` (legacy manifests).
 
 ---
 
@@ -82,7 +85,7 @@ Directory-aware across three layers — everything under `~/Code/` is personal *
 
 **Reproduce:** `gh auth login` for both accounts; drop both SSH keys (chmod 600) + `ssh-add --apple-use-keychain`; place GCP JSONs.
 
-> **Gotcha:** `gh_auto_switch` has **no** `_` prefix on purpose — Claude Code's shell snapshot drops `_`-prefixed functions, which would break the cd-hook. The lazy-load helpers that *are* `_`-prefixed (`_pyenv_lazy_load` etc.) guard with `typeset -f <helper> >/dev/null || command <cmd>` to avoid infinite recursion.
+> **Gotcha:** `gh_auto_switch` and `autoenv_activate` have **no** `_` prefix on purpose — Claude Code's shell snapshot drops `_`-prefixed functions, which would break the cd-hook. The lazy-load helpers that *are* `_`-prefixed (`_nvm_lazy_load`) guard with `typeset -f <helper> >/dev/null || command <cmd>` to avoid infinite recursion.
 
 ---
 
@@ -97,7 +100,7 @@ Directory-aware across three layers — everything under `~/Code/` is personal *
 
 ## 4. Prompt, theme & status lines
 
-**Powerlevel10k** (`source ~/.powerlevel10k/powerlevel10k.zsh-theme`, instant-prompt cached): left = `os_icon` + `dir` + `vcs`; right = status/time/RAM + env tools (pyenv/virtualenv/direnv) + a **custom `gh_identity` segment** (ochre `personal` / burgundy `work`, read from `~/.config/gh/hosts.yml`, no CLI exec). Font: **MesloLGS Nerd Font** — `brew install --cask font-meslo-lg-nerd-font`.
+**Powerlevel10k** (`source ~/.powerlevel10k/powerlevel10k.zsh-theme`, instant-prompt cached): left = `os_icon` + `dir` + `vcs`; right = status/time/RAM + env tools (virtualenv/direnv) + a **custom `gh_identity` segment** (ochre `personal` / burgundy `work`, read from `~/.config/gh/hosts.yml`, no CLI exec). Font: **MesloLGS Nerd Font** — `brew install --cask font-meslo-lg-nerd-font`.
 
 **Claude Code status line** (`claude/statusline-command.sh`, wired via `settings.json` → `statusLine.command`): Bauhaus 3-zone palette — **place**=cobalt blue (path/branch), **session**=gray (model/perm/context), **env/accounts**=ochre (python/gcloud/k8s/gh), **system**=burgundy (clock/RAM). State markers `● ▲ ■` (calm/caution/alarm) for context% and free RAM; permission modes `rw/auto/plan/yolo`. Reads JSON from stdin (`cwd`, `model.display_name`, `context_window.used_percentage`, `permission_mode`, `model.thinking_budget`). **Emoji only — no Nerd Font glyphs** (Claude Code strips them).
 

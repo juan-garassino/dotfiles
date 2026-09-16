@@ -29,6 +29,7 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 ├── .secrets.sample   expected API-key names (no values)
 ├── install.sh        idempotent installer
 ├── SETUP.md          detailed how-it-works runbook
+├── MIGRATION.md      old→new machine migration runbook (clean rebuild)
 └── CLAUDE.md         autonomous setup instructions for Claude Code
 ```
 
@@ -37,7 +38,8 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 ## Quick start (human)
 
 > macOS shown below; on **Linux** the same `./install.sh` installs via **apt/dnf** (not Homebrew),
-> adds the gh + VS Code repos, git-clones pyenv, and installs uv. See `SETUP.md` for Linux details.
+> adds the gh + VS Code repos, and installs uv. See `SETUP.md` for Linux details.
+> Migrating from another machine? → `MIGRATION.md`.
 
 ```bash
 # 1. Homebrew (macOS)
@@ -57,8 +59,8 @@ cd ~/Code/000-config/001-dotfiles
 #    - gh auth login   (personal: juan-garassino, then work: j-garassino-engenious)
 #    - drop GCP JSONs into ~/Code/000-config/002-gcp-credentials/
 
-# 5. Python sandbox + reload  (mysandbox seeds from packages/mysandbox-requirements.txt)
-pyenv install 3.12 && mysandbox
+# 5. Python sandbox + reload  (uv-only; install.sh already installed 3.11/3.12)
+mysandbox        # creates + seeds ~/.venv-sandbox from packages/mysandbox-requirements.txt
 exec zsh
 ```
 
@@ -68,22 +70,24 @@ exec zsh
 
 ## Daily workflows
 
-### Python — uv-first, pyenv mySandbox
+### Python — uv-only
 
-uv is primary (versions + venvs + packages); pyenv keeps one global **`mySandbox`** scratch env
-(the GenAI/ML/finance playground), seeded from `packages/mysandbox-requirements.txt`.
+uv does everything: Python versions, venvs, packages, tools. No pyenv. The global
+playground is the uv venv **`~/.venv-sandbox`** (the GenAI/ML/finance scratch env),
+seeded from `packages/mysandbox-requirements.txt`.
 
 | Command | Does |
 |---|---|
 | `usevenv [3.12] [.venv]` | create/activate a **uv** venv (uv manages the Python version) |
-| `mysandbox` | activate the global pyenv `mySandbox` env (created + seeded from requirements on first use) |
-| `usepyenv <name>` | activate a named pyenv virtualenv (legacy) |
-| `pyswitch` | interactive pyenv version selector (legacy) |
+| `mysandbox [reset]` | create/activate the global `~/.venv-sandbox` (seeded on first use) |
 | `freezeenv` / `syncenv` | save / restore deps via requirements.txt (uv) |
 | `pkgupdate <pkgs>` | upgrade packages + update requirements (uv) |
 | `lsenvs` · `venvclean` · `dev-reset` · `envcheck` | inspect / clean / reset / check envs |
 
-`cd` into a project auto-activates its `.venv`; leave it and you fall back to `mySandbox`.
+`cd` into a project auto-activates its `.venv`; leave it and you fall back to
+`~/.venv-sandbox`. Legacy `.python-version` files naming old pyenv envs are quietly
+ignored. Existing projects: `uv sync` (pyproject) or `usevenv 3.12 && uv pip install -r
+requirements.txt` (legacy manifests).
 
 ### Identity — work ↔ personal
 
