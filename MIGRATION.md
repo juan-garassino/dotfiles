@@ -42,6 +42,7 @@ how the environment works day-to-day.
 | `~/.config/gcloud/` | same path | auth tokens; else re-auth every project |
 | `~/env-snapshots/` | anywhere | pyenv freeze insurance |
 | Non-git project dirs (~4.2G) | same paths under `~/Code` | 026-Noema, 028-nano-universe, 003-kp/miniprojects/{multiagent-orchestration, codeact, multi-agents-workflow, mini-agent-as-a-service, mini-deepagents}, 006-rp/{OTH-candidate-assistant, AGT-rlm-graph-unix} |
+| `spiced/ds-book-template/` | same path | has LOCAL-ONLY commits (origin = neuefische, no push rights) — re-cloning loses them; carry the folder or add a personal fork remote first |
 | Reviewed Downloads/Desktop/Documents picks | wherever | from Phase 0.3 |
 
 Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
