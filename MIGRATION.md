@@ -40,6 +40,7 @@ how the environment works day-to-day.
 | `~/Code/000-config/002-gcp-credentials/` | same path | GCP SA JSONs |
 | **entire `~/.claude/`** (~1.3G) | `~/.claude/` | projects memory/standing, plans, history — irreplaceable |
 | `~/.config/gcloud/` | same path | auth tokens; else re-auth every project |
+| `~/.aws/` + `~/.azure/` | same paths | WORK credentials/tokens (aws-cli, azure-cli) — else re-auth both |
 | `~/env-snapshots/` | anywhere | pyenv freeze insurance |
 | Non-git project dirs (~4.2G) | same paths under `~/Code` | 026-Noema, 028-nano-universe, 003-kp/miniprojects/{multiagent-orchestration, codeact, multi-agents-workflow, mini-agent-as-a-service, mini-deepagents}, 006-rp/{OTH-candidate-assistant, AGT-rlm-graph-unix} |
 | `spiced/ds-book-template/` | same path | has LOCAL-ONLY commits (origin = neuefische, no push rights) — re-cloning loses them; carry the folder or add a personal fork remote first |
@@ -74,9 +75,10 @@ Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
 7. **Clone all repos to their exact old paths** (`~/Code/00X-…`) — git `includeIf` and the
    gh account cd-hook key off these paths. Use `pull-all.sh` in 004-lewagon-spiced and
    `custom_scripts/code_manager.sh`. Copy the hand-carried non-git dirs into place.
-8. Per-project envs are recreated ON TOUCH, not up front:
-   - `pyproject.toml` present → `uv sync`
-   - only `requirements.txt` → `usevenv 3.12 && uv pip install -r requirements.txt`
+8. Per-project envs are recreated ON TOUCH, not up front: `cd` prints a hint, then
+   **`envup`** does the right thing for any manifest style (pyproject → `uv sync`;
+   requirements.txt → venv + install). Explicit equivalents if needed:
+   `uv sync` / `usevenv 3.12 && uv pip install -r requirements.txt`.
 9. Rosetta: NOT needed (all-arm64 stack). Install only if some Intel-only cask appears.
 
 ## Phase 3 — Verification gauntlet (all must pass)
