@@ -48,17 +48,25 @@ exec zsh
 ## 1. Shell & Python environments (uv-only + venv + direnv)
 
 **Auto-activation on `cd`** — `autoenv_activate()` (hooked into `cd()`), priority order:
-1. local `.venv/bin/activate` (uv venv)
-2. `.python-version` with a plain version but no `.venv` → one-line hint to run `usevenv <ver>`
-   (a legacy pyenv env NAME is quietly ignored — once per dir per session)
+1. local `.venv/bin/activate` (uv venv) — plus a once-per-session hint if `uv.lock` is
+   newer than the `.venv` ("run: uv sync")
+2. any manifest (`pyproject.toml`/`uv.lock`/`requirements.txt`) or plain-version
+   `.python-version` but no `.venv` → one-line hint to run `envup` (a legacy pyenv env
+   NAME is quietly ignored — once per dir per session). **Hints never mutate.**
 3. fallback to the global uv sandbox `~/.venv-sandbox` (if built; else plain brew python).
 Messages print only in interactive shells.
+
+**Per-repo full-auto (opt-in):** `echo "layout uv" > .envrc && direnv allow` — direnv
+then builds/syncs the env automatically on entry for THAT repo only (`layout_uv` in
+`direnv/direnvrc`). The allow-gate is the consent mechanism; everything else stays
+hint-only.
 
 **Commands:**
 
 | Command | Does | Args |
 |---|---|---|
-| `usevenv` | create/activate a uv venv at a Python version | `[version=3.12] [name=.venv] [reset]` |
+| `envup` | build+activate this project's env from whatever manifest exists (pyproject → `uv sync`; requirements.txt → venv+install; nothing → bare venv). Never writes `.python-version` | `[version]` |
+| `usevenv` | create/activate a uv venv at a Python version (writes `.python-version` only if absent) | `[version=3.12] [name=.venv] [reset]` |
 | `mysandbox` | create/activate the global uv playground `~/.venv-sandbox` | `[reset]` |
 | `u` | run any command via `uv run` (project-aware shorthand) | `<cmd> [args…]` |
 | `pip` / `python` | transparent uv fallbacks — uv venvs ship no pip; bare `python` routes through uv outside venvs. Explicit `uv pip` / `uv run` and `command pip` unchanged | — |

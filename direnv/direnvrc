@@ -1,0 +1,21 @@
+# ~/.config/direnv/direnvrc — custom layouts (symlinked from dotfiles by install.sh)
+#
+# `layout uv` — per-repo FULL-AUTO uv env. Global cd stays hint-only (autoenv in
+# zshrc); a repo opts in explicitly:
+#     echo "layout uv" > .envrc && direnv allow
+# direnv's allow-gate is the consent mechanism: nothing auto-runs in a repo until
+# YOU bless its .envrc, and direnv re-prompts whenever the .envrc changes.
+
+layout_uv() {
+  if [[ -f pyproject.toml || -f uv.lock ]]; then
+    uv sync
+  elif [[ -f requirements.txt ]]; then
+    [[ -d .venv ]] || uv venv .venv
+    uv pip install -q -r requirements.txt
+  else
+    [[ -d .venv ]] || uv venv .venv
+  fi
+  # direnv-native activation (source activate doesn't persist through direnv)
+  export VIRTUAL_ENV=$PWD/.venv
+  PATH_add .venv/bin
+}

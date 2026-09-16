@@ -108,6 +108,7 @@ fi
 echo "📂 Symlinking dotfiles..."
 
 # Explicit map (repo is organized into subdirs): "<repo path>:<home target>"
+mkdir -p "$HOME/.config/direnv"
 link_map=(
   "shell/zshrc:$HOME/.zshrc"
   "shell/zshenv:$HOME/.zshenv"
@@ -117,6 +118,7 @@ link_map=(
   "git/gitconfig-personal:$HOME/.gitconfig-personal"
   "git/gitconfig-work:$HOME/.gitconfig-work"
   "prompt/p10k.zsh:$HOME/.p10k.zsh"
+  "direnv/direnvrc:$HOME/.config/direnv/direnvrc"
 )
 for pair in "${link_map[@]}"; do
   src="${pair%%:*}"; dst="${pair#*:}"

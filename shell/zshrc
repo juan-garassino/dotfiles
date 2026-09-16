@@ -219,10 +219,38 @@ usevenv() {
   fi
 
   source "$venv_name/bin/activate"
-  echo "$version" > .python-version
+  # Only record the version in a fresh dir — never overwrite an existing
+  # .python-version (many are tracked in pull-only upstream repos).
+  [ -f ".python-version" ] || echo "$version" > .python-version
 
   echo "▶ Using uv venv '$venv_name' (🐍 $(python --version | awk '{print $2}'))"
   echo "VIRTUAL_ENV=$VIRTUAL_ENV"
+}
+
+# envup → make this project's env from whatever manifest exists, then activate.
+# pyproject/uv.lock → uv sync · requirements.txt → uv venv + install · nothing →
+# bare venv. Never writes .python-version (safe inside upstream repos).
+# Usage: envup [python_version]
+envup() {
+  local ver=${1:-}
+  if [ -f "pyproject.toml" ] || [ -f "uv.lock" ]; then
+    uv sync || return 1
+    source .venv/bin/activate
+    echo "▶ Synced + activated .venv (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
+  elif [ -f "requirements.txt" ]; then
+    if [ -z "$ver" ]; then
+      ver=$(grep -Eo '^[0-9]+\.[0-9]+(\.[0-9]+)?' .python-version 2>/dev/null | head -1)
+      ver=${ver:-3.12}
+    fi
+    [ -d ".venv" ] || uv venv .venv --python "$ver" || return 1
+    source .venv/bin/activate
+    uv pip install -r requirements.txt || return 1
+    echo "▶ Built .venv from requirements.txt (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
+  else
+    [ -d ".venv" ] || uv venv .venv --python "${ver:-3.12}" || return 1
+    source .venv/bin/activate
+    echo "ℹ️  No manifest found — bare .venv (${ver:-3.12}). Add deps: uv pip install <pkg>"
+  fi
 }
 
 # mysandbox → the global uv playground venv at ~/.venv-sandbox (REPL, quick
@@ -461,23 +489,34 @@ autoenv_activate() {
       deactivate 2>/dev/null || true
       source .venv/bin/activate
       # echoes only in interactive shells — keeps Claude Code / script output clean
-      [[ -o interactive ]] && echo "▶ Activated .venv (🐍 $(python --version 2>/dev/null | awk '{print $2}'))"
+      [[ -o interactive ]] && print -P "%F{green}▶ Activated .venv (🐍 $(python --version 2>/dev/null | awk '{print $2}'))%f"
+    fi
+    # lockfile drifted ahead of the env → suggest a sync, once per dir per session
+    if [ -f "uv.lock" ] && [ "uv.lock" -nt ".venv" ] && [[ -o interactive ]] \
+        && [ -z "${autoenv_warned[${PWD}:stale]}" ]; then
+      autoenv_warned[${PWD}:stale]=1
+      print -P "%F{yellow}🔄 uv.lock is newer than .venv — run: uv sync%f"
     fi
     return 0
   fi
 
-  # 2) .python-version but no .venv — never auto-create, never break.
-  #    Plain version → hint once. Legacy pyenv env name → note once, fall through.
-  if [ -f ".python-version" ]; then
+  # 2) No .venv — detect what kind of project this is; hint once, NEVER mutate.
+  #    envup does the right thing for every manifest style.
+  if [ -f "pyproject.toml" ] || [ -f "uv.lock" ] || [ -f "requirements.txt" ]; then
+    if [[ -o interactive ]] && [ -z "${autoenv_warned[$PWD]}" ]; then
+      autoenv_warned[$PWD]=1
+      print -P "%F{cyan}📦 Project detected, no .venv — run: envup%f"
+    fi
+  elif [ -f ".python-version" ]; then
     local ver
     ver=$(<.python-version)
     ver=${ver//[[:space:]]/}
     if [[ -o interactive ]] && [ -z "${autoenv_warned[$PWD]}" ]; then
       autoenv_warned[$PWD]=1
       if [[ "$ver" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-        echo "💡 .python-version=$ver but no .venv — run: usevenv $ver"
+        print -P "%F{cyan}📦 .python-version=$ver, no .venv — run: envup%f"
       else
-        echo "ℹ️  Ignoring legacy pyenv env '$ver' (uv-only setup)"
+        print -P "%F{244}ℹ️  Ignoring legacy pyenv env '$ver' (uv-only setup)%f"
       fi
     fi
   fi
@@ -488,7 +527,7 @@ autoenv_activate() {
     if [ "$VIRTUAL_ENV" != "$sandbox" ]; then
       deactivate 2>/dev/null || true
       source "$sandbox/bin/activate"
-      [[ -o interactive ]] && echo "▶ No project env — using ~/.venv-sandbox"
+      [[ -o interactive ]] && print -P "%F{244}▶ No project env — using ~/.venv-sandbox%f"
     fi
   elif [ -n "$VIRTUAL_ENV" ]; then
     deactivate 2>/dev/null || true
@@ -765,11 +804,13 @@ mycmds() {
 
 🐍  Python / Venv
 ─────────────────────────────────────────────────────────────
+  envup [ver]                    Auto-build env from pyproject/requirements + activate
   usevenv [ver] [name] [reset]   Create/activate uv venv
   mysandbox [reset]              Global uv playground (~/.venv-sandbox)
   u <cmd> [args]                 Run any command via 'uv run' (project-aware)
   pip / python                   Transparent uv fallbacks ('command pip' = real one)
   lsenvs                         List uv Pythons + sandbox + .venv dirs
+  full-auto per repo:            echo "layout uv" > .envrc && direnv allow
   venvinfo                       Show active environment details
   freezeenv                      Save deps → requirements.txt
   syncenv                        Sync deps from requirements.txt
