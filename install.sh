@@ -65,7 +65,7 @@ if [ "$OS" = "Darwin" ]; then
 elif [ "$OS" = "Linux" ]; then
   pkglist() { grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$1" 2>/dev/null; }
   if [ "$PM" = "apt" ]; then
-    echo "  📦 apt: core tools + pyenv build deps..."
+    echo "  📦 apt: core tools..."
     sudo apt-get update -y
     pkglist "$DOTFILES_DIR/packages/apt.txt" | xargs -r sudo apt-get install -y || echo "  ⚠️  some apt packages failed"
     if ! command -v gh >/dev/null 2>&1; then
@@ -82,7 +82,7 @@ elif [ "$OS" = "Linux" ]; then
       sudo apt-get update -y && sudo apt-get install -y code
     fi
   elif [ "$PM" = "dnf" ] || [ "$PM" = "yum" ]; then
-    echo "  📦 $PM: core tools + pyenv build deps..."
+    echo "  📦 $PM: core tools..."
     pkglist "$DOTFILES_DIR/packages/dnf.txt" | xargs -r sudo "$PM" install -y || echo "  ⚠️  some packages failed"
     command -v gh >/dev/null 2>&1 || sudo "$PM" install -y gh || true
     if ! command -v code >/dev/null 2>&1; then
@@ -94,13 +94,7 @@ elif [ "$OS" = "Linux" ]; then
   else
     echo "  ⚠️  No supported package manager (apt/dnf/yum) — install tools manually."
   fi
-  # pyenv (git clone — no brew on Linux)
-  if [ ! -d "$HOME/.pyenv" ]; then
-    echo "  📦 pyenv + pyenv-virtualenv (git)..."
-    git clone --quiet https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
-    git clone --quiet https://github.com/pyenv/pyenv-virtualenv.git "$HOME/.pyenv/plugins/pyenv-virtualenv"
-  fi
-  # uv (official installer)
+  # uv (official installer) — the ONLY Python manager; no pyenv
   command -v uv >/dev/null 2>&1 || { echo "  📦 uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
   # default shell → zsh
   if command -v zsh >/dev/null 2>&1 && [ "$SHELL" != "$(command -v zsh)" ]; then
@@ -213,7 +207,7 @@ echo ""
 echo "🍺 Checking Homebrew essentials..."
 
 if [ "$OS" = "Darwin" ]; then
-  BREW_PACKAGES=(gh direnv uv pyenv)
+  BREW_PACKAGES=(gh direnv uv)
   for pkg in "${BREW_PACKAGES[@]}"; do
     if ! command -v "$pkg" &>/dev/null; then
       echo "  📦 Installing $pkg..."
@@ -223,7 +217,16 @@ if [ "$OS" = "Darwin" ]; then
     fi
   done
 else
-  echo "  ⏭️  Linux — gh/direnv/uv/pyenv handled in step 0 (apt/dnf + git + curl)"
+  echo "  ⏭️  Linux — gh/direnv/uv handled in step 0 (apt/dnf + curl)"
+fi
+
+# uv-managed Pythons + the two project-agnostic global CLIs (→ ~/.local/bin)
+if command -v uv &>/dev/null; then
+  echo "  🐍 uv python install 3.11 3.12..."
+  uv python install 3.11 3.12 || echo "  ⚠️  uv python install failed — retry manually"
+  uv tool install ruff >/dev/null 2>&1 || true
+  uv tool install pre-commit >/dev/null 2>&1 || true
+  echo "  ✅ uv tools: ruff, pre-commit"
 fi
 
 ###############################################################################
