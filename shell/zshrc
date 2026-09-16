@@ -162,6 +162,40 @@ reloadrc() {
 # 🐍 Python / venv Helpers
 #######################################################################
 
+# uv-prefix conveniences — transparent fallbacks, never intercept `uv` itself,
+# so the explicit `uv run ...` / `uv pip ...` forms always work unchanged.
+
+# u → explicit shorthand: `u pytest -q` == `uv run pytest -q` (project-aware)
+u() {
+  if [ $# -eq 0 ]; then
+    echo "Usage: u <cmd> [args...] — runs the command via 'uv run' in the project env"
+    return 1
+  fi
+  uv run "$@"
+}
+
+# pip → uv pip. uv venvs ship WITHOUT pip, so bare `pip install` would die;
+# uv pip targets the active venv (project .venv or ~/.venv-sandbox via autoenv).
+# Escape hatch for the real binary: `command pip`.
+unalias pip pip3 2>/dev/null || true   # oh-my-zsh common-aliases may alias these
+pip()  { uv pip "$@" }
+pip3() { uv pip "$@" }
+
+# python → fallback only. If a real `python` is on PATH (any active venv), use
+# it untouched; otherwise route through uv so bare `python` in Makefiles and
+# scripts keeps working outside venvs (brew ships only python3).
+python() {
+  local real
+  real=$(whence -p python 2>/dev/null)
+  if [ -n "$real" ]; then
+    "$real" "$@"
+  elif [ -f "pyproject.toml" ] || [ -f "uv.lock" ]; then
+    uv run python "$@"                    # project context → project env
+  else
+    uv run --python 3.12 python "$@"      # nowhere → ephemeral 3.12, no pollution
+  fi
+}
+
 # usevenv → create or activate a uv venv (uv downloads the Python if missing)
 # Usage: usevenv [python_version] [venv_name] [reset]
 # Examples:
@@ -733,6 +767,8 @@ mycmds() {
 ─────────────────────────────────────────────────────────────
   usevenv [ver] [name] [reset]   Create/activate uv venv
   mysandbox [reset]              Global uv playground (~/.venv-sandbox)
+  u <cmd> [args]                 Run any command via 'uv run' (project-aware)
+  pip / python                   Transparent uv fallbacks ('command pip' = real one)
   lsenvs                         List uv Pythons + sandbox + .venv dirs
   venvinfo                       Show active environment details
   freezeenv                      Save deps → requirements.txt

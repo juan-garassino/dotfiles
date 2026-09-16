@@ -60,6 +60,8 @@ Messages print only in interactive shells.
 |---|---|---|
 | `usevenv` | create/activate a uv venv at a Python version | `[version=3.12] [name=.venv] [reset]` |
 | `mysandbox` | create/activate the global uv playground `~/.venv-sandbox` | `[reset]` |
+| `u` | run any command via `uv run` (project-aware shorthand) | `<cmd> [args…]` |
+| `pip` / `python` | transparent uv fallbacks — uv venvs ship no pip; bare `python` routes through uv outside venvs. Explicit `uv pip` / `uv run` and `command pip` unchanged | — |
 | `pkgupdate` | upgrade packages + update requirements.txt | `<pkgs…>` |
 | `freezeenv` / `syncenv` | save / restore deps via requirements.txt | — |
 | `venvclean` | remove unused `.venv` dirs (interactive) | — |
