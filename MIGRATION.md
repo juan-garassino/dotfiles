@@ -22,7 +22,13 @@ how the environment works day-to-day.
    - no remote → `gh repo create <name> --private --source . --push`
    - unpushed  → `git push --all` (engenious work branches: owner's call)
    - dirty scratch → `git add -A && git commit -m "chore: wip snapshot" && git push`
-2. **Belt-and-braces (mandatory):** `rsync -a ~/Code /Volumes/<SSD>/Code-final-snapshot/`
+2. **Branch deep-clean (layer 2)** — `custom_scripts/repo_sweep.sh --branches` lists
+   every repo's branch sprawl with `[unmerged]` / `[local-only]` flags. `[local-only]`
+   branches VANISH on reclone. Per branch: merge → main + push + delete, or
+   `git push -u origin <b>` to keep, or `git branch -D` to drop. The gate (layer 1)
+   only requires pushed-somewhere; this layer is the proper cleaning — do it repo-by-repo
+   in the weeks before migration (engenious feature branches = work decision).
+3. **Belt-and-braces (mandatory):** `rsync -a ~/Code /Volumes/<SSD>/Code-final-snapshot/`
    before the Intel is ever wiped — caps reclone risk at zero even if the sweep missed
    something. The Intel also stays shelved (powered off, unwiped) for ≥ a few weeks.
 2. **pyenv snapshots** — `custom_scripts/depyenv.sh` (dry-run default; Phase A freezes all
