@@ -14,17 +14,17 @@ how the environment works day-to-day.
 
 ## Phase 0 — OLD machine pre-flight (run days before, re-run as final gate)
 
-1. **Repo hygiene sweep** — every repo under `~/Code` committed & pushed:
-   ```bash
-   find ~/Code -name .git -maxdepth 5 -type d 2>/dev/null | while read g; do
-     d=$(dirname "$g")
-     dirty=$(git -C "$d" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-     ahead=$(git -C "$d" log --branches --not --remotes --oneline 2>/dev/null | wc -l | tr -d ' ')
-     [ "$dirty" != 0 ] || [ "$ahead" != 0 ] && echo "⚠️  $d (dirty=$dirty ahead=$ahead)"
-   done; echo "sweep done"
-   ```
-   Fix every ⚠️ before proceeding (known offenders 2026-09: `spiced/ds-book-template`,
-   `lewagon/student-work`).
+1. **Repo hygiene sweep** — `custom_scripts/repo_sweep.sh` must print **RECLONE-READY**
+   (checks every repo for dirty trees, unpushed commits, missing remotes; exit 1
+   otherwise). Run it days before AND on migration morning — do not proceed on ❌.
+   State 2026-09-17: 82 dirty / 42 unpushed / **31 with NO REMOTE** (incl. 021-bootcamp,
+   020-autoresearch, 024-dino, 025-ltm, teaching-containers). Fix recipes:
+   - no remote → `gh repo create <name> --private --source . --push`
+   - unpushed  → `git push --all` (engenious work branches: owner's call)
+   - dirty scratch → `git add -A && git commit -m "chore: wip snapshot" && git push`
+2. **Belt-and-braces (mandatory):** `rsync -a ~/Code /Volumes/<SSD>/Code-final-snapshot/`
+   before the Intel is ever wiped — caps reclone risk at zero even if the sweep missed
+   something. The Intel also stays shelved (powered off, unwiped) for ≥ a few weeks.
 2. **pyenv snapshots** — `custom_scripts/depyenv.sh` (dry-run default; Phase A freezes all
    envs to `~/env-snapshots/`). Only during migration week: `depyenv.sh --apply` to fix
    Juan-owned `.python-version` files (upstream-tracked ones are always left alone).
