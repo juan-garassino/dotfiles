@@ -12,6 +12,39 @@ how the environment works day-to-day.
 
 ---
 
+## ⚠️ Audit 2026-09-17 — gap closures (READ FIRST)
+
+A 4-agent migration audit found the git layer solid (192 repos, 7 no-remote all bundled) but
+real holes in the **non-git / gitignored / machine-state** layer that a reclone doesn't touch.
+Fixes already applied to this branch: arm64 path bugs (`/usr/local/sbin`→`${HOMEBREW_PREFIX}/sbin`,
+hardcoded `$HOME`, gitconfig `!gh` PATH-resolved). The rest are **pre-wipe actions** — do them
+on the OLD machine before wiping, they are NOT auto-handled:
+
+1. 🔴 **`.env` secrets reclone EMPTY.** ~50 populated `.env`/`.env.local` files are gitignored or
+   in non-git dirs (worst: `002-engenious/.../marketing_agent/.env.local` — live prod tokens).
+   The `rsync ~/Code → SSD` (Phase 0.3) captures them, but you MUST **restore them from the SSD
+   snapshot after cloning** (see Phase 2.8), OR consolidate real keys into `~/.secrets` (carried).
+2. 🔴 **Carry the reclone manifest:** `~/env-snapshots/repo-manifest-2026-09-17.txt` (PATH|REMOTE
+   for all 192 repos) — `code_manager.sh` can't discover repos on a wiped Mac. Hand-carry it.
+3. 🔴 **Non-git source dirs** (add to Phase-1 hand-carry): `003-kp/{llm-engineering-lab (207 .py),
+   miniprojects/cognitive-memory, nlsql, mini-copilotkit, mini-presenter, mini-companion}`,
+   `006-rp/{GRAPH-graphrag-integration, GRAPH-custom-graphrag, OTH-orchestration-coreo,
+   DIF-emoji-generation, DIF-adversarial-diffusion}` — no git, pure rsync-loss otherwise.
+4. 🔴 **Databases:** `pg_dump` PostgreSQL@14 (`/usr/local/var/postgresql@14`, ~360M) if it holds
+   anything you want; carry `027-ml-workspace/mlops/.prefect/prefect.db`; verify the docker
+   `teaching_postgres` volume (start docker first). Runbook otherwise says nothing about DBs.
+5. 🟠 **Extra SSH keys** (add to Phase-1): `~/.ssh/google_compute_engine`, `~/.ssh/dc_trader`,
+   `~/.ssh/known_hosts` (only `id_ed25519_personal/_work` were listed).
+6. 🟡 **Teaching:** re-run the spiced RISE nbconfig `echo` one-liners (see `004-lewagon-spiced/CLAUDE.md`)
+   for BARE `ds-book-template` use (the container bakes it, bare dev doesn't). Snapshot VS Code
+   extensions (`code --list-extensions > ~/env-snapshots/vscode-ext.txt`) — Dev Containers ext is
+   needed for the spiced container. Carry `~/Library/Application Support/Claude/` if you use custom MCPs.
+
+Hand-carry payload is **~8.5G** (Noema 2.6G + nano-universe 949M + ds-book-template 3.0G + the
+non-git source dirs) — size the SSD/AirDrop accordingly, not the old "~4.2G" line below.
+
+---
+
 ## Phase 0 — OLD machine pre-flight (run days before, re-run as final gate)
 
 1. **Repo hygiene sweep** — `custom_scripts/repo_sweep.sh` must print **RECLONE-READY**

@@ -26,8 +26,8 @@ unalias rm
 #######################################################################
 # Relative dirs APPENDED, not prepended: a cloned repo's ./bin/git must never
 # shadow the real git (classic PATH-hijack vector).
-export PATH="${PATH}:./bin:./node_modules/.bin:/usr/local/sbin"
-export PATH="$PATH:/Users/juan-garassino/.local/bin"
+export PATH="${PATH}:./bin:./node_modules/.bin:${HOMEBREW_PREFIX:-/opt/homebrew}/sbin"
+export PATH="$PATH:$HOME/.local/bin"
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export BUNDLER_EDITOR=code
@@ -853,10 +853,10 @@ EOF
 #######################################################################
 # 🚀 Antigravity
 #######################################################################
-export PATH="/Users/juan-garassino/.antigravity/antigravity/bin:$PATH"
+export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 
 # Added by Antigravity IDE
-export PATH="/Users/juan-garassino/.antigravity-ide/antigravity-ide/bin:$PATH"
+export PATH="$HOME/.antigravity-ide/antigravity-ide/bin:$PATH"
 
 #######################################################################
 # 🔑 Secrets (API keys) — NEVER hardcode keys in this file.
