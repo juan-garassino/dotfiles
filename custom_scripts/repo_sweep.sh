@@ -8,11 +8,30 @@
 #
 # Usage: repo_sweep.sh [root=~/Code]           # safety gate (reclone-readiness)
 #        repo_sweep.sh --branches [root]       # deep-clean audit: branch sprawl
+#
+# Allowlist: repos whose ROOT-relative path is listed (exact match, one per
+# line, '#' comments ok) in  $ROOT/.sweepignore  or  ~/.sweepignore  are
+# skipped in BOTH modes — for by-design no-remote scratch and vestigial
+# never-committed git-init shells that are not real repos.
+#
+# Persist convention: this prints to stdout only; capture with
+#   repo_sweep.sh | tee ~/env-snapshots/repo-sweep-$(date +%F).txt
 ###############################################################################
 set -u
 MODE=gate
 if [ "${1:-}" = "--branches" ]; then MODE=branches; shift; fi
 ROOT="${1:-$HOME/Code}"
+
+# --- allowlist: exact ROOT-relative paths to skip -----------------------------
+typeset -a IGNORE
+for f in "$ROOT/.sweepignore" "$HOME/.sweepignore"; do
+  [ -f "$f" ] || continue
+  while IFS= read -r line; do
+    line="${line%%#*}"; line="${line## }"; line="${line%% }"
+    [ -n "$line" ] && IGNORE+=("$line")
+  done < "$f"
+done
+_ignored() { (( ${IGNORE[(Ie)$1]} )) }   # zsh: exact-match index, 0 if absent
 
 if [ "$MODE" = "branches" ]; then
   # CLEANLINESS layer: list repos with branch sprawl — local branches besides
@@ -21,6 +40,7 @@ if [ "$MODE" = "branches" ]; then
   find "$ROOT" -name .git -maxdepth 6 \( -type d -o -type f \) \
       -not -path '*/node_modules/*' -not -path '*/.venv/*' 2>/dev/null | sort | while IFS= read -r g; do
     d="${g:h}"
+    _ignored "${d#$ROOT/}" && continue
     main=$(git -C "$d" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|origin/||')
     main=${main:-$(git -C "$d" branch -l main master --format='%(refname:short)' 2>/dev/null | head -1)}
     branches=$(git -C "$d" branch --format='%(refname:short)' 2>/dev/null)
@@ -49,6 +69,7 @@ echo "🔍 Sweeping git repos under $ROOT ..."
 find "$ROOT" -name .git -maxdepth 6 \( -type d -o -type f \) \
     -not -path '*/node_modules/*' -not -path '*/.venv/*' 2>/dev/null | sort | while IFS= read -r g; do
   d="${g:h}"
+  _ignored "${d#$ROOT/}" && continue
   ((n_repos++))
   dirty=$(git -C "$d" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   ahead=$(git -C "$d" log --branches --not --remotes --oneline 2>/dev/null | wc -l | tr -d ' ')
@@ -67,6 +88,7 @@ done
 bad=$(find "$ROOT" -name .git -maxdepth 6 \( -type d -o -type f \) \
         -not -path '*/node_modules/*' -not -path '*/.venv/*' 2>/dev/null | while IFS= read -r g; do
   d="${g:h}"
+  _ignored "${d#$ROOT/}" && continue
   [ -n "$(git -C "$d" status --porcelain 2>/dev/null | head -1)" ] && { echo x; continue; }
   [ -n "$(git -C "$d" log --branches --not --remotes --oneline 2>/dev/null | head -1)" ] && { echo x; continue; }
   [ -z "$(git -C "$d" remote 2>/dev/null | head -1)" ] && echo x

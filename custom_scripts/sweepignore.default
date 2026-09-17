@@ -1,0 +1,16 @@
+# repo_sweep.sh allowlist — exact ROOT-relative paths ($ROOT = ~/Code).
+# Only CONFIRMED false positives: by-design no-remote scratch, and vestigial
+# never-committed `git init` shells that are not real repos. Verified 2026-09-17.
+# NOT for pre-existing dirty WIP or engenious work repos — those must be
+# resolved (commit/push) before migration, not hidden.
+
+# vestigial `git init` at the workspace-config root — no commits, not a repo
+000-config
+
+# never-committed weather-mcp shells; canonical tracked copy is
+# 003-knowledge-playgrounds/mcp/weather-mcp
+000-config/003-mcp-servers/003-weather-mcp
+006-research-prototypes/MCP-model-context-protocol/003-weather-mcp
+
+# by-design local-only scratch (documented no-remote in CLAUDE.md)
+004-lewagon-spiced/lewagon/sandbox/012-temps

@@ -17,8 +17,15 @@ how the environment works day-to-day.
 1. **Repo hygiene sweep** — `custom_scripts/repo_sweep.sh` must print **RECLONE-READY**
    (checks every repo for dirty trees, unpushed commits, missing remotes; exit 1
    otherwise). Run it days before AND on migration morning — do not proceed on ❌.
-   State 2026-09-17: 82 dirty / 42 unpushed / **31 with NO REMOTE** (incl. 021-bootcamp,
-   020-autoresearch, 024-dino, 025-ltm, teaching-containers). Fix recipes:
+   A `.sweepignore` (at `$ROOT/.sweepignore`) allowlists confirmed false positives
+   (vestigial `git init` shells, by-design no-remote scratch) so ❌ means real work.
+   State 2026-09-17 post-audit: 114 flagged (allowlist off) → **7 NO-REMOTE** (4 are
+   the allowlisted vestigial/scratch shells; 3 are engenious work repos — my-ai-underwriter,
+   engenious_university, discord-me-mcp — all bundled to `~/git-bundles/`), ~50 dirty +
+   ~61 unpushed dominated by the `ai-underwriter-references/000-ai-underwriter-local`
+   worktree fleet (engenious work) + pre-existing personal WIP. talentsphere,
+   teaching-containers, 021-bootcamp, 020-autoresearch, 024-dino, 025-ltm now all remoted.
+   Fix recipes:
    - no remote → `gh repo create <name> --private --source . --push`
    - unpushed  → `git push --all` (engenious work branches: owner's call)
    - dirty scratch → `git add -A && git commit -m "chore: wip snapshot" && git push`
@@ -48,8 +55,8 @@ how the environment works day-to-day.
 | `~/.config/gcloud/` | same path | auth tokens; else re-auth every project |
 | `~/.aws/` + `~/.azure/` | same paths | WORK credentials/tokens (aws-cli, azure-cli) — else re-auth both |
 | `~/env-snapshots/` | anywhere | pyenv freeze insurance |
-| Non-git project dirs (~4.2G) | same paths under `~/Code` | 026-Noema, 028-nano-universe, 003-kp/miniprojects/{multiagent-orchestration, codeact, multi-agents-workflow, mini-agent-as-a-service, mini-deepagents}, 006-rp/{OTH-candidate-assistant, AGT-rlm-graph-unix} |
-| `spiced/ds-book-template/` | same path | has LOCAL-ONLY commits (origin = neuefische, no push rights) — re-cloning loses them; carry the folder or add a personal fork remote first |
+| Non-git project dirs (~4.2G) | same paths under `~/Code` | 005-products/026-Noema, 005-products/028-nano-universe, 003-kp/miniprojects/{multiagent-orchestration, codeact, mini-multi-agents-workflow, mini-agent-as-a-service, mini-deepagents}, 006-rp/{OTH-candidate-assistant, AGT-rlm-graph-unix} |
+| `004-lewagon-spiced/spiced/ds-book-template/` | same path | has LOCAL-ONLY commit (origin = neuefische, no push rights) — re-cloning loses it; bundled at `~/git-bundles/spiced_ds-book-template.bundle`, or carry the folder / add a personal fork remote first |
 | Reviewed Downloads/Desktop/Documents picks | wherever | from Phase 0.3 |
 
 Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
