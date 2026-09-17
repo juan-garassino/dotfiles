@@ -44,7 +44,8 @@ echo "    (full log: /tmp/rehearse-run1.log, exit=$RUN1)"
 echo "── assertions"
 typeset -i pass=0 fail=0
 A() { # A <desc> <container-cmd-as-tester>
-  if XT "$2" >/dev/null 2>&1; then echo "  PASS $1"; ((pass++)); else echo "  FAIL $1"; ((fail++)); fi
+  # ((++n)) pre-increment: ((n++)) returns status 1 when n was 0 → set -e abort
+  if XT "$2" >/dev/null 2>&1; then echo "  PASS $1"; ((++pass)); else echo "  FAIL $1"; ((++fail)); fi
 }
 A "oh-my-zsh actually installed (the fixed check)" "test -f ~/.oh-my-zsh/oh-my-zsh.sh"
 A "zsh-autosuggestions cloned"                     "test -d ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions"

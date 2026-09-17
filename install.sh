@@ -180,8 +180,25 @@ for editor_path in "$CODE_PATH" "$CURSOR_PATH"; do
 done
 
 ###############################################################################
-# 4. zsh plugins
+# 4. Oh-My-Zsh + zsh plugins
+# ORDER MATTERS: the OMZ installer refuses to run if ~/.oh-my-zsh already exists
+# (even empty), so OMZ must install BEFORE anything mkdirs into it — the old
+# layout (plugins first) pre-created the dir and the fresh-machine install died
+# with "The $ZSH folder already exists". Caught by rehearse_install.sh.
 ###############################################################################
+echo ""
+echo "🎨 Oh-My-Zsh..."
+if [ ! -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
+  if [ -d "$HOME/.oh-my-zsh" ]; then
+    echo "  🧹 Removing empty/broken ~/.oh-my-zsh (no oh-my-zsh.sh inside)"
+    rm -rf "$HOME/.oh-my-zsh"
+  fi
+  echo "  📦 Installing Oh-My-Zsh..."
+  RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+else
+  echo "  ✅ Oh-My-Zsh present"
+fi
+
 echo ""
 echo "🔌 zsh plugins..."
 
@@ -244,18 +261,10 @@ else
 fi
 
 ###############################################################################
-# 7. Oh-My-Zsh + Powerlevel10k
+# 7. Powerlevel10k (OMZ itself installs in step 4, BEFORE the plugins mkdir)
 ###############################################################################
 echo ""
-echo "🎨 Oh-My-Zsh + Powerlevel10k..."
-if [ ! -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
-  # NOTE: test the script, not the dir — step 4's `mkdir -p ~/.oh-my-zsh/custom/plugins`
-  # pre-creates the dir, which made a `-d` check always pass and skip the install.
-  echo "  📦 Installing Oh-My-Zsh..."
-  RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-else
-  echo "  ✅ Oh-My-Zsh present"
-fi
+echo "🎨 Powerlevel10k..."
 if [ ! -d "$HOME/.powerlevel10k" ]; then
   echo "  📦 Installing Powerlevel10k..."
   git clone --quiet --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.powerlevel10k"
