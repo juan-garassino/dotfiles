@@ -14,12 +14,15 @@ fi
 # ⚙️  Oh-My-Zsh Configuration
 #######################################################################
 ZSH=$HOME/.oh-my-zsh
-plugins=(git gitfast last-working-dir common-aliases zsh-syntax-highlighting history-substring-search direnv)
-eval "$(direnv hook zsh)"
+# zsh-autosuggestions is cloned by install.sh — actually load it (was installed-never-loaded).
+# direnv hooked explicitly below (guarded), not via the OMZ plugin — one mechanism, not two.
+plugins=(git gitfast last-working-dir common-aliases zsh-autosuggestions zsh-syntax-highlighting history-substring-search)
+command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 export HOMEBREW_NO_ANALYTICS=1
 ZSH_DISABLE_COMPFIX=true
+zstyle ':omz:update' mode disabled   # the real OMZ update kill-switch (DISABLE_UPDATES was a placebo)
 source "${ZSH}/oh-my-zsh.sh"
-unalias rm
+unalias rm 2>/dev/null   # only exists while common-aliases provides rm='rm -i'
 
 #######################################################################
 # 📂 Path and Environment Settings
@@ -88,7 +91,7 @@ USE_P10K=true  # 👉 set to false to disable P10K
 
 if [ "$USE_P10K" = true ]; then
   [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-  source ~/.powerlevel10k/powerlevel10k.zsh-theme
+  [[ -f ~/.powerlevel10k/powerlevel10k.zsh-theme ]] && source ~/.powerlevel10k/powerlevel10k.zsh-theme
 else
   powerlevel10k_plugin_unload 2>/dev/null || true
   unset RPROMPT
@@ -305,7 +308,7 @@ lsenvs() {
 
   echo ""
   echo "📂 Project-local venvs:"
-  for v in .venv*; do
+  for v in .venv*(N); do
     if [ -d "$v" ]; then
       local pyver=$(grep -E 'version' "$v/pyvenv.cfg" 2>/dev/null | sed 's/ *version *= *//')
       echo "  - $v ($pyver)"
@@ -409,7 +412,7 @@ venvclean() {
   local venvs=()
   local sizes=()
 
-  for v in .venv*; do
+  for v in .venv*(N); do
     if [ -d "$v" ]; then
       local size
       size=$(du -sh "$v" 2>/dev/null | awk '{print $1}')
@@ -585,7 +588,7 @@ killport() {
   local pid
   pid=$(lsof -ti tcp:$1)
   if [ -n "$pid" ]; then
-    kill -9 $pid && echo "💀 Killed process $pid on port $1"
+    kill -9 ${(f)pid} && echo "💀 Killed process ${pid//$'\n'/ } on port $1"
   else
     echo "ℹ️  No process found on port $1"
   fi
@@ -776,7 +779,7 @@ whoami_dev() {
 
 # engopen → list Engenious repos and cd into selected one
 engopen() {
-  local repos=(~/Code/002-engenious/*/)
+  local repos=(~/Code/002-engenious/*/(N))
   if [ ${#repos[@]} -eq 0 ]; then
     echo "⚠️  No repos found in ~/Code/002-engenious/"
     return 1
@@ -875,5 +878,3 @@ export PATH="$HOME/.antigravity-ide/antigravity-ide/bin:$PATH"
 # Align gh account with the directory the shell opened in (last-working-dir
 # restores cwd before our cd() wrapper exists, so the hook missed it).
 [[ -o interactive ]] && gh_auto_switch
-
-export DISABLE_UPDATES=1
