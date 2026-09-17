@@ -26,10 +26,13 @@ on the OLD machine before wiping, they are NOT auto-handled:
    snapshot after cloning** (see Phase 2.8), OR consolidate real keys into `~/.secrets` (carried).
 2. 🔴 **Carry the reclone manifest:** `~/env-snapshots/repo-manifest-2026-09-17.txt` (PATH|REMOTE
    for all 192 repos) — `code_manager.sh` can't discover repos on a wiped Mac. Hand-carry it.
-3. 🔴 **Non-git source dirs** (add to Phase-1 hand-carry): `003-kp/{llm-engineering-lab (207 .py),
-   miniprojects/cognitive-memory, nlsql, mini-copilotkit, mini-presenter, mini-companion}`,
-   `006-rp/{GRAPH-graphrag-integration, GRAPH-custom-graphrag, OTH-orchestration-coreo,
-   DIF-emoji-generation, DIF-adversarial-diffusion}` — no git, pure rsync-loss otherwise.
+3. 🔴 **Genuinely-loose non-git dirs** (untracked, no remote → hand-carry; git-status-verified 2026-09-17):
+   `006-rp/{OTH-candidate-assistant (306M), GRAPH-graphrag-integration (82M), GRAPH-custom-graphrag (33M),
+   GRAPH-chroma-rag, DIF-emoji-generation (116M), DIF-adversarial-diffusion (64M), OTH-orchestration-coreo (58M),
+   AGT-multiagent-orchestrator, SQL-nlsql}` + `005-products/001-assessment (9M)`. The rsync (0.3) also covers these.
+   **NOT hand-carry (all reclone-safe git repos/tracked — an earlier draft wrongly listed them):** 026-Noema,
+   028-nano-universe, AGT-rlm-graph-unix (own repos w/ remotes), and ALL of 003-kp incl. miniprojects/* +
+   llm-engineering-lab (tracked in the 003 repo).
 4. 🔴 **Databases:** `pg_dump` PostgreSQL@14 (`/usr/local/var/postgresql@14`, ~360M) if it holds
    anything you want; carry `027-ml-workspace/mlops/.prefect/prefect.db`; verify the docker
    `teaching_postgres` volume (start docker first). Runbook otherwise says nothing about DBs.
@@ -88,7 +91,7 @@ non-git source dirs) — size the SSD/AirDrop accordingly, not the old "~4.2G" l
 | `~/.config/gcloud/` | same path | auth tokens; else re-auth every project |
 | `~/.aws/` + `~/.azure/` | same paths | WORK credentials/tokens (aws-cli, azure-cli) — else re-auth both |
 | `~/env-snapshots/` | anywhere | pyenv freeze insurance |
-| Non-git project dirs (~4.2G) | same paths under `~/Code` | 005-products/026-Noema, 005-products/028-nano-universe, 003-kp/miniprojects/{multiagent-orchestration, codeact, mini-multi-agents-workflow, mini-agent-as-a-service, mini-deepagents}, 006-rp/{OTH-candidate-assistant, AGT-rlm-graph-unix} |
+| Loose non-git dirs (~0.7G personal) | same paths under `~/Code` | See the corrected list in the "Audit 2026-09-17" section above — `006-rp/{OTH-candidate-assistant, GRAPH-*, DIF-*, OTH-orchestration-coreo, AGT-multiagent-orchestrator, SQL-nlsql}` + `005-products/001-assessment`. (026-Noema, 028-nano-universe, AGT-rlm-graph-unix, all 003-kp = git repos → reclone, do NOT carry.) |
 | `004-lewagon-spiced/spiced/ds-book-template/` | same path | has LOCAL-ONLY commit (origin = neuefische, no push rights) — re-cloning loses it; bundled at `~/git-bundles/spiced_ds-book-template.bundle`, or carry the folder / add a personal fork remote first |
 | Reviewed Downloads/Desktop/Documents picks | wherever | from Phase 0.3 |
 
