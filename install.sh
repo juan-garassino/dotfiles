@@ -187,6 +187,7 @@ echo "🔌 zsh plugins..."
 
 ZSH_PLUGINS_DIR="$HOME/.oh-my-zsh/custom/plugins"
 mkdir -p "$ZSH_PLUGINS_DIR"
+mkdir -p "$HOME/.nvm"   # brew nvm needs the working dir to exist
 
 if [ ! -d "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" ]; then
   echo "  📦 Installing zsh-syntax-highlighting..."
@@ -247,7 +248,9 @@ fi
 ###############################################################################
 echo ""
 echo "🎨 Oh-My-Zsh + Powerlevel10k..."
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
+if [ ! -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
+  # NOTE: test the script, not the dir — step 4's `mkdir -p ~/.oh-my-zsh/custom/plugins`
+  # pre-creates the dir, which made a `-d` check always pass and skip the install.
   echo "  📦 Installing Oh-My-Zsh..."
   RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 else

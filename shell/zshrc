@@ -47,7 +47,12 @@ export BUNDLER_EDITOR=code
 export NVM_DIR="$HOME/.nvm"
 _nvm_lazy_load() {
   unset -f nvm node npm npx yarn pnpm corepack _nvm_lazy_load
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  # brew-installed nvm lives under the brew prefix, NOT in $NVM_DIR (which only
+  # holds installed node versions); standalone-nvm fallback kept second.
+  local _brew_nvm="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/nvm.sh"
+  if [ -s "$_brew_nvm" ]; then \. "$_brew_nvm"
+  elif [ -s "$NVM_DIR/nvm.sh" ]; then \. "$NVM_DIR/nvm.sh"; fi
+  [ -s "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/etc/bash_completion.d/nvm" ] && \. "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/etc/bash_completion.d/nvm"
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
   autoload -U add-zsh-hook
   load-nvmrc() {

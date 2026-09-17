@@ -33,8 +33,15 @@ brew "ghostscript"
 brew "git"
 # Quickly rewrite git repository history
 brew "git-filter-repo"
-# Kubernetes package manager
-brew "helm", link: false
+# Git extension for versioning large files (gitconfig declares the lfs filter)
+brew "git-lfs"
+# Go toolchain (needed by the gopls `go` directive below)
+brew "go"
+# Kubernetes package manager (was link:false only because a manual
+# /usr/local/bin/helm shadowed it on the Intel machine — link it on arm64)
+brew "helm"
+# Run lightweight k3s clusters in docker (was a manual /usr/local install)
+brew "k3d"
 # Tools and libraries to manipulate images in select formats
 brew "imagemagick"
 # Lightweight and flexible command-line JSON processor
