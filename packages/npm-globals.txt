@@ -1,0 +1,9 @@
+# Global npm CLIs — installed by install.sh step 6c (needs node via nvm first).
+# One package per line; '#' comments ok. brew bundle can't install these.
+@google/gemini-cli
+@openai/codex
+@mermaid-js/mermaid-cli
+http-server
+react-devtools
+wscat
+# (claude-code installs via its own curl script, not npm; corepack ships with node)

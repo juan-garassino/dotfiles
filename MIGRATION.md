@@ -173,9 +173,21 @@ custom_scripts/backup_env.sh --no-push                                       # s
 
 ## Phase 4 — Finalize
 
-1. Merge: `git checkout master && git merge uv-only && git push` (from the NEW machine only).
-2. Old machine: nothing to do — retire it whenever. `~/.pyenv` dies with it.
-3. Later (separate work): build the 4 teaching-stack images
+1. **Apps & GUI sign-ins** (the `install.sh` Brewfile already installed the casks —
+   Antigravity ×2, VS Code, DBeaver, Slack, Warp, gcloud, ngrok — and step 6b/6c restored
+   all 48 VS Code/Antigravity extensions + the npm/go global CLIs): sign into **Antigravity**
+   (Google account), Slack (`lewagon-alumni` + engenious workspaces), and run
+   `gcloud auth login && gcloud auth application-default login`.
+2. **macOS defaults** (optional, your muscle-memory): `zsh custom_scripts/macos_defaults.sh`
+   (fast key-repeat, screenshots→Desktop, Finder tweaks — reversible, not run by install.sh).
+3. **Rosetta**: only if an x86-only tool ever complains — `softwareupdate --install-rosetta`.
+   The whole stack is arm64-native; you should not need it. (Also confirm your terminal app
+   is NOT "Open using Rosetta" — Get Info on Warp/Terminal.)
+4. **Docker**: this setup uses **colima** (not Docker Desktop — the 51G Intel fossil is gone):
+   `colima start` gives you the docker daemon; `docker`/`docker compose` then work as normal.
+5. Merge: `git checkout master && git merge uv-only && git push` (from the NEW machine only).
+6. Old machine: nothing to do — retire it whenever. `~/.pyenv` dies with it.
+7. Later (separate work): build the 4 teaching-stack images
    (`~/Code/004-lewagon-spiced/teaching-containers/`) arm64-native and test the RISE
    present flow end-to-end before the first class.
 

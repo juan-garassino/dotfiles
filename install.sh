@@ -261,6 +261,55 @@ else
 fi
 
 ###############################################################################
+# 6b. VS Code extensions — restore the snapshot (Le Wagon installs a subset;
+#     this ships your full real set so a fresh machine matches the old one).
+###############################################################################
+echo ""
+echo "🧩 VS Code extensions..."
+if [ "${DOTFILES_MINIMAL:-0}" = 1 ]; then
+  echo "  ⏭️  MINIMAL rehearsal — skipping downloads ($(grep -vcE '^#|^$' "$DOTFILES_DIR/packages/vscode-extensions.txt" 2>/dev/null) in list)"
+elif command -v code >/dev/null 2>&1 && [ -f "$DOTFILES_DIR/packages/vscode-extensions.txt" ]; then
+  installed="$(code --list-extensions 2>/dev/null)"
+  while IFS= read -r ext; do
+    [ -z "$ext" ] && continue
+    case "$ext" in \#*) continue ;; esac
+    if printf '%s\n' "$installed" | grep -qix "$ext"; then continue; fi
+    code --install-extension "$ext" >/dev/null 2>&1 && echo "  + $ext" || echo "  ⚠️  failed: $ext"
+  done < "$DOTFILES_DIR/packages/vscode-extensions.txt"
+  echo "  ✅ extensions synced"
+else
+  echo "  ⏭️  code CLI not found / no list — install VS Code first, then re-run"
+fi
+
+###############################################################################
+# 6c. Global npm CLIs + go tools (brew bundle can't do `npm`/`go` stanzas).
+#     Needs node — provided by brew nvm; load it non-interactively here.
+###############################################################################
+echo ""
+echo "🌐 Global npm CLIs + go tools..."
+if [ "${DOTFILES_MINIMAL:-0}" = 1 ]; then
+  echo "  ⏭️  MINIMAL rehearsal — skipping npm/go installs ($(grep -vcE '^#|^$' "$DOTFILES_DIR/packages/npm-globals.txt" 2>/dev/null) npm globals in list)"
+else
+_brew_nvm="$(brew --prefix 2>/dev/null)/opt/nvm/nvm.sh"
+if [ -s "$_brew_nvm" ]; then
+  mkdir -p "$HOME/.nvm"; export NVM_DIR="$HOME/.nvm"
+  . "$_brew_nvm" 2>/dev/null
+  nvm install --lts >/dev/null 2>&1 && nvm use --lts >/dev/null 2>&1
+fi
+if command -v npm >/dev/null 2>&1 && [ -f "$DOTFILES_DIR/packages/npm-globals.txt" ]; then
+  while IFS= read -r pkg; do
+    [ -z "$pkg" ] && continue; case "$pkg" in \#*) continue ;; esac
+    npm ls -g "$pkg" >/dev/null 2>&1 || { npm install -g "$pkg" >/dev/null 2>&1 && echo "  + $pkg" || echo "  ⚠️  npm failed: $pkg"; }
+  done < "$DOTFILES_DIR/packages/npm-globals.txt"
+else
+  echo "  ⏭️  npm not on PATH — run 'nvm install --lts' then re-run install.sh"
+fi
+if command -v go >/dev/null 2>&1; then
+  go install golang.org/x/tools/gopls@latest >/dev/null 2>&1 && echo "  + gopls" || echo "  ⚠️  gopls install failed"
+fi
+fi   # end DOTFILES_MINIMAL guard
+
+###############################################################################
 # 7. Powerlevel10k (OMZ itself installs in step 4, BEFORE the plugins mkdir)
 ###############################################################################
 echo ""

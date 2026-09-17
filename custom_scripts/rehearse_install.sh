@@ -33,9 +33,9 @@ X "useradd -m -s /bin/bash tester && echo 'tester ALL=(ALL) NOPASSWD:ALL' > /etc
 echo "── cloning dotfiles@$BRANCH from GitHub (clonability proof)"
 XT "mkdir -p ~/Code/000-config && git clone -q --branch $BRANCH https://github.com/juan-garassino/dotfiles.git ~/Code/000-config/001-dotfiles"
 
-echo "── RUN 1: install.sh (unattended)"
+echo "── RUN 1: install.sh (unattended, MINIMAL — skips slow marketplace/npm downloads)"
 set +e
-XT "cd ~/Code/000-config/001-dotfiles && DEBIAN_FRONTEND=noninteractive zsh ./install.sh" > /tmp/rehearse-run1.log 2>&1
+XT "cd ~/Code/000-config/001-dotfiles && DEBIAN_FRONTEND=noninteractive DOTFILES_MINIMAL=1 zsh ./install.sh" > /tmp/rehearse-run1.log 2>&1
 RUN1=$?
 set -e
 tail -5 /tmp/rehearse-run1.log | sed 's/^/    /'
@@ -61,7 +61,7 @@ A "no pyenv anywhere"                              "! command -v pyenv && ! test
 
 echo "── RUN 2: idempotency (re-run must not fail or duplicate)"
 set +e
-XT "cd ~/Code/000-config/001-dotfiles && DEBIAN_FRONTEND=noninteractive zsh ./install.sh" > /tmp/rehearse-run2.log 2>&1
+XT "cd ~/Code/000-config/001-dotfiles && DEBIAN_FRONTEND=noninteractive DOTFILES_MINIMAL=1 zsh ./install.sh" > /tmp/rehearse-run2.log 2>&1
 RUN2=$?
 set -e
 if [ "$RUN2" -eq 0 ]; then echo "  PASS re-run exits 0"; ((pass++)); else echo "  FAIL re-run exit=$RUN2 (log: /tmp/rehearse-run2.log)"; ((fail++)); fi
