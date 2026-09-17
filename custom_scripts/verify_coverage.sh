@@ -39,8 +39,13 @@ find "$ROOT" -name .git -maxdepth 6 \( -type d -o -type f \) \
   ((n_repos++))
   rel="${d#$ROOT/}"
   base="${d:t}"
-  # candidate bundle heads for this repo (match by dir basename, loose)
-  cand_heads=$(grep -i -- "$base" "$BUNDLE_IDX" | awk '{print $2}' | sort -u)
+  # candidate bundle heads: match worktree dirname AND the common repo's dirname
+  # (a linked worktree like .../worktrees/_ab_b_tip belongs to a parent repo whose
+  # bundle is named after the PARENT — matching only the worktree name missed it),
+  # with a fall-back to ALL bundle heads when nothing matches by name.
+  repo_base="${${common%/.git}:t}"
+  cand_heads=$( (grep -i -- "$base" "$BUNDLE_IDX"; grep -i -- "$repo_base" "$BUNDLE_IDX") 2>/dev/null | awk '{print $2}' | sort -u)
+  [ -z "$cand_heads" ] && cand_heads=$(awk '{print $2}' "$BUNDLE_IDX" | sort -u)
   git -C "$d" for-each-ref --format='%(refname:short) %(objectname)' refs/heads 2>/dev/null | \
   while read -r br tip; do
     ((n_tips++))

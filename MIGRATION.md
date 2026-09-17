@@ -74,11 +74,15 @@ non-git source dirs) — size the SSD/AirDrop accordingly, not the old "~4.2G" l
 3. **Belt-and-braces (mandatory):** `rsync -a ~/Code /Volumes/<SSD>/Code-final-snapshot/`
    before the Intel is ever wiped — caps reclone risk at zero even if the sweep missed
    something. The Intel also stays shelved (powered off, unwiped) for ≥ a few weeks.
-2. **pyenv snapshots** — `custom_scripts/depyenv.sh` (dry-run default; Phase A freezes all
+4. **pyenv snapshots** — `custom_scripts/depyenv.sh` (dry-run default; Phase A freezes all
    envs to `~/env-snapshots/`). Only during migration week: `depyenv.sh --apply` to fix
    Juan-owned `.python-version` files (upstream-tracked ones are always left alone).
-3. 🙋 **Review loose data**: `~/Downloads`, `~/Desktop`, `~/Documents` (teaching zips live
+5. 🙋 **Review loose data**: `~/Downloads`, `~/Desktop`, `~/Documents` (teaching zips live
    there), `~/Library/LaunchAgents`.
+6. **Coverage proof** — `custom_scripts/verify_coverage.sh` must report zero UNCOVERED
+   branch tips (every local branch in every repo, engenious + worktree fleets included,
+   contained in a remote or a `~/git-bundles` bundle). **Re-bundle engenious on wipe-day**
+   (`git bundle create <name> --all` per repo) so bundles are never stale at the moment of truth.
 
 ## Phase 1 — 🙋 Hand-carry (external SSD / AirDrop; NEVER through this public repo)
 
@@ -93,7 +97,16 @@ non-git source dirs) — size the SSD/AirDrop accordingly, not the old "~4.2G" l
 | `~/env-snapshots/` | anywhere | pyenv freeze insurance |
 | Loose non-git dirs (~0.7G personal) | same paths under `~/Code` | See the corrected list in the "Audit 2026-09-17" section above — `006-rp/{OTH-candidate-assistant, GRAPH-*, DIF-*, OTH-orchestration-coreo, AGT-multiagent-orchestrator, SQL-nlsql}` + `005-products/001-assessment`. (026-Noema, 028-nano-universe, AGT-rlm-graph-unix, all 003-kp = git repos → reclone, do NOT carry.) |
 | `004-lewagon-spiced/spiced/ds-book-template/` | same path | has LOCAL-ONLY commit (origin = neuefische, no push rights) — re-cloning loses it; bundled at `~/git-bundles/spiced_ds-book-template.bundle`, or carry the folder / add a personal fork remote first |
-| Reviewed Downloads/Desktop/Documents picks | wherever | from Phase 0.3 |
+| `~/.secrets-cheatsheet.md` | `~/` | repo→keys→source map (chmod 600) |
+| `~/env-snapshots/pgdump-2026-09-17.sql.gz` | anywhere | postgres@14 dump (360M data dir) |
+| `~/env-snapshots/vscode-extensions-2026-09-17.txt` | anywhere | `code --install-extension` loop on new Mac |
+| `~/env-snapshots/claude_desktop_config-*.json` | `~/Library/Application Support/Claude/` | Claude Desktop MCP config |
+| `~/.ssh/{google_compute_engine,dc_trader,known_hosts}` | `~/.ssh/` | extra keys + host trust |
+| Reviewed Downloads/Desktop/Documents picks | wherever | from Phase 0.5 |
+
+**Authoritative executable list + copier:** `custom_scripts/stage_handcarry.sh` — `--check`
+verifies everything above exists; `--to /Volumes/<SSD>` stages it. The table is the narrative;
+the script is the truth.
 
 Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
 `~/.zsh_history`, `~/.colima`, `~/.ollama/models` (re-pull).
@@ -120,7 +133,7 @@ Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
    - p10k config wizard: **decline** — `~/.p10k.zsh` is already symlinked.
 5. Verify the toolchain: `which uv` → `$(brew --prefix)/bin/uv` (NEVER a `.pyenv/shims`
    path); `uv python list --only-installed` shows 3.11 + 3.12.
-6. Fresh shell → `mysandbox` (creates + seeds `~/.venv-sandbox`, ~137 packages, arm64 wheels).
+6. Fresh shell → `mysandbox` (creates + seeds `~/.venv-sandbox`, ~110 packages, arm64 wheels).
 7. **Clone all repos to their exact old paths** (`~/Code/00X-…`) — git `includeIf` and the
    gh account cd-hook key off these paths. Use `pull-all.sh` in 004-lewagon-spiced and
    `custom_scripts/code_manager.sh`. Copy the hand-carried non-git dirs into place.
@@ -131,6 +144,12 @@ Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
 9. Rosetta: NOT needed (all-arm64 stack). Install only if some Intel-only cask appears.
 
 ## Phase 3 — Verification gauntlet (all must pass)
+
+**One command:** `custom_scripts/preflight_gauntlet.sh` — the whole gauntlet as a PASS/FAIL
+scorecard (syntax, pyenv-leak, autoenv 4 cases, identity matrix, uv toolchain, lfs filter,
+docker). Run it inside an interactive shell (`zsh -i -c .../preflight_gauntlet.sh`). It is the
+SAME script rehearsed on the Intel machine pre-migration — identical gate both sides.
+The manual walk-through below is kept for debugging individual failures:
 
 ```zsh
 zsh -n ~/Code/000-config/001-dotfiles/shell/zshrc                       # syntax

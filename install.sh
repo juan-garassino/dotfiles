@@ -233,7 +233,7 @@ if command -v uv &>/dev/null; then
 fi
 
 ###############################################################################
-# 6. Homebrew bundle — full toolchain (pyenv, uv, docker, minikube, postgres, fonts…)
+# 6. Homebrew bundle — full toolchain (uv, docker, minikube, postgres, fonts… — NO pyenv)
 ###############################################################################
 echo ""
 echo "🍺 Restoring full Homebrew bundle..."
