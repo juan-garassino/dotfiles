@@ -36,8 +36,10 @@ rc(){ local p="$1" note="${2:-}"; [ -e "$p" ] || { return; }
 echo "🧹 migration cleanup — MODE=$MODE  SCOPE=$SCOPE   (free now: $(df -h /System/Volumes/Data|tail -1|awk '{print $4}'))"
 
 # ── live-config probe (the pyenv guardrail) ──────────────────────────────────
+# match real INIT WIRING only — the uv-only zshrc mentions "pyenv" in comments
+# and in the legacy-.python-version notice, which must not re-block the apply
 LIVE_ZSHRC="$(readlink ~/.zshrc 2>/dev/null || echo ~/.zshrc)"
-if grep -q pyenv "$LIVE_ZSHRC" 2>/dev/null; then LIVE_IS_UVONLY=0; else LIVE_IS_UVONLY=1; fi
+if grep -qE 'pyenv (init|virtualenv-init)' "$LIVE_ZSHRC" 2>/dev/null; then LIVE_IS_UVONLY=0; else LIVE_IS_UVONLY=1; fi
 
 if [ "$SCOPE" = all ] || [ "$SCOPE" = dupes ]; then
 hdr "DUPLICATES — redundant clones (content is on a remote or bundle)"
