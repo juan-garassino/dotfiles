@@ -1,4 +1,3 @@
-tap "azure/functions"
 tap "hashicorp/tap"
 tap "homebrew/services"
 tap "ngrok/ngrok"
@@ -8,9 +7,7 @@ brew "act"
 # Official Amazon AWS command-line interface (work)
 brew "awscli"
 # Microsoft Azure CLI (work — Azure OpenAI etc.)
-brew "azure-cli"
 # Azure Functions Core Tools (work)
-brew "azure/functions/azure-functions-core-tools@4"
 # Container runtimes on MacOS (and Linux) with minimal setup
 brew "colima"
 # Load/unload environment variables based on $PWD

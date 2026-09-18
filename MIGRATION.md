@@ -81,7 +81,7 @@ Brewfile-clean on both machines**.
    `brew bundle cleanup --file packages/Brewfile` (dry-run) lists installed-but-not-in-Brewfile
    formulas, BUT it does not see transitive deps — it once listed `icu4c@78` + `sdl2-compat`, which
    ffmpeg/tesseract actually need. ALWAYS `brew uses --installed <f>` before `--force`; only remove
-   what nothing uses. Trust the third-party taps once (`brew trust azure/functions hashicorp/tap
+   what nothing uses. Trust the third-party taps once (`brew trust hashicorp/tap
    runpod/runpodctl`).
 4. **GitHub completeness sweep** (fresh scan 2026-09-18: 5 no-remote / 32 unpushed / 60 dirty):
    - Personal dirty repos: agent triage — build junk → .gitignore; real WIP → honest
@@ -123,7 +123,10 @@ travel ONLY via the vault, never via GitHub. Pair with `~/.secrets-cheatsheet.md
 ### T2 — M5 day 1 (machines side by side; zero destructive; done together with Claude)
 1. Bring-up = Phase 2 (`install.sh` on `uv-only`) → Phase 3 gauntlet (SOURCED) all green.
 2. Hand-carry the machine-local credentials (gh ×2 + routing, SSH keys, cloud CLIs, `.env`
-   values, Claude auth) — recreate intentionally, never through GitHub.
+   values, Claude auth) — recreate intentionally, never through GitHub. **Providers in use
+   (2026-09-18): GCP (gcloud) + OpenAI, some Anthropic, then NVIDIA / OpenRouter / Groq. AWS =
+   engenious work only. Azure = RETIRED (no CLI, no `~/.azure`, legacy AZURE_OPENAI_* keys in old
+   .env files are dead config).**
 3. **Vault copy #2:** rsync SSD → M5 `~/Archive/Code-final-snapshot/` →
    **byte-verify pass 2 (SSD ↔ M5):** `rsync -c --dry-run` silent. The vault now exists twice
    off the Intel machine — this is the lose-nothing guarantee.
@@ -210,7 +213,7 @@ the system-level Definition-of-Done (acceptance layer E).
 | `~/Code/000-config/002-gcp-credentials/` | same path | GCP SA JSONs |
 | **entire `~/.claude/`** (~1.3G) | `~/.claude/` | projects memory/standing, plans, history — irreplaceable |
 | `~/.config/gcloud/` | same path | auth tokens; else re-auth every project |
-| `~/.aws/` + `~/.azure/` | same paths | WORK credentials/tokens (aws-cli, azure-cli) — else re-auth both |
+| `~/.aws/` | same path | WORK aws-cli credentials (engenious) — else re-auth. (`~/.azure` retired 2026-09-18.) |
 | `~/env-snapshots/` | anywhere | pyenv freeze insurance |
 | Loose non-git dirs (~0.7G personal) | same paths under `~/Code` | See the corrected list in the "Audit 2026-09-17" section above — `006-rp/{OTH-candidate-assistant, GRAPH-*, DIF-*, OTH-orchestration-coreo, AGT-multiagent-orchestrator, SQL-nlsql}` + `005-products/001-assessment`. (026-Noema, 028-nano-universe, AGT-rlm-graph-unix, all 003-kp = git repos → reclone, do NOT carry.) |
 | `004-lewagon-spiced/spiced/ds-book-template/` | same path | has LOCAL-ONLY commit (origin = neuefische, no push rights) — re-cloning loses it; bundled at `~/git-bundles/spiced_ds-book-template.bundle`, or carry the folder / add a personal fork remote first |
