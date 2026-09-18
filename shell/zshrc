@@ -500,8 +500,10 @@ autoenv_activate() {
       [[ -o interactive ]] && print -P "%F{green}▶ Activated .venv (🐍 $(python --version 2>/dev/null | awk '{print $2}'))%f"
     fi
     # lockfile drifted ahead of the env → suggest a sync, once per dir per session
+    # (:- defaults keep the assoc reads nounset-safe — a sourced `set -u` script
+    #  must not break every subsequent cd via the chpwd hook)
     if [ -f "uv.lock" ] && [ "uv.lock" -nt ".venv" ] && [[ -o interactive ]] \
-        && [ -z "${autoenv_warned[${PWD}:stale]}" ]; then
+        && [ -z "${autoenv_warned[${PWD}:stale]:-}" ]; then
       autoenv_warned[${PWD}:stale]=1
       print -P "%F{yellow}🔄 uv.lock is newer than .venv — run: uv sync%f"
     fi
@@ -511,7 +513,7 @@ autoenv_activate() {
   # 2) No .venv — detect what kind of project this is; hint once, NEVER mutate.
   #    envup does the right thing for every manifest style.
   if [ -f "pyproject.toml" ] || [ -f "uv.lock" ] || [ -f "requirements.txt" ]; then
-    if [[ -o interactive ]] && [ -z "${autoenv_warned[$PWD]}" ]; then
+    if [[ -o interactive ]] && [ -z "${autoenv_warned[$PWD]:-}" ]; then
       autoenv_warned[$PWD]=1
       print -P "%F{cyan}📦 Project detected, no .venv — run: envup%f"
     fi
@@ -519,7 +521,7 @@ autoenv_activate() {
     local ver
     ver=$(<.python-version)
     ver=${ver//[[:space:]]/}
-    if [[ -o interactive ]] && [ -z "${autoenv_warned[$PWD]}" ]; then
+    if [[ -o interactive ]] && [ -z "${autoenv_warned[$PWD]:-}" ]; then
       autoenv_warned[$PWD]=1
       if [[ "$ver" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
         print -P "%F{cyan}📦 .python-version=$ver, no .venv — run: envup%f"

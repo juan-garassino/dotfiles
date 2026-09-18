@@ -2,10 +2,13 @@
 ###############################################################################
 # 🏁 preflight_gauntlet.sh — MIGRATION.md Phase 3 as an executable scorecard
 #
-# Runs the verification gauntlet and prints PASS/FAIL per check. Used:
+# Runs the verification gauntlet and prints PASS/FAIL per check. MUST be
+# SOURCED from an interactive shell running the uv-only zshrc — the autoenv
+# checks call the shell's functions, which subprocesses don't inherit. Used:
 #   - on the OLD Intel machine inside the try-uv trial shell (the dry run):
-#       ZDOTDIR=<trial> zsh -i -c '<worktree>/custom_scripts/preflight_gauntlet.sh'
-#   - on the NEW machine after install.sh (the real Phase 3 gate).
+#       ZDOTDIR=<trial> zsh -i -c 'source <worktree>/custom_scripts/preflight_gauntlet.sh'
+#   - on a LIVE uv-only shell (post-cutover) / the NEW machine after install.sh:
+#       zsh -i -c 'source <worktree>/custom_scripts/preflight_gauntlet.sh'
 #
 # Exit 0 = all PASS. Any FAIL → exit 1.
 ###############################################################################
@@ -79,10 +82,14 @@ command -v gh >/dev/null 2>&1 && ok "gh present ($(gh auth status 2>&1 | grep -c
 
 # 6. git-lfs filter functional (the audit found required=true with no commands)
 if git config --get filter.lfs.clean >/dev/null 2>&1 && command -v git-lfs >/dev/null 2>&1; then
-  ok "git-lfs filter wired"
+  ok "git-lfs filter wired (config + binary)"
+elif git config --get filter.lfs.clean >/dev/null 2>&1; then
+  # config is the fixed one; only the binary is absent (Intel never brew-installed
+  # it — Brewfile provides it on the M5; sole local LFS repo is a sandbox clone)
+  [ "${INTEL_REHEARSAL:-0}" = 1 ] && wrn "lfs config OK, git-lfs binary not installed" \
+    || bad "lfs config OK but git-lfs binary missing (brew install git-lfs)"
 elif git config --get filter.lfs.required >/dev/null 2>&1; then
-  [ "${INTEL_REHEARSAL:-0}" = 1 ] && wrn "lfs filter broken in LIVE gitconfig (fixed on uv-only; M5 gets the fix)" \
-    || bad "filter.lfs.required set but clean/smudge or git-lfs binary missing"
+  bad "filter.lfs.required set but clean/smudge commands missing (broken config)"
 else ok "no lfs config (fine)"; fi
 
 # 7. containers (optional — only if docker present)
