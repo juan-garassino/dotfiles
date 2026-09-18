@@ -48,6 +48,72 @@ non-git source dirs) — size the SSD/AirDrop accordingly, not the old "~4.2G" l
 
 ---
 
+## 🗺️ THE MASTER ORDER — end-to-end sequence (drafted 2026-09-18, Intel already uv-only)
+
+Governing rule: **nothing destructive happens until a byte-verified vault of ~/Code exists in
+TWO places off this machine.** GitHub protects what was pushed; the vault protects EVERYTHING
+(dirty trees, untracked files, .git history of no-remote repos). Detailed steps live in the
+Phases below; this is the order that stitches them.
+
+### T0 — now (Intel = only machine, cutover done)
+Dogfood uv-only daily. Merge the 44 `build/uv-native` branches at leisure. Nothing else required.
+
+### T1 — SSD vault (any day before the M5; ~1h; repeatable)
+0. **SSD format gate:** the vault volume MUST be APFS (never exFAT — symlinks, permissions and
+   macOS metadata must survive byte-compare). Name it e.g. `CodeVault`.
+1. Git gate: `repo_sweep.sh` + `verify_coverage.sh` → 0 uncovered.
+2. Vault: `rsync -aE --delete --exclude .venv --exclude node_modules --exclude __pycache__
+   --exclude .pytest_cache ~/Code/ /Volumes/CodeVault/Code-final-snapshot/`
+   (envs are regenerable from committed locks; code, .git dirs, notebooks, data ALL included).
+   Also vault `~/env-snapshots`, `~/git-bundles`, and `stage_handcarry.sh --to /Volumes/CodeVault/handcarry/`.
+3. **Byte-verify pass 1 (source ↔ SSD):** same rsync with `-c --dry-run --itemize-changes`
+   → MUST print zero lines. Record file-count + du totals in the scorecard.
+
+### T2 — M5 day 1 (machines side by side; zero destructive; done together with Claude)
+1. Bring-up = Phase 2 (`install.sh` on `uv-only`) → Phase 3 gauntlet (SOURCED) all green.
+2. Hand-carry the machine-local credentials (gh ×2 + routing, SSH keys, cloud CLIs, `.env`
+   values, Claude auth) — recreate intentionally, never through GitHub.
+3. **Vault copy #2:** rsync SSD → M5 `~/Archive/Code-final-snapshot/` →
+   **byte-verify pass 2 (SSD ↔ M5):** `rsync -c --dry-run` silent. The vault now exists twice
+   off the Intel machine — this is the lose-nothing guarantee.
+4. Working set: fresh `git clone` fleet → `~/code` (GitHub is the source; the archive stays read-only).
+5. **Lose-nothing reconciliation:** run `verify_coverage.sh` pointed at the ARCHIVE — every
+   branch tip of every archived repo must be contained in its GitHub clone or a bundle; diff
+   archive-vs-clone for dirty/untracked files and hand-port the few that matter.
+6. Validate on M5: envup spot-checks · `validate_engenious.sh` · teaching containers arm64
+   (`validate_teaching.sh`) · acceptance column "M5 macOS" green.
+7. Merge `uv-only` → master (Phase 4.5). **Soak 1–2 weeks** with the M5 as daily driver;
+   Intel stays untouched — it IS the rollback.
+
+### T3 — wipe gate (only after the soak)
+1. Intel delta: `repo_sweep` + `verify_coverage` (anything born during the soak → push),
+   rsync delta to SSD, re-verify byte-equal.
+2. Gate checklist: M5 acceptance green ✓ · vault ×2 byte-verified ✓ · secrets recreated ✓.
+   Then: sign out iCloud/iMessage/Find-My, deauthorize apps → wipe authorized.
+
+### T4 — 2015 MBP rebirth (dual-boot travel machine)
+1. Internet Recovery → Disk Utility: erase the whole 500G disk → APFS container **100G**
+   (macOS fallback) + leave ~400G free.
+2. Install macOS into the 100G → minimal bring-up: `DOTFILES_MINIMAL=1 install.sh` → git pull
+   the handful of needed repos → acceptance column "2015 macOS".
+3. **Ubuntu 24.04 LTS** USB (matches the rehearsed install.sh Linux branch): partition the free
+   space **300G ext4 `/`** + **100G exFAT `SHARED`** → install. 2015-MBP quirks: Broadcom Wi-Fi
+   needs `broadcom-sta`/`bcmwl` (bring USB tethering for first boot); boot picker = hold-Option
+   (rEFInd optional, not required).
+4. Linux bring-up: `install.sh` Linux branch (rehearsed 12/12 in ubuntu:24.04) → git pull to
+   ext4 `~/code` → Docker Engine + uv → gauntlet → teaching containers → acceptance "2015 Linux".
+5. ExFAT: populate datasets/documents/media from the SSD vault; automount from both OSes.
+   ExFAT rules enforced: never repos, `.venv`, node_modules, or Docker state; never "the backup".
+6. **Cold-boot test:** power on → Linux → ExFAT mounts → git pull → Claude Code/Docker/uv work;
+   reboot → macOS → ExFAT mounts → git pull. Never both at once.
+
+### T5 — steady state
+Two independent machines, one git workflow: each OS pulls/pushes GitHub on its own; machines
+never sync to each other. Keep the SSD vault ≥3 months as the historical archive. Close with
+the system-level Definition-of-Done (acceptance layer E).
+
+---
+
 ## Phase 0 — OLD machine pre-flight (run days before, re-run as final gate)
 
 1. **Repo hygiene sweep** — `custom_scripts/repo_sweep.sh` must print **RECLONE-READY**
