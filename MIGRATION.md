@@ -147,8 +147,9 @@ Do **not** carry: `~/.pyenv` (the point), any `.venv`, `~/.nvm`, `~/.jupyter`,
 
 **One command:** `custom_scripts/preflight_gauntlet.sh` — the whole gauntlet as a PASS/FAIL
 scorecard (syntax, pyenv-leak, autoenv 4 cases, identity matrix, uv toolchain, lfs filter,
-docker). Run it inside an interactive shell (`zsh -i -c .../preflight_gauntlet.sh`). It is the
-SAME script rehearsed on the Intel machine pre-migration — identical gate both sides.
+docker). It MUST be **sourced** from an interactive shell (the autoenv checks need the shell's
+functions): `zsh -i -c 'source .../custom_scripts/preflight_gauntlet.sh'`. It is the
+SAME script that gated the Intel in-place cutover — identical gate both sides.
 The manual walk-through below is kept for debugging individual failures:
 
 ```zsh
@@ -186,12 +187,89 @@ custom_scripts/backup_env.sh --no-push                                       # s
 4. **Docker**: this setup uses **colima** (not Docker Desktop — the 51G Intel fossil is gone):
    `colima start` gives you the docker daemon; `docker`/`docker compose` then work as normal.
 5. Merge: `git checkout master && git merge uv-only && git push` (from the NEW machine only).
-6. Old machine: nothing to do — retire it whenever. `~/.pyenv` dies with it.
+6. Old machine: it is NOT retired — it becomes the **Linux-primary travel machine** (see
+   "Two-machine target architecture" below). It already runs uv-only (pyenv deleted in the
+   2026-09-18 in-place cutover) and stays the working daily driver until the M5 is verified.
 7. Later (separate work): build the 4 teaching-stack images
    (`~/Code/004-lewagon-spiced/teaching-containers/`) arm64-native and test the RISE
-   present flow end-to-end before the first class.
+   present flow end-to-end before the first class. (Definitions already build+smoke GREEN
+   on amd64 — validated 2026-09-18 via `custom_scripts/validate_teaching.sh`.)
+
+## Intel in-place cutover — EXECUTED + VALIDATED 2026-09-18
+
+The Intel machine was cut over to uv-only IN PLACE, one month ahead of the M5 — so every
+migration layer is proven on real hardware and the M5 bring-up is execute-only.
+
+**Mechanism** (`custom_scripts/flip_uvonly.sh`): the live dotfiles are symlinks into a repo
+checkout; the cutover re-points `~/.zshrc ~/.zshenv ~/.zprofile ~/.aliases ~/.p10k.zsh
+~/.gitconfig(-personal/-work) ~/.config/direnv/direnvrc` from `001-dotfiles/` (main) to this
+worktree. `--rollback` restores the snapshot targets (`~/env-snapshots/live-symlinks-pre-cutover.txt`)
+in seconds. Shell-config rollback still works; pyenv itself is gone (see below).
+
+**Proven on Intel (the checklist the M5 can trust):**
+- Gauntlet **17 PASS / 0 FAIL** live (sourced, per Phase 3); pyenv-on-PATH is a hard PASS.
+- `envup` rebuilds envs from every manifest style (pep621 `uv sync`, requirements venv+install).
+- **44 owned repos converted uv-native** (pyproject + uv.lock on `build/uv-native` branches,
+  pushed; manifest: `~/env-snapshots/uvnative-sweep-2026-09-18.md`). 021-bootcamp already a
+  uv workspace. Engenious NEVER touched (script hard-aborts on its path).
+- **Engenious under uv**: ai_audit_service 180 tests ✓, discord-me-mcp 31 ✓, marketing_agent
+  1529 ✓ (25 fails live in the repo's own June WIP), aiuw compose stack 7/7 containers +
+  `/health` healthy. Zero git writes (tripwire verified).
+- **All 4 teaching stacks build+smoke on amd64** (`validate_teaching.sh`); rehearsal caught+
+  fixed a real DA bug (packaging>=23.2 pin).
+- **pyenv deleted** (56G freed): `depyenv.sh --apply` fixed 92 legacy `.python-version` files
+  (20 upstream left alone) → `migration_cleanup.sh --apply --python-only` → `brew uninstall pyenv`.
+- **uv is the standalone binary** (`~/.local/bin/uv`, official installer — same as install.sh).
+  Gotcha found on Intel: stale pip-user + pipx uv shims shadowed each other; deleted. Never
+  install uv via pip/pipx again.
+- Known Intel-only gaps (fine, M5 covers them): git-lfs binary not installed (Brewfile has it);
+  root-owned python.org 3.7 framework needs a manual `sudo rm -rf` (or dies with the wipe);
+  heavy torch/tf envs don't build on x86 wheels (locks are valid; arm64 syncs them).
+
+## Two-machine target architecture (post-M5)
+
+GitHub is the SOLE code-sync layer between two INDEPENDENT machines; they never sync to each
+other; no git repo ever lives on shared storage.
+
+- **NEW MAC (M5) = HOME** — macOS, full uv-only stack, `~/code` on APFS.
+- **OLD 2015 MBP = TRAVEL** — after the M5 is verified: factory-reset → 500GB SSD repartitioned
+  **300GB Linux/ext4 (PRIMARY)** + **100GB ExFAT (SHARED)** + **100GB macOS/APFS (fallback)**,
+  dual-boot (one OS at a time; ExFAT mounts from whichever is booted).
+- **Source-of-truth hierarchy**: code/history → GitHub · env definition → pyproject.toml +
+  uv.lock (`uv sync`) · machine env → local per OS, never synced · cross-OS data → ExFAT ·
+  backup → external drive (backup ≠ ExFAT).
+- **ExFAT rules**: NEVER `.venv`, `node_modules`, git working copies, or Docker state on ExFAT;
+  never treat it as backup. Genuinely cross-OS data only (datasets/documents/media).
+- **gh routing is a hard requirement on every environment**: `gh_auto_switch` cd-hook —
+  `~/Code/002-engenious*` → `j-garassino-engenious`, else `juan-garassino` (in this zshrc).
+
+**Future bring-up phases** (when the M5 lands; done together with Claude):
+1. M5 macOS: install.sh (uv-only) → git pull → envup on-touch → teaching containers arm64.
+2. Old-Mac factory reset + SSD partition (300/100/100).
+3. Linux-primary: install.sh Linux branch (rehearsed 12/12 in ubuntu:24.04) → git pull to
+   ext4 `~/code` → Docker + uv + teaching containers native.
+4. macOS-fallback: minimal uv-only (`DOTFILES_MINIMAL=1 install.sh`) → git pull.
+5. ExFAT populate (datasets/documents/media).
+
+**End-to-end acceptance layer** (system-level, over the per-phase gates):
+- **Pre-reset git gate** before ANY destructive step: `repo_sweep.sh` + `verify_coverage.sh`
+  = 0 uncovered, every owned repo visible on GitHub (`git ls-remote`).
+- **Credentials are MACHINE-LOCAL** — recreate intentionally per environment, never sync via
+  GitHub, never on ExFAT: gh (both accounts), SSH keys, git signing, Docker creds, cloud CLIs,
+  API creds, `.env` values (keys-only `.env.sample` in-repo; values via rsync snapshot +
+  `~/.secrets-cheatsheet.md`), Claude auth.
+- **Cold-boot test** (post-partition): boot Linux → ExFAT mounts → git pull → Claude/Docker/uv
+  work; reboot macOS → ExFAT mounts → git pull.
+- **Per-environment acceptance**: each of the 3 (M5 macOS / 2015 Linux / 2015 macOS-fallback)
+  independently green on git pull · uv sync · envup · Claude Code · Docker · teaching stacks.
+- **Definition of done**: all three operational + independent; no repo on ExFAT; ExFAT visible
+  from both OSes; external backup verified; either OS boots; no machine depends on another.
 
 ## Rollback
 
-The old machine is never modified by this runbook — it IS the rollback. If the new Mac
-misbehaves, keep working on the old one and iterate on the `uv-only` branch.
+Shell-config rollback on the Intel machine: `custom_scripts/flip_uvonly.sh --rollback`
+(re-points the symlinks back to `001-dotfiles` main in seconds). Note pyenv itself is gone
+(deleted 2026-09-18) — the pyenv-era config would fall back to brew/system python; real
+rollback for environments is `uv sync` (locks are committed). For the M5 migration the old
+machine keeps working as the uv-only daily driver — it IS the rollback until the M5 passes
+this runbook's gauntlet.
