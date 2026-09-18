@@ -61,9 +61,7 @@ brew "nvm"
 # Create, run, and share large language models (LLMs)
 brew "ollama", link: false
 # Object-relational database system
-brew "postgresql@14", restart_service: :changed
 # Minimal system Python (uv manages all project/dev Pythons)
-brew "python@3.12"
 # Simplified and community-driven man pages
 brew "tldr"
 # Display directories as trees (with optional color/HTML output)

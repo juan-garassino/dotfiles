@@ -58,6 +58,35 @@ Phases below; this is the order that stitches them.
 ### T0 — now (Intel = only machine, cutover done)
 Dogfood uv-only daily. Merge the 44 `build/uv-native` branches at leisure. Nothing else required.
 
+### T0.5 — GitHub completeness + brew hygiene (this week, before T1)
+Goal: **every personal commit lives on GitHub** (the vault covers the rest) and **brew is
+Brewfile-clean on both machines**.
+1. **Brew ring-1** (done 2026-09-18): orphaned build-deps uninstalled (autoconf/bison/cmake/meson/
+   swig/texinfo/libgit2×2/icu4c@77/hyperkit/sphinx-doc/...), autoremove + cleanup -s --prune=all.
+2. **Brew ring-2** (owner-confirmed removals): llvm (~1.7G) · openvino · postgresql@15 ·
+   fluid-synth · (cloud-sql-proxy stays — garassino-mlflow Cloud SQL access).
+3. **Brewfile prune (defines the M5's brew from birth):** drop `postgresql@14` (DBs live in
+   containers) and explicit `python@3.12` (uv owns interpreters; brew pythons only ever arrive
+   as formula plumbing); confirm tesseract/portaudio/ghostscript/azure-functions are wanted.
+   Principle: the M5 installs ONLY Brewfile leaves → brew is born clean and stays clean
+   (`brew bundle cleanup --file packages/Brewfile` is the recurring janitor on both machines).
+4. **GitHub completeness sweep** (fresh scan 2026-09-18: 5 no-remote / 32 unpushed / 60 dirty):
+   - Personal dirty repos: agent triage — build junk → .gitignore; real WIP → honest
+     `wip:` snapshot commit on the current branch; push. NEVER blind-commit; ambiguous → flag.
+   - Personal unpushed branches: push all (SSH per-path identity).
+   - `012-temps`: scratch-by-design → DECIDED 2026-09-18: vault-only (accepted exception).
+   - `000-config` root repo: **NEVER GitHub** (contains gcp-credentials) — vault-only, forever.
+   - Engenious no-remotes (my-ai-underwriter 572 commits, engenious_university, discord-me-mcp):
+     WORK IP — pushing needs the org decision; until then covered by refreshed bundles + vault.
+   - Gate: re-run the completeness scan → personal repos must be 100% remote+pushed+clean.
+
+**"Both machines, byte-the-same code" — the two proofs, precisely:**
+- **Working sets** (M5 `~/code` vs 2015 `~/code`): every repo at the same commit SHA as origin —
+  git's content-addressing makes same-SHA = byte-identical content; the check is a per-repo
+  `HEAD == origin/HEAD && status clean` sweep on each machine.
+- **The vault** (everything incl. untracked/dirty history): literal `rsync -c` byte-compare,
+  twice (source↔SSD, SSD↔M5) — see T1/T2.
+
 ### T1 — SSD vault (any day before the M5; ~1h; repeatable)
 0. **SSD format gate:** the vault volume MUST be APFS (never exFAT — symlinks, permissions and
    macOS metadata must survive byte-compare). Name it e.g. `CodeVault`.
