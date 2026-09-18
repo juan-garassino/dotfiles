@@ -77,8 +77,12 @@ Brewfile-clean on both machines**.
    formulas, 7.5G → 4.4G**. Every remaining leaf is in the Brewfile or plumbing.
 3. **Brewfile prune (DONE 2026-09-18 — defines the M5's brew from birth):** dropped `postgresql@14`
    and explicit `python@3.12`; added `cloud-sql-proxy`. Principle: the M5 installs ONLY Brewfile
-   leaves → brew is born clean and stays clean (`brew bundle cleanup --file packages/Brewfile` is
-   the recurring janitor on both machines; run `brew trust azure/functions` once first).
+   leaves → brew is born clean and stays clean. **Janitor rule (learned 2026-09-18):**
+   `brew bundle cleanup --file packages/Brewfile` (dry-run) lists installed-but-not-in-Brewfile
+   formulas, BUT it does not see transitive deps — it once listed `icu4c@78` + `sdl2-compat`, which
+   ffmpeg/tesseract actually need. ALWAYS `brew uses --installed <f>` before `--force`; only remove
+   what nothing uses. Trust the third-party taps once (`brew trust azure/functions hashicorp/tap
+   runpod/runpodctl`).
 4. **GitHub completeness sweep** (fresh scan 2026-09-18: 5 no-remote / 32 unpushed / 60 dirty):
    - Personal dirty repos: agent triage — build junk → .gitignore; real WIP → honest
      `wip:` snapshot commit on the current branch; push. NEVER blind-commit; ambiguous → flag.
