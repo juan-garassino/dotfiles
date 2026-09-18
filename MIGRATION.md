@@ -87,6 +87,15 @@ Brewfile-clean on both machines**.
 - **The vault** (everything incl. untracked/dirty history): literal `rsync -c` byte-compare,
   twice (source↔SSD, SSD↔M5) — see T1/T2.
 
+**`.env` traceability (added 2026-09-18):** `custom_scripts/env_registry.sh` writes
+`~/env-snapshots/env-registry.tsv` (chmod 600) — every real `.env`-like file under `~/Code`
+with its repo, git status (`ignored` = correct, `TRACKED!` = in history → untrack/rotate),
+key NAMES (never values), size, mtime. First scan: **124 files: 57 ignored · 36 non-git ·
+5 untracked · 26 TRACKED!**. The registry rides in `~/env-snapshots` (hand-carried + vaulted).
+Post-reclone on any machine: `env_registry.sh --restore-from /Volumes/CodeVault/Code-final-snapshot`
+copies every file back into place (never overwrites, re-applies 600). Real `.env` values thus
+travel ONLY via the vault, never via GitHub. Pair with `~/.secrets-cheatsheet.md` for re-issuing.
+
 ### T1 — SSD vault (any day before the M5; ~1h; repeatable)
 0. **SSD format gate:** the vault volume MUST be APFS (never exFAT — symlinks, permissions and
    macOS metadata must survive byte-compare). Name it e.g. `CodeVault`.
