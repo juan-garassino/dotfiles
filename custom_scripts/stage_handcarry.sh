@@ -30,7 +30,7 @@ ITEMS=(
   ".config/gcloud|req|gcloud auth"
   ".aws|req|work aws"
   ".azure|req|work azure"
-  "env-snapshots|req|manifests, pgdump, vscode-ext, scorecards"
+  "env-snapshots|req|manifests, pg datadir tar, env registry, fingerprints, vscode-ext, scorecards"
   "Library/Application Support/Claude/claude_desktop_config.json|opt|Claude Desktop MCPs"
   # loose non-git dirs (verified 2026-09-17 — git-status ground truth)
   "Code/006-research-prototypes/OTH-candidate-assistant|req|loose src 306M"

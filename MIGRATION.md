@@ -35,7 +35,9 @@ on the OLD machine before wiping, they are NOT auto-handled:
    llm-engineering-lab (tracked in the 003 repo).
 4. 🔴 **Databases:** `pg_dump` PostgreSQL@14 (`/usr/local/var/postgresql@14`, ~360M) if it holds
    anything you want; carry `027-ml-workspace/mlops/.prefect/prefect.db`; verify the docker
-   `teaching_postgres` volume (start docker first). Runbook otherwise says nothing about DBs.
+   `teaching_postgres` volume — RESOLVED 2026-09-18: `docker volume ls` showed no such volume
+   before the Docker VM was reset; only aiuw pgdata existed (tarred). Postgres data is the raw
+   datadir tar (see Phase 1), not a pg_dump (postgres@14 could not start: icu4c mismatch).
 5. 🟠 **Extra SSH keys** (add to Phase-1): `~/.ssh/google_compute_engine`, `~/.ssh/dc_trader`,
    `~/.ssh/known_hosts` (only `id_ed25519_personal/_work` were listed).
 6. 🟡 **Teaching:** re-run the spiced RISE nbconfig `echo` one-liners (see `004-lewagon-spiced/CLAUDE.md`)
@@ -56,20 +58,27 @@ TWO places off this machine.** GitHub protects what was pushed; the vault protec
 Phases below; this is the order that stitches them.
 
 ### T0 — now (Intel = only machine, cutover done)
-Dogfood uv-only daily. Merge the 44 `build/uv-native` branches at leisure. Nothing else required.
+Dogfood uv-only daily. The 44 `build/uv-native` branches are being merged (2026-09-18; manifest
+`~/env-snapshots/uvnative-merge-2026-09-18.txt`). **Linux distro for the 2015 MBP: Ubuntu 24.04 LTS**
+(matches the rehearsed installer). **Standby after T1 until the M5 lands** — R0/R1 are everything
+doable without it; the standby state is safe by construction (Intel clean, GitHub complete, vault
+verified). Resume-prep = one delta re-vault the day before M5 day.
+
+**Byte-the-same proof tool:** `custom_scripts/code_fingerprint.sh` → `repo|branch|HEAD|clean` per
+repo, machine-independent; `diff` of two machines' outputs MUST be empty (used T2.5, T3.1, T4.7).
 
 ### T0.5 — GitHub completeness + brew hygiene (this week, before T1)
 Goal: **every personal commit lives on GitHub** (the vault covers the rest) and **brew is
 Brewfile-clean on both machines**.
 1. **Brew ring-1** (done 2026-09-18): orphaned build-deps uninstalled (autoconf/bison/cmake/meson/
    swig/texinfo/libgit2×2/icu4c@77/hyperkit/sphinx-doc/...), autoremove + cleanup -s --prune=all.
-2. **Brew ring-2** (owner-confirmed removals): llvm (~1.7G) · openvino · postgresql@15 ·
-   fluid-synth · (cloud-sql-proxy stays — garassino-mlflow Cloud SQL access).
-3. **Brewfile prune (defines the M5's brew from birth):** drop `postgresql@14` (DBs live in
-   containers) and explicit `python@3.12` (uv owns interpreters; brew pythons only ever arrive
-   as formula plumbing); confirm tesseract/portaudio/ghostscript/azure-functions are wanted.
-   Principle: the M5 installs ONLY Brewfile leaves → brew is born clean and stays clean
-   (`brew bundle cleanup --file packages/Brewfile` is the recurring janitor on both machines).
+2. **Brew ring-2 + ring-3 (DONE 2026-09-18):** llvm, openvino, postgresql@15 + @14 (DBs =
+   containers), fluid-synth, gcc/openblas/numpy/krb5/z3/ninja/libgit2/… removed → **197 → 149
+   formulas, 7.5G → 4.4G**. Every remaining leaf is in the Brewfile or plumbing.
+3. **Brewfile prune (DONE 2026-09-18 — defines the M5's brew from birth):** dropped `postgresql@14`
+   and explicit `python@3.12`; added `cloud-sql-proxy`. Principle: the M5 installs ONLY Brewfile
+   leaves → brew is born clean and stays clean (`brew bundle cleanup --file packages/Brewfile` is
+   the recurring janitor on both machines; run `brew trust azure/functions` once first).
 4. **GitHub completeness sweep** (fresh scan 2026-09-18: 5 no-remote / 32 unpushed / 60 dirty):
    - Personal dirty repos: agent triage — build junk → .gitignore; real WIP → honest
      `wip:` snapshot commit on the current branch; push. NEVER blind-commit; ambiguous → flag.
@@ -202,7 +211,7 @@ the system-level Definition-of-Done (acceptance layer E).
 | Loose non-git dirs (~0.7G personal) | same paths under `~/Code` | See the corrected list in the "Audit 2026-09-17" section above — `006-rp/{OTH-candidate-assistant, GRAPH-*, DIF-*, OTH-orchestration-coreo, AGT-multiagent-orchestrator, SQL-nlsql}` + `005-products/001-assessment`. (026-Noema, 028-nano-universe, AGT-rlm-graph-unix, all 003-kp = git repos → reclone, do NOT carry.) |
 | `004-lewagon-spiced/spiced/ds-book-template/` | same path | has LOCAL-ONLY commit (origin = neuefische, no push rights) — re-cloning loses it; bundled at `~/git-bundles/spiced_ds-book-template.bundle`, or carry the folder / add a personal fork remote first |
 | `~/.secrets-cheatsheet.md` | `~/` | repo→keys→source map (chmod 600) |
-| `~/env-snapshots/pgdump-2026-09-17.sql.gz` | anywhere | postgres@14 dump (360M data dir) |
+| `~/env-snapshots/postgresql14-datadir-2026-09-17.tar.gz` | anywhere | postgres@14 raw datadir tar (129M; pg_dump impossible — icu4c mismatch) |
 | `~/env-snapshots/vscode-extensions-2026-09-17.txt` | anywhere | `code --install-extension` loop on new Mac |
 | `~/env-snapshots/claude_desktop_config-*.json` | `~/Library/Application Support/Claude/` | Claude Desktop MCP config |
 | `~/.ssh/{google_compute_engine,dc_trader,known_hosts}` | `~/.ssh/` | extra keys + host trust |
