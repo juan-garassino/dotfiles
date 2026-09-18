@@ -118,7 +118,12 @@ find "$HOME/Code" -name .python-version -type f \
   echo ""
   echo "  ⚙️  $f  (env '$content'${base:+, base $base})"
   echo -n "     [d]elete / [r]eplace with ${base:-3.12} / [s]kip ? "
-  read -r choice < /dev/tty
+  # non-interactive runs (no usable tty): DEPYENV_ANSWER=d|r|s answers every prompt
+  if [ -n "${DEPYENV_ANSWER:-}" ]; then
+    choice="$DEPYENV_ANSWER"; echo "$choice (auto)"
+  else
+    read -r choice < /dev/tty 2>/dev/null || { choice=s; echo "s (no tty)"; }
+  fi
   case "$choice" in
     d|D) rm "$f";                    echo "$f | $content | envname | $tracked | $owned | DELETED" >> "$REPORT"; ((n_fixed++)) ;;
     r|R) echo "${base:-3.12}" > "$f"; echo "$f | $content | envname | $tracked | $owned | REPLACED ${base:-3.12}" >> "$REPORT"; ((n_fixed++)) ;;
