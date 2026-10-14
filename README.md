@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootst
 repo to `~/Code/000-config/001-dotfiles`, installs Claude Code, and opens it with the setup
 prompt already typed. Claude asks one question, then runs the matching runbook:
 - **fresh setup** (empty machine): `install.sh` + the [`CLAUDE.md`](./CLAUDE.md) checklist.
-- **migration from the old Mac**: [`MIGRATION-LINUX.md`](./MIGRATION-LINUX.md), which rsyncs
+- **migration from another machine** (Mac or Linux → Linux, WSL or Mac): [`MIGRATE.md`](./MIGRATE.md), which rsyncs
   `~/Code` + secrets/keys/`~/.claude`, installs everything and prints a PASS/FAIL scorecard.
 
 <details><summary>Same thing by hand</summary>
@@ -24,7 +24,7 @@ prompt already typed. Claude asks one question, then runs the matching runbook:
 sudo apt-get update && sudo apt-get install -y git curl openssh-server     # macOS: xcode-select --install
 git clone https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
 curl -fsSL https://claude.ai/install.sh | bash
-cd ~/Code/000-config/001-dotfiles && claude    # then: "set up this machine" or "execute MIGRATION-LINUX.md"
+cd ~/Code/000-config/001-dotfiles && claude    # then: "set up this machine" or "execute MIGRATE.md"
 ```
 </details>
 
@@ -83,7 +83,9 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 ├── .secrets.sample   expected API-key names (no values)
 ├── install.sh        idempotent installer
 ├── SETUP.md          detailed how-it-works runbook
-├── MIGRATION.md      old→new machine migration runbook (clean rebuild)
+├── MIGRATE.md      any machine → any machine (Linux/WSL/Mac), Claude-executed
+├── bootstrap.sh    one command: git, clone, claude
+├── MIGRATION.md    historical Intel→M5 SSD-vault plan (superseded)
 └── CLAUDE.md         autonomous setup instructions for Claude Code
 ```
 
@@ -93,7 +95,7 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 
 > macOS shown below; on **Linux** the same `./install.sh` installs via **apt/dnf** (not Homebrew),
 > adds the gh + VS Code repos, and installs uv. See `SETUP.md` for Linux details.
-> Migrating from another machine? → `MIGRATION.md`.
+> Migrating from another machine? → `MIGRATE.md`.
 
 ```bash
 # 1. Homebrew (macOS)

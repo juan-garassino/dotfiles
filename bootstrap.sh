@@ -5,7 +5,7 @@
 #
 # Installs git + curl (+ openssh-server on Linux), clones this repo to its canonical path,
 # installs Claude Code (native installer), then opens Claude in the repo with the setup
-# prompt pre-filled. Claude takes it from there (CLAUDE.md / MIGRATION-LINUX.md) and stops
+# prompt pre-filled. Claude takes it from there (CLAUDE.md / MIGRATE.md) and stops
 # only for passwords, logins and secrets. Safe to re-run.
 set -eu
 BRANCH="${DOTFILES_BRANCH:-main}"
@@ -35,7 +35,7 @@ if ! command -v claude >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/claude" ]; th
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
-PROMPT="Read CLAUDE.md and README.md in this repo. Then ask me (one question) whether this is (a) a fresh setup of an empty machine or (b) a migration from my old Mac, and run the matching runbook end to end: (a) the 'Full machine setup' checklist in CLAUDE.md, (b) MIGRATION-LINUX.md. Verify each step and stop only for passwords, logins and secrets."
+PROMPT="Read CLAUDE.md and README.md in this repo. Then ask me (one question) whether this is (a) a fresh setup of an empty machine or (b) a migration from another machine (Mac or Linux), and run the matching runbook end to end: (a) the 'Full machine setup' checklist in CLAUDE.md, (b) MIGRATE.md. Verify each step and stop only for passwords, logins and secrets."
 
 cd "$DEST"
 echo "🤖 Starting Claude Code (log in when asked)..."

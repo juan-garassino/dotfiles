@@ -66,6 +66,12 @@ brew "tldr"
 brew "tree"
 # Extremely fast Python package and project manager — THE Python toolchain
 brew "uv"
+# Rust toolchain manager (zshenv sources ~/.cargo/env)
+brew "rustup"
+# Build tool for native extensions
+brew "cmake"
+# Modern rsync (macOS ships 2.6.9 from 2006) — used by the migration pull
+brew "rsync"
 # Internet file retriever
 brew "wget"
 # Terraform — show-and-destroy infra (was installed but missing from the dump)

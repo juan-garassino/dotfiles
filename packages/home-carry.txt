@@ -1,0 +1,37 @@
+# home-carry.txt — the dev setup that lives OUTSIDE ~/Code, pulled from the source machine with
+#   rsync -ar --files-from=packages/home-carry.txt <src>: ~/
+# Paths are relative to the source $HOME. Missing entries are skipped (rsync warns, exit 23).
+# Names only — no values ever live in this public repo. Audited 2026-10-14.
+
+# Secrets & credentials (chmod 600 after copy)
+.secrets
+.secrets-cheatsheet.md
+.engenious_university.env
+.ssh
+.ssh_backup_20241029
+.aws
+.config/gcloud
+.bigqueryrc
+
+# Claude Code (memory, plans, plugins, history) — settings.json etc. are excluded on the command
+.claude
+
+# Dev-tool state
+.codex/config.toml
+.gemini/antigravity
+.promptplot
+.aivss
+
+# Shell history
+.zsh_history
+.psql_history
+.python_history
+
+# Migration records: manifests, fingerprints, DB dumps, env registry, worktree WIP patches, bundles
+env-snapshots
+git-bundles
+migration-snapshot
+
+# Code that lived outside ~/Code on the Intel Mac (non-git) — move into ~/Code after copy if wanted
+Desktop/juanjose
+Downloads/interpretive_plotter

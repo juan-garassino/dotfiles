@@ -149,7 +149,7 @@ fi
 echo "📂 Symlinking dotfiles..."
 
 # Explicit map (repo is organized into subdirs): "<repo path>:<home target>"
-mkdir -p "$HOME/.config/direnv"
+mkdir -p "$HOME/.config/direnv" "$HOME/.config/git"
 link_map=(
   "shell/zshrc:$HOME/.zshrc"
   "shell/zshenv:$HOME/.zshenv"
@@ -158,6 +158,7 @@ link_map=(
   "git/gitconfig:$HOME/.gitconfig"
   "git/gitconfig-personal:$HOME/.gitconfig-personal"
   "git/gitconfig-work:$HOME/.gitconfig-work"
+  "git/ignore:$HOME/.config/git/ignore"
   "prompt/p10k.zsh:$HOME/.p10k.zsh"
   "direnv/direnvrc:$HOME/.config/direnv/direnvrc"
 )
@@ -283,8 +284,8 @@ fi
 
 # uv-managed Pythons + the two project-agnostic global CLIs (→ ~/.local/bin)
 if command -v uv &>/dev/null; then
-  echo "  🐍 uv python install 3.11 3.12..."
-  uv python install 3.11 3.12 || echo "  ⚠️  uv python install failed — retry manually"
+  echo "  🐍 uv python install 3.11 3.12 3.13..."
+  uv python install 3.11 3.12 3.13 || echo "  ⚠️  uv python install failed — retry manually"
   uv tool install ruff >/dev/null 2>&1 || true
   uv tool install pre-commit >/dev/null 2>&1 || true
   echo "  ✅ uv tools: ruff, pre-commit"
@@ -373,13 +374,13 @@ backup ~/.claude/statusline-command.sh
 symlink "$DOTFILES_DIR/claude/statusline-command.sh" ~/.claude/statusline-command.sh
 if [ -f "$DOTFILES_DIR/claude/settings.json" ]; then
   if [ ! -f "$HOME/.claude/settings.json" ]; then
-    cp "$DOTFILES_DIR/claude/settings.json" "$HOME/.claude/settings.json"
+    sed "s#/Users/juan-garassino#$HOME#g" "$DOTFILES_DIR/claude/settings.json" > "$HOME/.claude/settings.json"
     echo "  🔗 Installed Claude settings.json template (machine secrets go in env via ~/.secrets, never here)"
   elif command -v jq >/dev/null 2>&1 && ! jq -e '.statusLine' "$HOME/.claude/settings.json" >/dev/null 2>&1; then
     # A fresh login (bootstrap.sh) can create a near-empty settings.json first — merge the
     # template in (template wins) so statusline, hooks and plugins still land.
     cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.pre-dotfiles"
-    jq -s '.[0] * .[1]' "$HOME/.claude/settings.json.pre-dotfiles" "$DOTFILES_DIR/claude/settings.json" > "$HOME/.claude/settings.json"
+    jq -s '.[0] * .[1]' "$HOME/.claude/settings.json.pre-dotfiles" <(sed "s#/Users/juan-garassino#$HOME#g" "$DOTFILES_DIR/claude/settings.json") > "$HOME/.claude/settings.json"
     echo "  🔗 Merged Claude settings template into the fresh settings.json (backup: settings.json.pre-dotfiles)"
   else
     echo "  ✅ Claude settings.json exists — left as-is (diff against claude/settings.json template if needed)"

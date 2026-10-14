@@ -1,3 +1,6 @@
+> **Superseded 2026-10-14 by [`MIGRATE.md`](./MIGRATE.md)** (rsync-first, any source → Linux/WSL/Mac,
+> Claude-executed). This file is kept as the historical Intel→M5 plan and audit record.
+
 # MIGRATION.md — Old Intel Mac → New Apple Silicon Mac (clean rebuild)
 
 **Claude Code: this is an executable runbook.** Follow it end-to-end, verify each step,

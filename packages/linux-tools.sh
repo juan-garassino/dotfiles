@@ -109,6 +109,17 @@ if ! have cloud-sql-proxy; then
     && sudo chmod +x /usr/local/bin/cloud-sql-proxy
 fi
 
+# Rust toolchain (zshenv sources ~/.cargo/env) — rustup, same as the Mac
+have rustup || [ -x "$HOME/.cargo/bin/rustup" ] || { echo "  📦 rustup..."; curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path >/dev/null 2>&1 || echo "  ⚠️  rustup failed"; }
+
+# ngrok (official apt repo; authtoken: `ngrok config add-authtoken` or carried ngrok.yml)
+if ! have ngrok; then
+  echo "  📦 ngrok..."
+  curl -fsSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+  echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" | sudo tee /etc/apt/sources.list.d/ngrok.list >/dev/null
+  sudo apt-get update -y && sudo apt-get install -y ngrok
+fi
+
 # llm CLI (uv tool, same as everything Python)
 have llm || { have uv && uv tool install llm >/dev/null 2>&1 && echo "  ✅ llm (uv tool)"; }
 

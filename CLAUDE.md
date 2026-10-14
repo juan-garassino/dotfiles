@@ -10,10 +10,10 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 
 > **Claude Code — read this first.** If you're working in this repo, your single most
 > likely task is to **set up / replicate this environment on a machine** (usually a fresh
-> one). **Migrating from another machine? → follow `MIGRATION.md` end-to-end** (pre-flight,
-> hand-carry list, bring-up, verification). **Running on Ubuntu/Linux, migrating from the Intel
-> Mac? → follow `MIGRATION-LINUX.md` instead** (Claude-executed: rsync `~/Code` + secrets/keys/
-> `~/.claude` from the Mac over ssh, install.sh, verify). `bootstrap.sh` is the one-command entry. Routine fresh setup → go straight to
+> one). **Migrating from another machine (Mac or Linux → Linux, WSL or Mac)? → follow
+> `MIGRATE.md` end-to-end** (Claude-executed: rsync `~/Code` + `packages/home-carry.txt` from the
+> source over ssh, install.sh, guided logins, verify). `bootstrap.sh` is the one-command entry.
+> `MIGRATION.md` is the historical Intel→M5 SSD-vault plan (superseded by `MIGRATE.md`). Routine fresh setup → go straight to
 > **[Full machine setup](#full-machine-setup--claude-code-follow-this-end-to-end)**
 > and run it end-to-end, pausing only at the 🙋 (human-only) steps. The other most common
 > task is editing a config + pushing via `/backup-env`. If the user clearly wants something
@@ -36,16 +36,17 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 
 ## Full machine setup — Claude Code, follow this end-to-end
 
-Goal: take a fresh macOS machine to a working replica of this environment. Do the steps in
+Goal: take a fresh machine (macOS, Linux or WSL) to a working replica of this environment. Do the steps in
 order, **verify each before moving on**, and **STOP to ask the user** at the human-only
 points (marked 🙋 — secrets and keys a machine can't fabricate).
 
-1. **Homebrew** — `command -v brew` or install from https://brew.sh. Verify `brew --version`.
-2. **Run the installer** — on Linux, first set up temporary passwordless sudo exactly as in
-   `MIGRATION-LINUX.md` step 7 (🙋 one command; Claude can't type passwords) and remove it at the
+1. **Platform** — macOS: `install.sh` installs Homebrew itself (noninteractive). Linux/WSL: nothing to do
+   (apt). Detect WSL with `grep -qi microsoft /proc/version`.
+2. **Run the installer** — first (any OS) set up temporary passwordless sudo exactly as in
+   `MIGRATE.md` step 4 (🙋 one command; Claude can't type passwords) and remove it at the
    end. Then `cd <repo> && ./install.sh` (OS-aware: **macOS** → Homebrew + Brewfile;
    **Linux** → apt/dnf from `packages/`, gh + VS Code repos, uv installer). It then
-   symlinks all dotfiles, installs Oh-My-Zsh + Powerlevel10k, runs `uv python install 3.11 3.12`
+   symlinks all dotfiles, installs Oh-My-Zsh + Powerlevel10k, runs `uv python install 3.11 3.12 3.13`
    + `uv tool install ruff pre-commit`, wires the Claude statusline, restores
    `skills/` + `agents/`, and seeds `~/.secrets` from `.secrets.sample`. Verify: `ls -la ~/.zshrc`
    is a symlink into `shell/zshrc`; `brew bundle check --file=<repo>/Brewfile` is satisfied;

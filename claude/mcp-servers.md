@@ -22,5 +22,5 @@ new machine.
 
 ## Enabled Claude Code plugins (from `claude/settings.json`)
 
-`context7`, `superpowers`, `code-simplifier`, `frontend-design` (all `@claude-plugins-official`).
+`context7`, `superpowers`, `code-simplifier`, `frontend-design`, `atlassian` (all `@claude-plugins-official`).
 Re-enable via the plugin marketplace; they are not vendored here.

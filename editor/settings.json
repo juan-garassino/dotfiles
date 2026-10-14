@@ -135,5 +135,17 @@
   // 🔒 Privacy
   // ─────────────────────────────────────────────────────────
   "telemetry.telemetryLevel": "off",
-  "security.workspace.trust.untrustedFiles": "open"
+  "security.workspace.trust.untrustedFiles": "open",
+  // ─────────────────────────────────────────────────────────
+  // From the live Mac VS Code (2026-10-14 audit) — same look + behaviour
+  "workbench.colorTheme": "Visual Studio Light",
+  "workbench.editorAssociations": { "*.html": "default" },
+  "git.openRepositoryInParentFolders": "never",
+  "makefile.configureOnOpen": false,
+  "yaml.disableSchemaDetection": [
+    "**/.github/workflows/*.yml", "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml", "**/.gitea/workflows/*.yaml"
+  ],
+  // uv-only: the global sandbox venv (was a pyenv path)
+  "python.defaultInterpreterPath": "${userHome}/.venv-sandbox/bin/python"
 }
