@@ -67,7 +67,14 @@ elif [ "$OS" = "Linux" ]; then
   if [ "$PM" = "apt" ]; then
     echo "  📦 apt: core tools..."
     sudo apt-get update -y
-    pkglist "$DOTFILES_DIR/packages/apt.txt" | xargs -r sudo apt-get install -y || echo "  ⚠️  some apt packages failed"
+    # One missing name makes apt-get abort the WHOLE transaction (list was rehearsed on 24.04;
+    # newer releases drop/rename packages) — install only what this release actually has.
+    avail=(); missing=()
+    for p in $(pkglist "$DOTFILES_DIR/packages/apt.txt"); do
+      apt-cache show "$p" >/dev/null 2>&1 && avail+=("$p") || missing+=("$p")
+    done
+    [ ${#missing[@]} -gt 0 ] && echo "  ⚠️  not in this release, skipped: ${missing[*]}"
+    [ ${#avail[@]} -gt 0 ] && { sudo apt-get install -y "${avail[@]}" || echo "  ⚠️  some apt packages failed"; }
     if ! command -v gh >/dev/null 2>&1; then
       echo "  📦 GitHub CLI (apt repo)..."
       curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
