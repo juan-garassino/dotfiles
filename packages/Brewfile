@@ -94,6 +94,27 @@ cask "antigravity-ide"
 cask "dbeaver-community"
 # Team comms
 cask "slack"
+# Desktop apps — same set as Linux packages/linux-apps.sh (names verified against formulae.brew.sh)
+cask "google-chrome"
+cask "cursor"
+cask "claude"
+cask "chatgpt"            # ChatGPT desktop with Codex
+cask "postman"
+cask "pgadmin4"
+cask "elasticvue"
+cask "gephi"
+cask "balenaetcher"
+cask "pritunl"
+cask "nordvpn"
+cask "discord"
+cask "zoom"
+cask "telegram"
+cask "spotify"
+cask "obsidian"
+cask "notion"
+cask "dropbox"
+cask "google-drive"
+cask "inkscape"
 
 # ── VS Code / Antigravity extensions ──────────────────────────────────────────
 # SINGLE SOURCE: packages/vscode-extensions.txt, installed by install.sh (step 6b)
