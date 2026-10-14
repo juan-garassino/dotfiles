@@ -25,15 +25,20 @@ from pathlib import Path
 C, O, R = "#6496D7", "#E6B446", "#B94655"          # cobalt · ochre · burgundy
 L, M, BG = "#DCDCDC", "#9E9E9E", "#232323"          # light gray · mid gray · tile
 
+def cloud(c, dx=0, dy=0, k=1):
+    return (f'<g transform="translate({dx} {dy}) translate(128 140) scale({k}) translate(-128 -140)">'
+            f'<circle cx="94" cy="146" r="30" fill="{c}"/><circle cx="136" cy="122" r="44" fill="{c}"/>'
+            f'<circle cx="172" cy="148" r="28" fill="{c}"/><rect x="64" y="140" width="136" height="36" rx="18" fill="{c}"/></g>')
+
+
 ICONS = {
     "warp": f'<polygon points="72,72 140,128 72,184" fill="{C}"/>'
             f'<rect x="140" y="166" width="60" height="18" fill="{O}"/>',
     "terminal": f'<rect x="58" y="66" width="140" height="124" rx="12" fill="none" stroke="{M}" stroke-width="12"/>'
                 f'<polygon points="86,100 114,124 86,148" fill="{L}"/>'
                 f'<rect x="122" y="140" width="44" height="10" fill="{C}"/>',
-    "vscode": f'<polygon points="104,72 52,128 104,184" fill="{C}"/>'
-              f'<polygon points="152,72 204,128 152,184" fill="{C}"/>'
-              f'<rect x="120" y="64" width="16" height="128" fill="{O}" transform="rotate(18 128 128)"/>',
+    "vscode": f'<polygon points="88,92 52,128 88,164" fill="{C}"/><polygon points="168,92 204,128 168,164" fill="{C}"/>'
+              f'<rect x="121" y="58" width="14" height="140" rx="4" fill="{O}" transform="rotate(20 128 128)"/>',
     "cursor": f'<polygon points="78,56 78,188 112,156 176,154" fill="{L}"/>'
               f'<circle cx="172" cy="184" r="18" fill="{C}"/>',
     "antigravity": f'<polygon points="128,120 198,196 58,196" fill="{C}"/>'
@@ -176,6 +181,53 @@ ICONS = {
     "virtualbox": f'<polygon points="128,52 194,90 128,128 62,90" fill="{L}"/>'
                   f'<polygon points="62,90 128,128 128,204 62,166" fill="{C}"/>'
                   f'<polygon points="194,90 128,128 128,204 194,166" fill="{M}"/>',
+    # — macOS-only apps —
+    "docker": f'<path d="M50,138 H206 Q200,198 122,198 Q64,198 50,138 Z" fill="{C}"/>'
+              + "".join(f'<rect x="{x}" y="{y}" width="28" height="28" rx="4" fill="{c}"/>'
+                        for x, y, c in ((66, 104, M), (98, 104, M), (130, 104, M), (98, 72, M), (130, 72, O))),
+    "github": f'<rect x="88" y="70" width="16" height="116" fill="{M}"/>'
+              f'<path d="M168,90 Q168,150 104,150" fill="none" stroke="{M}" stroke-width="16"/>'
+              f'<circle cx="96" cy="70" r="20" fill="{R}"/><circle cx="96" cy="186" r="20" fill="{R}"/>'
+              f'<circle cx="168" cy="90" r="20" fill="{O}"/>',
+    "whatsapp": f'<circle cx="132" cy="122" r="68" fill="{O}"/>'
+                f'<polygon points="64,206 80,146 122,184" fill="{O}"/>'
+                f'<path d="M108,94 Q102,146 156,154" fill="none" stroke="{C}" stroke-width="18" stroke-linecap="round"/>',
+    "outlook": f'<circle cx="128" cy="128" r="70" fill="none" stroke="{C}" stroke-width="20"/>'
+               f'<rect x="92" y="104" width="72" height="50" rx="6" fill="{O}"/>'
+               f'<polyline points="94,108 128,134 162,108" fill="none" stroke="{BG}" stroke-width="7" stroke-linejoin="round"/>',
+    "onedrive": f'<circle cx="168" cy="90" r="24" fill="{O}"/>' + cloud(M, -18, -16, .78) + cloud(C, 14, 18, .86),
+    "deepl": f'<rect x="56" y="62" width="144" height="112" rx="24" fill="{O}"/>'
+             f'<polygon points="88,168 88,206 126,168" fill="{O}"/>'
+             f'<polyline points="156,94 100,118 156,142" fill="none" stroke="{M}" stroke-width="8"/>'
+             + "".join(f'<circle cx="{x}" cy="{y}" r="13" fill="{C}"/>' for x, y in ((100, 118), (156, 94), (156, 142))),
+    "comet": "".join(f'<line x1="{a}" y1="{b}" x2="{c}" y2="{d}" stroke="{C}" stroke-width="{w}" stroke-linecap="round"/>'
+                     for a, b, c, d, w in ((140, 116, 64, 192, 18), (128, 90, 78, 140, 12), (166, 128, 116, 178, 12)))
+             + f'<circle cx="162" cy="94" r="32" fill="{O}"/>',
+    "mkplayer": f'<circle cx="128" cy="128" r="70" fill="{R}"/>'
+                f'<polygon points="110,92 168,128 110,164" fill="{BG}"/>',
+    "omniplayer": f'<rect x="50" y="68" width="156" height="106" rx="14" fill="{O}"/>'
+                  f'<rect x="102" y="182" width="52" height="14" rx="5" fill="{M}"/>'
+                  f'<polygon points="112,96 154,121 112,146" fill="{C}"/>',
+    "pokerstars": f'<g transform="rotate(-10 128 128)"><rect x="70" y="50" width="116" height="156" rx="14" fill="{L}"/>'
+                  f'<path d="M128,92 C139,106 163,119 163,138 C163,154 144,159 133,148 L140,170 H116 L123,148 '
+                  f'C112,159 93,154 93,138 C93,119 117,106 128,92 Z" fill="{R}"/>'
+                  f'<polygon points="160,64 163.5,73.1 173.3,73.7 165.7,79.9 168.2,89.3 160,84 151.8,89.3 154.3,79.9 '
+                  f'146.7,73.7 156.5,73.1" fill="{O}"/></g>',
+    "unarchiver": f'<rect x="56" y="126" width="144" height="78" rx="10" fill="{O}"/>'
+                  f'<rect x="56" y="126" width="144" height="16" fill="{M}"/>'
+                  f'<rect x="118" y="78" width="20" height="56" fill="{C}"/><polygon points="94,88 162,88 128,50" fill="{C}"/>',
+    "ilovepdf": f'<polygon points="66,52 158,52 190,84 190,204 66,204" fill="{L}"/>'
+                f'<polygon points="158,52 190,84 158,84" fill="{M}"/>'
+                f'<circle cx="110" cy="126" r="22" fill="{R}"/><circle cx="146" cy="126" r="22" fill="{R}"/>'
+                f'<polygon points="89,134 167,134 128,178" fill="{R}"/>',
+    "mcafee": f'<path d="M128,54 L190,78 L190,130 Q190,180 128,206 Q66,180 66,130 L66,78 Z" fill="{R}"/>'
+              f'<polygon points="92,158 92,98 128,130 164,98 164,158 146,158 146,136 128,152 110,136 110,158" fill="{BG}"/>',
+    "idle": f'<rect x="62" y="62" width="84" height="84" rx="20" fill="{C}"/>'
+            f'<rect x="110" y="110" width="84" height="84" rx="20" fill="{O}"/>'
+            f'<circle cx="86" cy="86" r="9" fill="{L}"/><circle cx="170" cy="170" r="9" fill="{BG}"/>',
+    "pylauncher": f'<rect x="54" y="72" width="112" height="112" rx="22" fill="{C}"/>'
+                  f'<circle cx="84" cy="102" r="10" fill="{L}"/>'
+                  f'<polygon points="150,92 206,128 150,164" fill="{O}"/>',
 }
 
 # desktop file ID → icon
@@ -219,10 +271,10 @@ INK = {C: L, R: L, O: BG}       # the gray drawn on each colored tile (charcoal 
 SWAP = {C: {C: L, L: BG}, R: {R: L, L: BG}, O: {O: BG, BG: L, L: BG}}   # per tile: keep every shape visible
 TILE = {**dict.fromkeys(["warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
                          "zoom", "obsidian", "nordvpn", "dropbox", "network", "disks", "updater", "security",
-                         "images", "text-editor"], C),
+                         "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher"], C),
         **dict.fromkeys(["claude", "chatgpt", "files", "etcher", "spotify", "notion", "firmware", "imagemagick",
                          "nvidia", "fonts", "passwords", "papers", "app-center", "vim", "calculator", "characters",
-                         "clocks", "texinfo"], O)}
+                         "clocks", "texinfo", "whatsapp", "deepl", "omniplayer", "unarchiver", "idle"], O)}
 # everything else → burgundy (terminal, postman, slack, discord, firefox, chrome, settings, gephi, pritunl, …)
 
 
@@ -319,7 +371,12 @@ MAC_APPS = {"Warp": "warp", "Visual Studio Code": "vscode", "Cursor": "cursor", 
             "Discord": "discord", "Telegram": "telegram", "zoom.us": "zoom", "Firefox": "firefox",
             "Google Chrome": "chrome", "Obsidian": "obsidian", "Notion": "notion", "Gephi": "gephi",
             "balenaEtcher": "etcher", "Spotify": "spotify", "Dropbox": "dropbox", "NordVPN": "nordvpn",
-            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox"}
+            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox", "Docker": "docker",
+            "GitHub Desktop": "github", "WhatsApp": "whatsapp", "Microsoft Outlook": "outlook",
+            "OneDrive": "onedrive", "DeepL": "deepl", "Comet": "comet", "MKPlayer": "mkplayer",
+            "OmniPlayerStore": "omniplayer", "PokerStarsDE": "pokerstars", "The Unarchiver": "unarchiver",
+            "iLovePDF": "ilovepdf", "McAfee LiveSafe - Internet Security": "mcafee",
+            "Python 3.7/IDLE": "idle", "Python 3.7/Python Launcher": "pylauncher"}
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 JXA_SET = "ObjC.import('AppKit');function run(a){var i=a[0]?$.NSImage.alloc.initWithContentsOfFile(a[0]):$();" \
           "return $.NSWorkspace.sharedWorkspace.setIconForFileOptions(i,a[1],0)}"
@@ -342,9 +399,11 @@ def mac(undo=False):
             subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
                             "--default-background-color=00000000", "--window-size=1024,1024",
                             f"--screenshot={png}", svg_path.as_uri()], capture_output=True, check=True)
-        ok = subprocess.run(["osascript", "-l", "JavaScript", "-e", JXA_SET, str(png), str(path)],
-                            capture_output=True, text=True).stdout.strip() == "true"
-        print(f"  {'↩️ ' if undo else '🎨'} {app}" if ok else f"  ⚠️  {app}: no write access (try sudo)")
+        cmd = ["osascript", "-l", "JavaScript", "-e", JXA_SET, str(png), str(path)]
+        ok = subprocess.run(cmd, capture_output=True, text=True).stdout.strip() == "true"
+        if not ok and sys.stdin.isatty():       # root-owned bundles (pkg installs): one sudo prompt
+            ok = subprocess.run(["sudo", *cmd], capture_output=True, text=True).stdout.strip() == "true"
+        print(f"  {'↩️ ' if undo else '🎨'} {app}" if ok else f"  ⚠️  {app}: root-owned — run this in a terminal (one sudo prompt)")
     subprocess.run(["killall", "Dock"], check=False)
 
 
