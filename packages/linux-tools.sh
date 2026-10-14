@@ -10,6 +10,16 @@ have() { command -v "$1" >/dev/null 2>&1; }
 repo_has() { curl -fsI "$1/dists/$2/Release" >/dev/null 2>&1; }
 sudo install -m 0755 -d /etc/apt/keyrings
 
+# WSL: Docker Engine needs systemd as PID 1 (/etc/wsl.conf [boot] systemd=true + `wsl --shutdown`).
+# Docker Desktop's WSL integration also works — then `docker` is already on PATH and this is skipped.
+if [ "${IS_WSL:-0}" = 1 ] && [ "$(ps -p 1 -o comm= 2>/dev/null)" != systemd ]; then
+  if ! grep -q 'systemd *= *true' /etc/wsl.conf 2>/dev/null; then
+    printf '[boot]\nsystemd=true\n' | sudo tee -a /etc/wsl.conf >/dev/null
+  fi
+  echo "  🪟 WSL: systemd enabled in /etc/wsl.conf — run 'wsl --shutdown' in Windows PowerShell,"
+  echo "     reopen Ubuntu, then re-run install.sh so Docker can start."
+fi
+
 # Docker Engine + compose plugin (official repo; Ubuntu's docker.io as fallback)
 if ! have docker; then
   echo "  📦 docker..."
@@ -66,7 +76,9 @@ if ! have aws; then
 fi
 
 # Warp terminal (official repo, amd64; arm64 → .deb from warp.dev). Settings: install.sh step 8b.
-if ! have warp-terminal; then
+if [ "${IS_WSL:-0}" = 1 ]; then
+  echo "  🪟 WSL: use Warp for Windows (https://www.warp.dev/download) — not the Linux app"
+elif ! have warp-terminal; then
   if [ "$ARCH" = amd64 ]; then
     echo "  📦 warp..."
     curl -fsSL https://releases.warp.dev/linux/keys/warp.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/warpdotdev.gpg

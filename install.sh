@@ -10,6 +10,9 @@ DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 OS="$(uname)"   # Darwin | Linux
 PM=""           # Linux package manager
+IS_WSL=0        # Ubuntu inside Windows (WSL2): no desktop; fonts + terminal live on the Windows side
+grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null && IS_WSL=1
+export IS_WSL
 if [ "$OS" = "Linux" ]; then
   if command -v apt-get >/dev/null 2>&1; then PM="apt"
   elif command -v dnf >/dev/null 2>&1; then PM="dnf"
@@ -48,7 +51,7 @@ symlink() {
 ###############################################################################
 # 0. Platform packages — macOS: Homebrew · Linux: apt/dnf (adapted from Le Wagon)
 ###############################################################################
-echo "🧰 Platform packages ($OS${PM:+/$PM})..."
+echo "🧰 Platform packages ($OS${PM:+/$PM}$( [ "$IS_WSL" = 1 ] && echo ' · WSL'))..."
 
 if [ "$OS" = "Darwin" ]; then
   if ! xcode-select -p >/dev/null 2>&1; then
@@ -57,7 +60,8 @@ if [ "$OS" = "Darwin" ]; then
   fi
   if ! command -v brew >/dev/null 2>&1; then
     echo "  🍺 Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # NONINTERACTIVE: no "Press RETURN" prompt, so Claude can drive it (sudo must already work)
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     [ -f /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
     [ -f /usr/local/bin/brew ]    && eval "$(/usr/local/bin/brew shellenv)"
   fi
@@ -115,6 +119,11 @@ elif [ "$OS" = "Linux" ]; then
     [ -f "$f" ] || curl -fsSL -o "$f" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${v// /%20}.ttf" || echo "  ⚠️  font download failed: $v"
   done
   command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONT_DIR" >/dev/null 2>&1 && echo "  🔤 MesloLGS NF installed"
+  if [ "$IS_WSL" = 1 ]; then
+    echo "  🪟 WSL: the terminal is a Windows app — install MesloLGS NF on WINDOWS (double-click the 4"
+    echo "     .ttf files in $FONT_DIR via "'\\\\wsl$'" → Install for all users) and set Windows Terminal /"
+    echo "     Warp for Windows → font 'MesloLGS NF', size 14. Warp settings: terminal/warp-settings.toml."
+  fi
   if command -v gsettings >/dev/null 2>&1; then
     prof="$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")"
     if [ -n "$prof" ]; then
