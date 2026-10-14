@@ -18,6 +18,8 @@ curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootst
 
 ## 1. Preflight (read-only)
 
+- **First:** `git -C ~/Code/000-config/001-dotfiles pull --ff-only` — this runbook may have been
+  improved since bootstrap cloned it. If the file changed, re-read it before continuing.
 - `lsb_release -d` (target Ubuntu 26.04), `uname -m`, `df -h ~` — need **≥ 150G free on ext4**
   (`~/Code` without envs is ~93G). `~/Code` MUST be on ext4 under `$HOME`, never the NTFS/Windows partition.
 - `id -un` → `$LU`. Home is `/home/$LU`, not `/Users/juan-garassino`.
