@@ -13,6 +13,7 @@ accents. No gradients.
   bauhaus_icons.py --undo     remove the overrides (system icons come back)
   bauhaus_icons.py --mac [--undo]  macOS: set (or clear) each installed app's custom icon + Apple-app launchers
   bauhaus_icons.py --mac-dock [--undo]  macOS: swap Apple-app Dock tiles for the launchers (backup → undo)
+  bauhaus_icons.py --mac-watch [--undo] macOS: LaunchAgent that re-applies icons after app updates (--mac-heal)
 
 Overrides are per-user copies of each app's .desktop file in ~/.local/share/applications
 (same file name → same dock pin) with Icon= pointing at our SVG. Apps that aren't
@@ -505,8 +506,41 @@ def mac_dock(undo=False):
     refresh_dock()
 
 
+def mac_heal():
+    """Re-set icons that an app update wiped (cached PNGs, no render). Run by the --mac-watch agent."""
+    healed = [app for app, name in MAC_APPS.items()
+              if Path(f"/Applications/{app}.app").exists() and not Path(f"/Applications/{app}.app/Icon\r").exists()
+              and (MAC_OUT / f"{name}.png").exists()
+              and mac_set_icon(MAC_OUT / f"{name}.png", f"/Applications/{app}.app")]
+    if healed:
+        print("healed:", ", ".join(healed))
+        refresh_dock()
+
+
+WATCH_AGENT = HOME / "Library/LaunchAgents/dev.garassino.bauhaus-heal.plist"
+
+
+def mac_watch(undo=False):
+    """LaunchAgent: run --mac-heal whenever /Applications changes (app updates) and hourly."""
+    subprocess.run(["launchctl", "unload", str(WATCH_AGENT)], capture_output=True)
+    if undo:
+        WATCH_AGENT.unlink(missing_ok=True)
+        return
+    WATCH_AGENT.parent.mkdir(parents=True, exist_ok=True)
+    plistlib.dump({"Label": WATCH_AGENT.stem, "ProgramArguments": ["/usr/bin/python3", str(Path(__file__).resolve()), "--mac-heal"],
+                   "WatchPaths": ["/Applications"], "StartInterval": 3600, "RunAtLoad": True, "ThrottleInterval": 30,
+                   "StandardOutPath": str(MAC_OUT / "heal.log"), "StandardErrorPath": str(MAC_OUT / "heal.log")},
+                  WATCH_AGENT.open("wb"))
+    subprocess.run(["launchctl", "load", str(WATCH_AGENT)], check=True)
+    print(f"  👀 {WATCH_AGENT.name} loaded")
+
+
 if __name__ == "__main__":
-    if "--mac-dock" in sys.argv:
+    if "--mac-heal" in sys.argv:
+        mac_heal()
+    elif "--mac-watch" in sys.argv:
+        mac_watch(undo="--undo" in sys.argv)
+    elif "--mac-dock" in sys.argv:
         mac_dock(undo="--undo" in sys.argv)
     elif "--mac" in sys.argv:
         mac(undo="--undo" in sys.argv)
