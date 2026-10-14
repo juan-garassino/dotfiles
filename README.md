@@ -42,6 +42,7 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 | **Terminal** | macOS: Warp (Brewfile). Linux: the default terminal with the font above | — |
 | **Python** | **uv only, no pyenv.** uv 3.11 + 3.12, `ruff` + `pre-commit` as uv tools, global `~/.venv-sandbox` (`mysandbox`), per-project `.venv` auto-activated on `cd`, `envup` rebuilds any project | `shell/zshrc`, `packages/mysandbox-requirements.txt` |
 | **Node** | nvm (brew on macOS, standalone on Linux), LTS + global CLIs | `packages/npm-globals.txt` |
+| **Containers** | Docker (colima on macOS, native Engine on Linux). Used only for deploy images and the 5 teaching stacks (Le Wagon ds/da/de, Spiced, MLE): `make up-spiced` etc. Daily dev is bare uv, never containers | `~/Code/004-lewagon-spiced/teaching-containers` |
 | **Git identity** | `~/Code/` personal, `~/Code/002-engenious/` work (gitconfig `includeIf`, work SSH alias), gh CLI account auto-switches on `cd` | `git/`, `ssh/config` |
 | **Claude Code** | Bauhaus 3-zone status line, sanitized `settings.json` (hooks, plugins, model), personal skills + agents, plugins: superpowers · context7 · code-simplifier · frontend-design · atlassian | `claude/` |
 | **Editor** | VS Code / Antigravity settings + 48 extensions | `editor/settings.json`, `packages/vscode-extensions.txt` |

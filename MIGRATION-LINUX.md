@@ -136,6 +136,10 @@ wait for "done", then **verify** before moving on.
 - Identity: `git config user.email` + `gh api user -q .login` in `~/Code` vs `~/Code/002-engenious`.
 - Byte parity: `custom_scripts/code_fingerprint.sh` here vs the same script run on the Mac over ssh
   (`ssh $S zsh ~/Code/000-config/dotfiles-uv-worktree/custom_scripts/code_fingerprint.sh`) → `diff` empty.
+- **Teaching stacks** (Le Wagon / Spiced run ONLY in containers; native Docker here, no colima):
+  `custom_scripts/validate_teaching.sh spiced lewagon-ds lewagon-da lewagon-de` (build → up → smoke →
+  down, one at a time; long first build), then `cd ~/Code/004-lewagon-spiced/teaching-containers &&
+  make build-mle` for the 5th stack. Ask the user before starting — it downloads several GB.
 - `docker run --rm hello-world`, `uv run --python 3.12 python -V`, `claude --version`, statusline renders,
   3 `envup` spot-checks (a pyproject repo, a requirements repo, an engenious repo).
 - Final report: PASS/FAIL table, every N/A or skip with its reason.
