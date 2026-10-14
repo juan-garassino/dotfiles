@@ -21,10 +21,27 @@ curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/uv-only/boo
 - `lsb_release -d` (target Ubuntu 26.04), `uname -m`, `df -h ~` — need **≥ 150G free on ext4**
   (`~/Code` without envs is ~93G). `~/Code` MUST be on ext4 under `$HOME`, never the NTFS/Windows partition.
 - `id -un` → `$LU`. Home is `/home/$LU`, not `/Users/juan-garassino`.
-- 🙋 Ask for the Mac's address (`<name>.local` or IP) → `$MAC`, user `juan-garassino`.
-  The Mac needs **Remote Login ON** (System Settings → General → Sharing).
+## 2. Guide the user on the Mac (they sit at the Mac; Claude instructs from here)
 
-## 2. ssh access to the Mac (no passwords inside Claude)
+Give these one at a time, wait for "done" after each:
+
+1. 🙋 **Turn on Remote Login.** The old Mac is macOS 12 Monterey:
+    Apple menu → **System Preferences → Sharing** → tick **Remote Login** →
+   "Allow access for: **Only these users**" → make sure **juan-garassino** is listed (add with **+**).
+   (macOS 13+ would be System Settings → General → Sharing → Remote Login.)
+2. 🙋 **Read the address.** The Sharing pane now says *"To log in to this computer remotely, type
+   `ssh juan-garassino@<something>`"* — ask the user to read out `<something>` → `$MAC`.
+   If it is a `.local` name that doesn't resolve from Linux, ask for the IP instead: in a Mac
+   Terminal `ipconfig getifaddr en0` (Wi-Fi) or `en1` → `$MAC`.
+3. 🙋 **Keep the Mac awake** for the copy: in a Mac Terminal run `caffeinate -dis` and leave that
+   window open (Ctrl+C when the migration is done). Mac on power; same network as this machine
+   (ethernet cable to the router on both = fastest).
+4. Verify from here: `ping -c 2 $MAC` and `nc -zv $MAC 22` → port 22 open.
+
+After the whole migration passes: remind the user to untick **Remote Login** again and stop
+`caffeinate`.
+
+## 3. ssh access to the Mac (no passwords inside Claude)
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/id_mac_pull -N "" -C "linux-pull"
@@ -34,13 +51,13 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_mac_pull -N "" -C "linux-pull"
 Verify: `ssh -i ~/.ssh/id_mac_pull -o BatchMode=yes juan-garassino@$MAC 'echo ok; du -sh ~/Code'`.
 Then `export RSYNC_RSH="ssh -i $HOME/.ssh/id_mac_pull"` for every rsync below.
 
-## 3. Path compatibility (recommended)
+## 4. Path compatibility (recommended)
 
 🙋 (sudo) `sudo mkdir -p /Users && sudo ln -sfn /home/$LU /Users/juan-garassino`
 Old absolute paths keep working: git worktree `.git` files, `~/.claude` project memory, scripts
 and configs that hard-coded `/Users/juan-garassino/...`. Harmless, removable later.
 
-## 4. Pull home-level config
+## 5. Pull home-level config
 
 ```bash
 S=juan-garassino@$MAC
@@ -60,7 +77,7 @@ verify `ssh -T git@github.com` → `Hi juan-garassino`.
 **Claude memory is keyed by path:** for each `~/.claude/projects/-Users-juan-garassino-*` dir, also
 `cp -a` it to `-home-$LU-*` (keep the original) so sessions at `/home/$LU/Code/...` find their memory.
 
-## 5. Pull `~/Code` (the big one, ~93G — resumable, just re-run if interrupted)
+## 6. Pull `~/Code` (the big one, ~93G — resumable, just re-run if interrupted)
 
 ```bash
 rsync -aH --partial --info=progress2 \
@@ -74,7 +91,7 @@ The dotfiles checkouts are excluded: this machine already has its own clone on `
 **Byte-verify:** run the same command with `-anc --itemize-changes` (checksum dry-run) → must print
 nothing. Wi-Fi: 1–3 h; ethernet: minutes.
 
-## 6. Install the toolchain
+## 7. Install the toolchain
 
 ```bash
 cd ~/Code/000-config/001-dotfiles
@@ -104,7 +121,7 @@ wait for "done", then **verify** before moving on.
 4. **AWS (work)** — carried `~/.aws`; verify `aws sts get-caller-identity`. If it fails, report it —
    don't guess credentials.
 
-## 7. Settle the code
+## 8. Settle the code
 
 - Nothing to clone — everything came with rsync, `.env` files included.
 - Git worktrees (ai-underwriter fleet, etc.) resolve through the `/Users` symlink; if any shows
@@ -112,7 +129,7 @@ wait for "done", then **verify** before moving on.
 - `mysandbox` once; project envs rebuild on touch with `envup` (`uv sync` / requirements).
 - Report (don't mass-fix) hard-coded `/Users/juan-garassino` paths that matter for Linux tooling.
 
-## 8. Verify (print a PASS/FAIL scorecard)
+## 9. Verify (print a PASS/FAIL scorecard)
 
 - `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (macOS-only checks → N/A with reason).
 - Look: prompt shows clean icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`.
