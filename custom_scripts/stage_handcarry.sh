@@ -29,7 +29,7 @@ ITEMS=(
   ".claude|req|projects memory/standing/plans — irreplaceable (~1.3G)"
   ".config/gcloud|req|gcloud auth"
   ".aws|req|work aws"
-  "env-snapshots|req|manifests, pg datadir tar, env registry, fingerprints, vscode-ext, scorecards"
+  "Archive/migration/env-snapshots|req|manifests, pg datadir tar, env registry, fingerprints, vscode-ext, scorecards"
   "Library/Application Support/Claude/claude_desktop_config.json|opt|Claude Desktop MCPs"
   # loose non-git dirs (verified 2026-09-17 — git-status ground truth)
   "Code/006-research-prototypes/OTH-candidate-assistant|req|loose src 306M"
@@ -43,7 +43,7 @@ ITEMS=(
   "Code/006-research-prototypes/SQL-nlsql|opt|loose src"
   "Code/005-products/001-assessment|opt|loose src 9M"
   "Code/004-lewagon-spiced/spiced/ds-book-template|req|local-only commit on neuefische origin (also bundled)"
-  "git-bundles|req|26+ verified bundles incl. engenious no-remote repos"
+  "Archive/migration/git-bundles|req|26+ verified bundles incl. engenious no-remote repos"
 )
 
 typeset -i missing=0

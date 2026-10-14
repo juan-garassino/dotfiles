@@ -9,12 +9,12 @@
 #
 # Mechanism: the live dotfiles are symlinks into a repo checkout. The cutover is
 # just re-pointing them — no repo mutation, no file copies. Rollback restores the
-# targets recorded at first flip (snapshot: ~/env-snapshots/live-symlinks-pre-cutover.txt).
+# targets recorded at first flip (snapshot: ~/Archive/migration/env-snapshots/live-symlinks-pre-cutover.txt).
 # ssh/config is deliberately NOT managed here (flipped separately if ever needed).
 ###############################################################################
 set -u
 UV="$HOME/Code/000-config/dotfiles-uv-worktree"
-SNAP="$HOME/env-snapshots/live-symlinks-pre-cutover.txt"
+SNAP="$HOME/Archive/migration/env-snapshots/live-symlinks-pre-cutover.txt"
 MODE="${1:---status}"
 
 # src-relative-to-repo : live link target

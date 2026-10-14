@@ -73,7 +73,7 @@ if [ "$LIVE_IS_UVONLY" = 0 ]; then
   echo "     prove 'uv run' + a project 'uv sync', depyenv.sh --apply), THEN re-run --apply --python-only."
   SAVE=$MODE; MODE=dry   # force dry for this section regardless
 fi
-rc ~/.pyenv "40 virtualenvs — SNAPSHOTTED in ~/env-snapshots; projects re-create via uv sync"
+rc ~/.pyenv "40 virtualenvs — SNAPSHOTTED in ~/Archive/migration/env-snapshots; projects re-create via uv sync"
 rc /usr/local/Cellar/python@3.7 "python.org 3.7.9 EOL (uv ships 3.11/3.12)"
 rc "/Library/Frameworks/Python.framework/Versions/3.7" "python.org 3.7 framework (/usr/local/bin/python3)"
 rc ~/Library/Python "user-site sprawl across 3.7/3.9/3.11/3.12"

@@ -165,9 +165,9 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
   `find ~/Code -name .git -prune -exec sh -c 'git -C "$(dirname "$1")" config core.ignorecase false' _ {} \;`
   then `git worktree repair` / `git worktree prune` in repos with worktrees (ai-underwriter OCR +
   prediction, deepVogue, carreer-navigator, PromptPlot). First `git status` per repo rehashes — normal.
-- **Scratch-worktree WIP** (uncommitted work from `~/.claude-tmp` worktrees): `~/env-snapshots/worktree-wip-*/INDEX.txt`
+- **Scratch-worktree WIP** (uncommitted work from `~/.claude-tmp` worktrees): `~/Archive/migration/env-snapshots/worktree-wip-*/INDEX.txt`
   lists branch + repo; apply `*.patch` and untar `*.untracked.tgz` in a fresh worktree of that branch when the user wants it.
-- **Databases:** start each compose stack, then restore: aiuw → `gunzip -c ~/env-snapshots/aiuw-pgdumpall-*.sql.gz | docker exec -i aiuw-postgres psql -U aiuw -d postgres`;
+- **Databases:** start each compose stack, then restore: aiuw → `gunzip -c ~/Archive/migration/env-snapshots/aiuw-pgdumpall-*.sql.gz | docker exec -i aiuw-postgres psql -U aiuw -d postgres`;
   Le Wagon DE → untar `lewagon-de-pgdata-*.tgz` into the `lewagon-de_de-pgdata` volume before first start.
 - **Envs:** `mysandbox` once; project envs on touch with `envup`. `terraform init` where `.terraform` was dropped.
 - **macOS-only bits in code** (report, fix only if the user asks): `caffeinate` in boundaryBrush/dataDiffusion
@@ -204,7 +204,7 @@ FAIL (or explain it), re-run until clean. The bullets below are the manual equiv
 ## State of GitHub (2026-10-14) — the backup layer
 
 - All personal repos, all branches pushed; dirty trees committed (`wip/pre-migration-2026-10-14`
-  where the branch was the default). Pre-rewrite backups: `~/git-bundles/pre-fix-2026-10-14/`.
+  where the branch was the default). Pre-rewrite backups: `~/Archive/migration/git-bundles/pre-fix-2026-10-14/`.
 - 10 formerly loose dirs are private repos (`candidate-assistant`, `graphrag-integration`,
   `custom-graphrag`, `chroma-rag`, `emoji-generation`, `adversarial-diffusion`, `orchestration-coreo`,
   `multiagent-orchestrator`, `nlsql`, `assessment`). SelfGPT → fork `juan-garassino/SelfGPT` (remote `mine`).

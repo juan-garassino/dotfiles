@@ -2,7 +2,7 @@
 ###############################################################################
 # 🧹 depyenv.sh — one-time pyenv retirement helper (OLD machine only)
 #
-# Phase A  Snapshot: pip-freeze every pyenv env → ~/env-snapshots/<env>.txt
+# Phase A  Snapshot: pip-freeze every pyenv env → ~/Archive/migration/env-snapshots/<env>.txt
 #          (read-only insurance before the machine is retired).
 # Phase B  Sweep ~/Code .python-version files that name pyenv virtualenvs:
 #            - tracked in a repo NOT owned by Juan (pull-only upstream, e.g.
@@ -33,7 +33,7 @@ for arg in "$@"; do
   esac
 done
 
-SNAP_DIR="$HOME/env-snapshots"
+SNAP_DIR="$HOME/Archive/migration/env-snapshots"
 REPORT="$SNAP_DIR/depyenv-report.txt"
 PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
 mkdir -p "$SNAP_DIR"
@@ -41,7 +41,7 @@ mkdir -p "$SNAP_DIR"
 echo "🧹 depyenv — mode: $([ "$APPLY" = true ] && echo APPLY || echo DRY-RUN)"
 
 ###############################################################################
-# Phase A — snapshots (read-only toward everything except ~/env-snapshots)
+# Phase A — snapshots (read-only toward everything except ~/Archive/migration/env-snapshots)
 ###############################################################################
 echo ""
 echo "📸 Phase A — pip-freeze snapshots → $SNAP_DIR"

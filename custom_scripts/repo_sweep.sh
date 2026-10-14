@@ -15,7 +15,7 @@
 # never-committed git-init shells that are not real repos.
 #
 # Persist convention: this prints to stdout only; capture with
-#   repo_sweep.sh | tee ~/env-snapshots/repo-sweep-$(date +%F).txt
+#   repo_sweep.sh | tee ~/Archive/migration/env-snapshots/repo-sweep-$(date +%F).txt
 ###############################################################################
 set -u
 MODE=gate

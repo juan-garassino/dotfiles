@@ -4,19 +4,19 @@
 #
 # For EVERY local branch tip in EVERY repo under ~/Code (worktree fleets
 # deduped via git-common-dir): assert the commit is contained in a remote ref
-# OR reachable from a head of a ~/git-bundles bundle. Anything else is work
+# OR reachable from a head of a ~/Archive/migration/git-bundles bundle. Anything else is work
 # that a wipe would lose (modulo the rsync snapshot) → listed as UNCOVERED.
 #
 # Bundle containment works because bundles were created FROM these repos: the
 # source repo has the objects, so `merge-base --is-ancestor <tip> <bundle-head>`
 # is decidable locally.
 #
-# Usage: verify_coverage.sh [root=~/Code] [bundles=~/git-bundles]
+# Usage: verify_coverage.sh [root=~/Code] [bundles=~/Archive/migration/git-bundles]
 # Exit 0 = everything covered; 1 = uncovered work exists.
 ###############################################################################
 set -u
 ROOT="${1:-$HOME/Code}"
-BUNDLES="${2:-$HOME/git-bundles}"
+BUNDLES="${2:-$HOME/Archive/migration/git-bundles}"
 
 typeset -A seen_common
 typeset -i n_repos=0 n_tips=0 n_uncovered=0
@@ -70,5 +70,5 @@ done
 rm -f "$BUNDLE_IDX"
 echo ""
 echo "Scan complete. Any ❌ UNCOVERED line above = work not in any remote or bundle."
-echo "Fix: push the branch, or refresh the repo's bundle: git -C <repo> bundle create ~/git-bundles/<name>.bundle --all"
+echo "Fix: push the branch, or refresh the repo's bundle: git -C <repo> bundle create ~/Archive/migration/git-bundles/<name>.bundle --all"
 # exit status: grep our own output is impossible here; caller: verify_coverage.sh | grep -c UNCOVERED

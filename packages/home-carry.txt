@@ -28,8 +28,7 @@
 .python_history
 
 # Migration records: manifests, fingerprints, DB dumps, env registry, worktree WIP patches, bundles
-env-snapshots
-git-bundles
-migration-snapshot
+# (lives in ~/Archive/migration/: env-snapshots/ · git-bundles/ · migration-snapshot/)
+Archive/migration
 
 # Code: ONLY ~/Code is copied (MIGRATE.md step 7). Nothing from Desktop/Downloads/Documents.

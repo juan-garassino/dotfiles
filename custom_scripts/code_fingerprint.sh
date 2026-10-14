@@ -2,7 +2,7 @@
 ###############################################################################
 # 🧬 code_fingerprint.sh — machine-independent fingerprint of every repo's state
 #
-#   code_fingerprint.sh > ~/env-snapshots/fingerprint-<machine>.txt
+#   code_fingerprint.sh > ~/Archive/migration/env-snapshots/fingerprint-<machine>.txt
 #   diff fingerprint-intel.txt fingerprint-m5.txt      # MUST be empty
 #
 # One line per repo:  <relpath>|<branch>|<HEAD sha>|<clean|dirty:N>

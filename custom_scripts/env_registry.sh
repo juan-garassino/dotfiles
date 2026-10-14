@@ -2,7 +2,7 @@
 ###############################################################################
 # 🔐 env_registry.sh — traceable inventory of every .env file, and its restorer
 #
-#   env_registry.sh                       # scan → ~/env-snapshots/env-registry.tsv (600)
+#   env_registry.sh                       # scan → ~/Archive/migration/env-snapshots/env-registry.tsv (600)
 #   env_registry.sh --restore-from <dir>  # after reclone: copy each .env back from the
 #                                         # vault snapshot (<dir> mirrors ~/Code layout)
 #
@@ -14,7 +14,7 @@
 # overwrites, and re-applies chmod 600.
 ###############################################################################
 set -u
-REG="$HOME/env-snapshots/env-registry.tsv"
+REG="$HOME/Archive/migration/env-snapshots/env-registry.tsv"
 CODE="$HOME/Code"
 
 scan(){
