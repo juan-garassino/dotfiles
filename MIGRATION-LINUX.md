@@ -13,7 +13,7 @@ macOS binaries are useless on Linux; they are rebuilt with `envup`.
 ## 0. Bootstrap (human, one command — already done if you are reading this in Claude)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/uv-only/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
 ```
 
 ## 1. Preflight (read-only)
@@ -86,7 +86,7 @@ rsync -aH --partial --info=progress2 \
   --exclude /000-config/001-dotfiles/ --exclude /000-config/dotfiles-uv-worktree/ \
   $S:Code/ ~/Code/
 ```
-The dotfiles checkouts are excluded: this machine already has its own clone on `uv-only`
+The dotfiles checkouts are excluded: this machine already has its own clone on `main`
 (the Mac's are a `main` checkout + a worktree tied to Mac paths).
 **Byte-verify:** run the same command with `-anc --itemize-changes` (checksum dry-run) → must print
 nothing. Wi-Fi: 1–3 h; ethernet: minutes.

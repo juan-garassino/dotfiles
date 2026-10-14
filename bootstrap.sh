@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # bootstrap.sh — git, clone, claude. The only command a fresh machine needs:
 #
-#   curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/uv-only/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
 #
 # Installs git + curl (+ openssh-server on Linux), clones this repo to its canonical path,
 # installs Claude Code (native installer), then opens Claude in the repo with the setup
 # prompt pre-filled. Claude takes it from there (CLAUDE.md / MIGRATION-LINUX.md) and stops
 # only for passwords, logins and secrets. Safe to re-run.
 set -eu
-BRANCH="${DOTFILES_BRANCH:-uv-only}"
+BRANCH="${DOTFILES_BRANCH:-main}"
 DEST="$HOME/Code/000-config/001-dotfiles"
 REPO="https://github.com/juan-garassino/dotfiles"
 

@@ -8,7 +8,7 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 ## 🚀 Fresh machine — one command
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/uv-only/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
 ```
 
 [`bootstrap.sh`](./bootstrap.sh) does **git → clone → claude**: installs git/curl, clones this
@@ -22,7 +22,7 @@ prompt already typed. Claude asks one question, then runs the matching runbook:
 
 ```bash
 sudo apt-get update && sudo apt-get install -y git curl openssh-server     # macOS: xcode-select --install
-git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
+git clone https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
 curl -fsSL https://claude.ai/install.sh | bash
 cd ~/Code/000-config/001-dotfiles && claude    # then: "set up this machine" or "execute MIGRATION-LINUX.md"
 ```
