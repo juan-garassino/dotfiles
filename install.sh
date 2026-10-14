@@ -71,7 +71,9 @@ elif [ "$OS" = "Linux" ]; then
     # newer releases drop/rename packages) — install only what this release actually has.
     avail=(); missing=()
     for p in $(pkglist "$DOTFILES_DIR/packages/apt.txt"); do
-      apt-cache show "$p" >/dev/null 2>&1 && avail+=("$p") || missing+=("$p")
+      # `apt-cache show` passes for referenced-but-uninstallable names (e.g. tldr on 26.04);
+      # only a real install candidate counts
+      apt-cache policy "$p" 2>/dev/null | grep -q 'Candidate: [^(]' && avail+=("$p") || missing+=("$p")
     done
     [ ${#missing[@]} -gt 0 ] && echo "  ⚠️  not in this release, skipped: ${missing[*]}"
     [ ${#avail[@]} -gt 0 ] && { sudo apt-get install -y "${avail[@]}" || echo "  ⚠️  some apt packages failed"; }
@@ -83,7 +85,7 @@ elif [ "$OS" = "Linux" ]; then
     fi
     if ! command -v code >/dev/null 2>&1; then
       echo "  📦 VS Code (Microsoft apt repo)..."
-      wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/ms.gpg
+      curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/ms.gpg
       sudo install -D -o root -g root -m 644 /tmp/ms.gpg /etc/apt/keyrings/packages.microsoft.gpg && rm -f /tmp/ms.gpg
       echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
       sudo apt-get update -y && sudo apt-get install -y code
