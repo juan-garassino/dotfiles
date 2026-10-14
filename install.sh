@@ -119,11 +119,11 @@ elif [ "$OS" = "Linux" ]; then
     prof="$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")"
     if [ -n "$prof" ]; then
       p="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$prof/"
-      gsettings set "$p" use-system-font false 2>/dev/null && gsettings set "$p" font 'MesloLGS NF 12' 2>/dev/null \
-        && echo "  🖥️  GNOME Terminal font → MesloLGS NF 12"
+      gsettings set "$p" use-system-font false 2>/dev/null && gsettings set "$p" font 'MesloLGS NF 14' 2>/dev/null \
+        && echo "  🖥️  GNOME Terminal font → MesloLGS NF 14"
     fi
-    gsettings set org.gnome.Ptyxis use-system-font false 2>/dev/null && gsettings set org.gnome.Ptyxis font-name 'MesloLGS NF 12' 2>/dev/null \
-      && echo "  🖥️  Ptyxis font → MesloLGS NF 12"
+    gsettings set org.gnome.Ptyxis use-system-font false 2>/dev/null && gsettings set org.gnome.Ptyxis font-name 'MesloLGS NF 14' 2>/dev/null \
+      && echo "  🖥️  Ptyxis font → MesloLGS NF 14"
   fi
   # nvm (standalone; zshrc lazy-loads $NVM_DIR/nvm.sh). PROFILE=/dev/null: never let it edit
   # the symlinked zshrc.
@@ -366,6 +366,12 @@ if [ -f "$DOTFILES_DIR/claude/settings.json" ]; then
   if [ ! -f "$HOME/.claude/settings.json" ]; then
     cp "$DOTFILES_DIR/claude/settings.json" "$HOME/.claude/settings.json"
     echo "  🔗 Installed Claude settings.json template (machine secrets go in env via ~/.secrets, never here)"
+  elif command -v jq >/dev/null 2>&1 && ! jq -e '.statusLine' "$HOME/.claude/settings.json" >/dev/null 2>&1; then
+    # A fresh login (bootstrap.sh) can create a near-empty settings.json first — merge the
+    # template in (template wins) so statusline, hooks and plugins still land.
+    cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.pre-dotfiles"
+    jq -s '.[0] * .[1]' "$HOME/.claude/settings.json.pre-dotfiles" "$DOTFILES_DIR/claude/settings.json" > "$HOME/.claude/settings.json"
+    echo "  🔗 Merged Claude settings template into the fresh settings.json (backup: settings.json.pre-dotfiles)"
   else
     echo "  ✅ Claude settings.json exists — left as-is (diff against claude/settings.json template if needed)"
   fi
@@ -375,6 +381,22 @@ if [ -d "$DOTFILES_DIR/claude/skills" ]; then
   mkdir -p ~/.claude/skills ~/.claude/agents
   rsync -a "$DOTFILES_DIR/claude/skills/" ~/.claude/skills/ 2>/dev/null && echo "  📦 Restored personal Claude skills"
   rsync -a "$DOTFILES_DIR/claude/agents/" ~/.claude/agents/ 2>/dev/null && echo "  📦 Restored Claude agents"
+fi
+
+###############################################################################
+# 8b. Warp terminal settings (theme "phenomenon", MesloLGS NF 14, honor_ps1 → p10k prompt)
+#     Copied, not symlinked: Warp rewrites the file. __HOME__ = this machine's $HOME.
+###############################################################################
+if [ -f "$DOTFILES_DIR/terminal/warp-settings.toml" ]; then
+  if [[ "$(uname)" == "Darwin" ]]; then WARP_CFG="$HOME/.warp/settings.toml"
+  else WARP_CFG="${XDG_CONFIG_HOME:-$HOME/.config}/warp-terminal/settings.toml"; fi
+  if [ ! -f "$WARP_CFG" ]; then
+    mkdir -p "$(dirname "$WARP_CFG")"
+    sed "s#__HOME__#$HOME#g" "$DOTFILES_DIR/terminal/warp-settings.toml" > "$WARP_CFG"
+    echo "  🖥️  Warp settings installed → $WARP_CFG"
+  else
+    echo "  ✅ Warp settings exist — left as-is ($WARP_CFG)"
+  fi
 fi
 
 ###############################################################################

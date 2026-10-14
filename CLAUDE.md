@@ -41,7 +41,9 @@ order, **verify each before moving on**, and **STOP to ask the user** at the hum
 points (marked 🙋 — secrets and keys a machine can't fabricate).
 
 1. **Homebrew** — `command -v brew` or install from https://brew.sh. Verify `brew --version`.
-2. **Run the installer** — `cd <repo> && ./install.sh` (OS-aware: **macOS** → Homebrew + Brewfile;
+2. **Run the installer** — on Linux, first set up temporary passwordless sudo exactly as in
+   `MIGRATION-LINUX.md` step 7 (🙋 one command; Claude can't type passwords) and remove it at the
+   end. Then `cd <repo> && ./install.sh` (OS-aware: **macOS** → Homebrew + Brewfile;
    **Linux** → apt/dnf from `packages/`, gh + VS Code repos, uv installer). It then
    symlinks all dotfiles, installs Oh-My-Zsh + Powerlevel10k, runs `uv python install 3.11 3.12`
    + `uv tool install ruff pre-commit`, wires the Claude statusline, restores

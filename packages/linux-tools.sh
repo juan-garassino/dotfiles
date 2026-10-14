@@ -65,6 +65,37 @@ if ! have aws; then
   rm -rf "$tmp"
 fi
 
+# Warp terminal (official repo, amd64; arm64 → .deb from warp.dev). Settings: install.sh step 8b.
+if ! have warp-terminal; then
+  if [ "$ARCH" = amd64 ]; then
+    echo "  📦 warp..."
+    curl -fsSL https://releases.warp.dev/linux/keys/warp.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/warpdotdev.gpg
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/warpdotdev.gpg] https://releases.warp.dev/linux/deb stable main" \
+      | sudo tee /etc/apt/sources.list.d/warpdotdev.list >/dev/null
+    sudo apt-get update -y && sudo apt-get install -y warp-terminal
+  else
+    echo "  ⚠️  warp: no arm64 apt repo — install the arm64 .deb from https://www.warp.dev/download"
+  fi
+fi
+
+# Kubernetes local clusters + CI/dev single binaries (Brewfile: minikube k3d act mkcert runpodctl cloud-sql-proxy)
+case "$ARCH" in arm64) GOARCH=arm64 ;; *) GOARCH=amd64 ;; esac
+if ! have minikube; then
+  echo "  📦 minikube..."
+  tmp="$(mktemp -d)"; curl -fsSL -o "$tmp/minikube.deb" "https://storage.googleapis.com/minikube/releases/latest/minikube_latest_${GOARCH}.deb" \
+    && sudo apt-get install -y "$tmp/minikube.deb" >/dev/null; rm -rf "$tmp"
+fi
+have k3d || { echo "  📦 k3d..."; curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | sudo bash >/dev/null; }
+have act || { echo "  📦 act..."; curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash -s -- -b /usr/local/bin >/dev/null; }
+have runpodctl || { echo "  📦 runpodctl..."; curl -fsSL cli.runpod.net | sudo bash >/dev/null 2>&1 || echo "  ⚠️  runpodctl install failed"; }
+if ! have cloud-sql-proxy; then
+  echo "  📦 cloud-sql-proxy..."
+  tag="$(curl -fsSL https://api.github.com/repos/GoogleCloudPlatform/cloud-sql-proxy/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)"
+  [ -n "$tag" ] && sudo curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
+    "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${tag}/cloud-sql-proxy.linux.${GOARCH}" \
+    && sudo chmod +x /usr/local/bin/cloud-sql-proxy
+fi
+
 # llm CLI (uv tool, same as everything Python)
 have llm || { have uv && uv tool install llm >/dev/null 2>&1 && echo "  ✅ llm (uv tool)"; }
 
@@ -73,4 +104,4 @@ if [ "${DOTFILES_MINIMAL:-0}" != 1 ] && ! have ollama; then
   echo "  📦 ollama..."; curl -fsSL https://ollama.com/install.sh | sh >/dev/null 2>&1 || echo "  ⚠️  ollama install failed"
 fi
 
-echo "  ✅ Linux toolchain done (on demand, not installed: act k3d minikube mkcert runpodctl cloud-sql-proxy)"
+echo "  ✅ Linux toolchain done"

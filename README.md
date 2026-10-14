@@ -39,18 +39,18 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 | **Shell** | zsh + Oh-My-Zsh · plugins `git gitfast last-working-dir common-aliases zsh-autosuggestions zsh-syntax-highlighting history-substring-search` · lazy-loaded nvm/rbenv/kubectl (fast startup) | `shell/zshrc` |
 | **Prompt** | Powerlevel10k, Bauhaus palette (cobalt / ochre / burgundy + grays), custom `gh_identity` segment: ochre `personal` / burgundy `work` | `prompt/p10k.zsh` |
 | **Font** | **MesloLGS NF**: Brewfile cask on macOS; on Linux `install.sh` downloads it to `~/.local/share/fonts` and sets GNOME Terminal / Ptyxis to `MesloLGS NF 12` | `install.sh` |
-| **Terminal** | macOS: Warp (Brewfile). Linux: the default terminal with the font above | — |
+| **Terminal** | **Warp** on both (Brewfile cask / Warp apt repo), same settings: theme `phenomenon`, MesloLGS NF 14, `honor_ps1` so the p10k prompt shows. Default Ubuntu terminal also set to MesloLGS NF 14 | `terminal/warp-settings.toml` |
 | **Python** | **uv only, no pyenv.** uv 3.11 + 3.12, `ruff` + `pre-commit` as uv tools, global `~/.venv-sandbox` (`mysandbox`), per-project `.venv` auto-activated on `cd`, `envup` rebuilds any project | `shell/zshrc`, `packages/mysandbox-requirements.txt` |
 | **Node** | nvm (brew on macOS, standalone on Linux), LTS + global CLIs | `packages/npm-globals.txt` |
 | **Containers** | Docker (colima on macOS, native Engine on Linux). Used only for deploy images and the 5 teaching stacks (Le Wagon ds/da/de, Spiced, MLE): `make up-spiced` etc. Daily dev is bare uv, never containers | `~/Code/004-lewagon-spiced/teaching-containers` |
 | **Git identity** | `~/Code/` personal, `~/Code/002-engenious/` work (gitconfig `includeIf`, work SSH alias), gh CLI account auto-switches on `cd` | `git/`, `ssh/config` |
 | **Claude Code** | Bauhaus 3-zone status line, sanitized `settings.json` (hooks, plugins, model), personal skills + agents, plugins: superpowers · context7 · code-simplifier · frontend-design · atlassian | `claude/` |
 | **Editor** | VS Code / Antigravity settings + 48 extensions | `editor/settings.json`, `packages/vscode-extensions.txt` |
-| **Packages** | macOS: curated `Brewfile` (leaves only). Linux: `apt.txt` + gh / VS Code apt repos | `packages/` |
+| **Packages** | macOS: curated `Brewfile` (leaves only). Linux: `apt.txt` + `linux-tools.sh` — docker + compose, gcloud, terraform, kubectl, helm, minikube, k3d, aws, act, runpodctl, cloud-sql-proxy, ollama, Warp | `packages/` |
+| **Postgres** | client only on the host (`psql`, `pg_dump`); servers always run in Docker (`docker run postgres:16` / compose) | — |
 | **Secrets** | `~/.secrets` (chmod 600, never in git), seeded empty from `.secrets.sample` | — |
 
-**Not automated** (do it by hand or let Claude do it): Docker Engine on Linux (official apt
-repo + `usermod -aG docker $USER`); `chsh` asks for your password; first `p10k` launch:
+**Not automated:** `chsh` asks for your password; first `p10k` launch:
 **decline** the config wizard, since `~/.p10k.zsh` is already symlinked. Private skills
 (`post-as-me`) and claude.ai-synced skills are not in this public repo; they come with the
 `~/.claude` hand-carry.

@@ -32,7 +32,10 @@ golang-go
 tldr
 mkcert
 
-# No host Postgres — databases run in containers (Brewfile prune 2026-09-18).
+# Postgres: client only (psql, pg_dump). Servers run in containers — docker compose /
+# `docker run postgres` — never on the host (Brewfile prune 2026-09-18).
+postgresql-client
+libpq-dev
 # Native build deps: uv ships prebuilt Pythons, but sdist-only wheels still compile C.
 make
 build-essential

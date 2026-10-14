@@ -60,7 +60,8 @@ A "interactive shell exits clean"                  "zsh -i -c exit"
 A "no pyenv anywhere"                              "! command -v pyenv && ! test -d ~/.pyenv"
 A "MesloLGS NF font installed"                     "test -f ~/.local/share/fonts/'MesloLGS NF Regular.ttf'"
 A "nvm installed (standalone)"                     "test -s ~/.nvm/nvm.sh"
-for t in docker gcloud terraform kubectl helm aws ffmpeg git-lfs tesseract; do
+A "Warp settings placed (Linux path)"                "grep -q phenomenon ~/.config/warp-terminal/settings.toml"
+for t in docker gcloud terraform kubectl helm aws ffmpeg git-lfs tesseract warp-terminal minikube k3d act runpodctl cloud-sql-proxy psql; do
   A "$t on PATH (Brewfile parity)"                 "command -v $t"
 done
 

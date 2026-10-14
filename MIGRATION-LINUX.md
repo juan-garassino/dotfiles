@@ -91,16 +91,39 @@ The dotfiles checkouts are excluded: this machine already has its own clone on `
 **Byte-verify:** run the same command with `-anc --itemize-changes` (checksum dry-run) → must print
 nothing. Wi-Fi: 1–3 h; ethernet: minutes.
 
-## 7. Install the toolchain
+## 7. Install the toolchain (Claude runs it and narrates)
+
+**sudo without a password, temporarily.** `install.sh` calls `sudo` many times and Claude cannot
+type a password. 🙋 Ask the user to run, once, in a normal terminal:
+```bash
+echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/99-migration && sudo chmod 440 /etc/sudoers.d/99-migration
+```
+Verify with `sudo -n true`. It is **removed in step 9** (`sudo rm /etc/sudoers.d/99-migration`) —
+never leave it behind. (If the user declines: they run `./install.sh` themselves in a second
+terminal and Claude follows the output and fixes failures.)
 
 ```bash
 cd ~/Code/000-config/001-dotfiles
 git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetch
-./install.sh      # apt + linux-tools.sh (docker, gcloud, terraform, kubectl, helm, aws), uv, nvm,
-                  # MesloLGS NF + terminal font, OMZ + p10k, symlinks, Claude statusline/settings/skills
+./install.sh
 ```
-Don't open new terminals mid-install. 🙋 `chsh` asks the password; first zsh: **decline** the p10k
-wizard. Re-login once (zsh default shell + docker group).
+What it installs — tell the user each phase as it runs:
+- **apt:** core CLI, build deps, ffmpeg, tesseract, git-lfs, go, mkcert, `postgresql-client` (psql/pg_dump).
+- **linux-tools.sh:** docker + compose (+ docker group), gcloud, terraform, kubectl, helm, aws v2,
+  **minikube**, k3d, act, runpodctl, cloud-sql-proxy, **Warp**, llm, ollama.
+- **look:** MesloLGS NF + terminal font 14 pt, Oh-My-Zsh + plugins, Powerlevel10k + `~/.p10k.zsh`,
+  Warp settings (theme `phenomenon`, MesloLGS NF 14, honors the p10k prompt).
+- **Python/Node:** uv + Pythons 3.11/3.12 + ruff/pre-commit, nvm + LTS + npm globals.
+- **Claude:** status line, settings (merged into a fresh one), skills, agents. **VS Code** + 48 extensions.
+
+**Postgres is never a host server** (policy: databases run in containers). For a DB:
+`docker run -d --name pg -e POSTGRES_PASSWORD=dev -p 5432:5432 -v pgdata:/var/lib/postgresql/data postgres:16`
+or the project's own `docker compose`. Restore old data from `~/env-snapshots/*pgdata*` only if asked.
+
+After install: `chsh` may need the password 🙋 (`sudo chsh -s $(command -v zsh) $USER` works under
+NOPASSWD). **Re-login once** (zsh + docker group), reopen Claude in this repo and continue. First zsh:
+**decline** the p10k wizard. Open **Warp** from the app menu → it should look like the Mac
+(dark `phenomenon` theme, p10k prompt with icons).
 
 ### Guided logins (Claude walks the user through each, one at a time)
 
@@ -142,6 +165,10 @@ wait for "done", then **verify** before moving on.
   make build-mle` for the 5th stack. Ask the user before starting — it downloads several GB.
 - `docker run --rm hello-world`, `uv run --python 3.12 python -V`, `claude --version`, statusline renders,
   3 `envup` spot-checks (a pyproject repo, a requirements repo, an engenious repo).
+- Tools: `docker compose version`, `minikube version`, `kubectl version --client`, `psql --version`,
+  `terraform -version`, `gcloud --version`, `warp-terminal` present.
+- **Clean up:** `sudo rm /etc/sudoers.d/99-migration` and confirm `sudo -n true` now FAILS; remind the
+  user to untick Remote Login on the Mac and stop `caffeinate`.
 - Final report: PASS/FAIL table, every N/A or skip with its reason.
 
 ## Hard rules

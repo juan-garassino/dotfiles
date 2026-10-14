@@ -40,6 +40,11 @@ else
   echo "  ⚠️  settings.json or jq missing — skipping"
 fi
 
+say "🖥️  Refreshing Warp settings snapshot..."
+for f in "$HOME/.warp/settings.toml" "${XDG_CONFIG_HOME:-$HOME/.config}/warp-terminal/settings.toml"; do
+  [ -f "$f" ] && { mkdir -p "$REPO/terminal"; sed "s#$HOME#__HOME__#g" "$f" > "$REPO/terminal/warp-settings.toml"; echo "  ✅ from $f"; break; }
+done
+
 say "🧩 Refreshing Claude skills/agents snapshot..."
 if command -v rsync >/dev/null 2>&1; then
   # synced/ = claude.ai account cache; .trash/ = Anthropic-licensed skills; post-as-me = private
