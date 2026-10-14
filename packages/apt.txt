@@ -16,11 +16,24 @@ wget
 imagemagick
 direnv
 
-# Postgres
-postgresql
-postgresql-contrib
+# Brewfile equivalents available straight from the Ubuntu archive
+# (docker / gcloud / terraform / kubectl / helm / aws / ollama: packages/linux-tools.sh)
+rsync
+gnupg
+ca-certificates
+fontconfig
+ffmpeg
+tesseract-ocr
+portaudio19-dev
+ghostscript
+git-lfs
+git-filter-repo
+golang-go
+tldr
+mkcert
 
-# pyenv build dependencies (to compile Python for the `sandbox` env)
+# No host Postgres — databases run in containers (Brewfile prune 2026-09-18).
+# Native build deps: uv ships prebuilt Pythons, but sdist-only wheels still compile C.
 make
 build-essential
 libssl-dev

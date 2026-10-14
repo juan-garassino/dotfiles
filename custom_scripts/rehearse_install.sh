@@ -15,7 +15,7 @@
 set -eu
 BRANCH="${1:-uv-only}"
 NAME="dotfiles-rehearsal"
-IMG="ubuntu:24.04"
+IMG="${IMG:-ubuntu:24.04}"   # IMG=ubuntu:26.04 to rehearse the newer release
 
 docker info >/dev/null 2>&1 || { echo "❌ docker daemon not running"; exit 2; }
 docker rm -f "$NAME" >/dev/null 2>&1 || true
@@ -58,6 +58,11 @@ A "uv installed"                                   "test -x ~/.local/bin/uv || c
 A "zsh -n on the linked zshrc"                     "zsh -n ~/.zshrc"
 A "interactive shell exits clean"                  "zsh -i -c exit"
 A "no pyenv anywhere"                              "! command -v pyenv && ! test -d ~/.pyenv"
+A "MesloLGS NF font installed"                     "test -f ~/.local/share/fonts/'MesloLGS NF Regular.ttf'"
+A "nvm installed (standalone)"                     "test -s ~/.nvm/nvm.sh"
+for t in docker gcloud terraform kubectl helm aws ffmpeg git-lfs tesseract; do
+  A "$t on PATH (Brewfile parity)"                 "command -v $t"
+done
 
 echo "── RUN 2: idempotency (re-run must not fail or duplicate)"
 set +e

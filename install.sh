@@ -88,6 +88,8 @@ elif [ "$OS" = "Linux" ]; then
       echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
       sudo apt-get update -y && sudo apt-get install -y code
     fi
+    # Brewfile-equivalent CLI toolchain: docker, gcloud, terraform, kubectl, helm, aws, llm, ollama
+    bash "$DOTFILES_DIR/packages/linux-tools.sh" || echo "  ⚠️  linux-tools.sh had failures (see above)"
   elif [ "$PM" = "dnf" ] || [ "$PM" = "yum" ]; then
     echo "  📦 $PM: core tools..."
     pkglist "$DOTFILES_DIR/packages/dnf.txt" | xargs -r sudo "$PM" install -y || echo "  ⚠️  some packages failed"
