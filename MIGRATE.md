@@ -35,8 +35,8 @@ curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootst
 - `git -C ~/Code/000-config/001-dotfiles pull --ff-only` — re-read this file if it changed.
 - Detect target: `uname` (Darwin → mac), `grep -qi microsoft /proc/version` → wsl, else linux.
   `df -h ~` → need **≥ 150G free** (`~/Code` without envs is ~93G). Linux/WSL: `~/Code` on ext4 under `$HOME`.
-- 🙋 Ask: which machine is the **source**, its address (`<name>.local` or IP) → `$SRC`, its user
-  (`juan-garassino` on the Macs) → `$SRC_USER`. Then `S=$SRC_USER@$SRC`.
+- The **source** is chosen in step 2 (auto-detected on the network). Its user is `juan-garassino`
+  on the Macs → `$SRC_USER`.
 
 ## 2. Guide the user on the source (they sit there; Claude instructs from here)
 
@@ -44,8 +44,12 @@ One at a time, wait for "done":
 1. 🙋 **Enable ssh.** Mac: macOS 12 Monterey → Apple menu → **System Preferences → Sharing** → tick
    **Remote Login** → "Only these users" includes the user. macOS 13+ → **System Settings → General →
    Sharing → Remote Login** (ⓘ → allow the user). Linux source: `sudo apt install -y openssh-server`.
-2. 🙋 **Read the address.** The Mac Sharing pane shows `ssh user@<name>` → `$SRC`. If `.local` doesn't
-   resolve from here, use the IP: Mac `ipconfig getifaddr en0` (or `en1`); Linux `hostname -I`.
+2. **Detect + choose.** Run `custom_scripts/find_sources.sh` (mDNS + a port-22 sweep of this subnet,
+   ~10 s). Show the user the list (IP · name · ssh banner — `dropbear` is usually the router, `OpenSSH`
+   + an Apple/Ubuntu name is a computer) and ask with **AskUserQuestion** which one is the source →
+   `$SRC` (prefer the IP). Nothing found → re-check step 1, or 🙋 ask for the address the Sharing pane
+   shows (`ssh user@<name>`), or the IP (Mac `ipconfig getifaddr en0`; Linux `hostname -I`).
+   Then `S=$SRC_USER@$SRC`.
 3. 🙋 **Keep it awake:** Mac → `caffeinate -dis` in a Terminal window left open; Linux →
    `systemd-inhibit --what=sleep:idle sleep infinity`. On power, same network (ethernet = fastest).
 4. Verify from here: `ping -c 2 $SRC` and `nc -zv $SRC 22`.

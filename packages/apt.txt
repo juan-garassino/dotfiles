@@ -19,6 +19,8 @@ direnv
 # Brewfile equivalents available straight from the Ubuntu archive
 # (docker / gcloud / terraform / kubectl / helm / aws / ollama: packages/linux-tools.sh)
 rsync
+avahi-utils
+netcat-openbsd
 gnupg
 ca-certificates
 fontconfig
