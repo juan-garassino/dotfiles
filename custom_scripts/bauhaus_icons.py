@@ -459,7 +459,7 @@ def refresh_dock():
     """killall Dock alone keeps stale icons — drop its icon cache first."""
     cache = subprocess.run(["getconf", "DARWIN_USER_CACHE_DIR"], capture_output=True, text=True).stdout.strip()
     Path(cache, "com.apple.dock.iconcache").unlink(missing_ok=True)
-    refresh_dock()
+    subprocess.run(["killall", "Dock"], check=False)
 
 
 def mac(undo=False):
