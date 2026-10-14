@@ -410,6 +410,21 @@ if [ -f "$DOTFILES_DIR/terminal/warp-settings.toml" ]; then
 fi
 
 ###############################################################################
+# 8c. Bauhaus app icons (Linux GNOME): one design language for every launcher,
+#     labelled with the app name in Jost (open Futura revival). Undo: --undo.
+###############################################################################
+if [[ "$(uname)" != "Darwin" ]] && [ "$IS_WSL" = 0 ] && command -v gsettings >/dev/null 2>&1; then
+  JOST="$HOME/.local/share/fonts/jost/Jost.ttf"
+  if [ ! -f "$JOST" ]; then
+    mkdir -p "$(dirname "$JOST")"
+    curl -fsSL -o "$JOST" 'https://github.com/google/fonts/raw/main/ofl/jost/Jost%5Bwght%5D.ttf' \
+      && fc-cache -f "$HOME/.local/share/fonts" >/dev/null 2>&1 || echo "  ⚠️  Jost font download failed"
+  fi
+  python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" --labels >/dev/null \
+    && echo "  🎨 Bauhaus app icons applied (custom_scripts/bauhaus_icons.py)"
+fi
+
+###############################################################################
 # 9. Secrets check (keys live in ~/.secrets, outside any repo)
 ###############################################################################
 echo ""
