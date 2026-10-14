@@ -30,7 +30,7 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 | `editor/settings.json` | VS Code / Cursor settings | editor User dirs (copied by install.sh) |
 | `claude/` | statusline, sanitized settings, `skills/`, `agents/`, `mcp-servers.md` | `~/.claude/…` |
 | `custom_scripts/` | code_manager, repo_scan, backup_env, ai_git_commit, … | run via `$CUSTOM` aliases |
-| `packages/` | `Brewfile` (macOS `brew bundle`) · `apt.txt`/`dnf.txt` (Linux) · `mysandbox-requirements.txt` | — |
+| `packages/` | `Brewfile` (macOS `brew bundle`, incl. app casks) · `apt.txt`/`dnf.txt` + `linux-apps.sh` (Linux desktop apps) · `windows-apps.txt` (WSL → winget) · `mysandbox-requirements.txt` | — |
 | `.secrets.sample` | expected API-key names (no values) | seeds `~/.secrets` |
 | `legacy/` | retired configs kept for reference | — |
 

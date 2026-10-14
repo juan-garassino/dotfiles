@@ -1,0 +1,32 @@
+# Windows-side desktop apps for a WSL2 machine (WSL itself has no desktop). Same set as
+# packages/linux-apps.sh and the Brewfile casks. IDs verified against microsoft/winget-pkgs.
+# Install (PowerShell, from the repo checkout inside WSL):
+#   Get-Content \\wsl$\Ubuntu\home\<user>\Code\000-config\001-dotfiles\packages\windows-apps.txt |
+#     Where-Object { $_ -and $_ -notmatch '^#' } |
+#     ForEach-Object { winget install -e --id $_ --accept-package-agreements --accept-source-agreements }
+# Not in winget (download from the vendor): elasticvue (github.com/cars10/elasticvue/releases).
+# Fonts: MesloLGS NF (the 4 .ttf from github.com/romkatv/powerlevel10k-media) → Warp font 14.
+Warp.Warp
+Microsoft.VisualStudioCode
+Anysphere.Cursor
+Google.Antigravity
+Google.Chrome
+Anthropic.Claude
+OpenAI.Codex
+DBeaver.DBeaver.Community
+PostgreSQL.pgAdmin
+Postman.Postman
+Gephi.Gephi
+Balena.Etcher
+Pritunl.PritunlClient
+NordSecurity.NordVPN
+SlackTechnologies.Slack
+Discord.Discord
+Zoom.Zoom
+Telegram.TelegramDesktop
+Spotify.Spotify
+Obsidian.Obsidian
+Notion.Notion
+Dropbox.Dropbox
+Google.GoogleDrive
+Inkscape.Inkscape
