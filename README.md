@@ -5,24 +5,28 @@ Python tooling, and Claude Code config. Everything is organized into subdirs and
 into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys stay in
 `~/.secrets` (chmod 600), outside any repo.
 
-## 🚀 Fresh machine — git, clone, claude
+## 🚀 Fresh machine — one command
 
 ```bash
-# 1. git  (macOS: xcode-select --install instead)
-sudo apt-get update && sudo apt-get install -y git curl openssh-server
-# 2. clone  (branch uv-only until it's merged to main)
-git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
-# 3. claude
-curl -fsSL https://claude.ai/install.sh | bash
-cd ~/Code/000-config/001-dotfiles && claude
+curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/uv-only/bootstrap.sh | bash
 ```
 
-Then tell Claude one of:
-- **"set up this machine"** — runs `install.sh` and the [`CLAUDE.md`](./CLAUDE.md) checklist
-  (empty machine, no old data).
-- **"execute MIGRATION-LINUX.md"** — full move from the old Mac: pulls the private payload
-  (secrets, keys, `~/.claude`, work repos), installs, reclones every repo to its old path,
-  restores `.env` files, prints a PASS/FAIL scorecard.
+[`bootstrap.sh`](./bootstrap.sh) does **git → clone → claude**: installs git/curl, clones this
+repo to `~/Code/000-config/001-dotfiles`, installs Claude Code, and opens it with the setup
+prompt already typed. Claude asks one question, then runs the matching runbook:
+- **fresh setup** (empty machine): `install.sh` + the [`CLAUDE.md`](./CLAUDE.md) checklist.
+- **migration from the old Mac**: [`MIGRATION-LINUX.md`](./MIGRATION-LINUX.md), which rsyncs
+  `~/Code` + secrets/keys/`~/.claude`, installs everything and prints a PASS/FAIL scorecard.
+
+<details><summary>Same thing by hand</summary>
+
+```bash
+sudo apt-get update && sudo apt-get install -y git curl openssh-server     # macOS: xcode-select --install
+git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
+curl -fsSL https://claude.ai/install.sh | bash
+cd ~/Code/000-config/001-dotfiles && claude    # then: "set up this machine" or "execute MIGRATION-LINUX.md"
+```
+</details>
 
 Claude stops only for what a machine can't fabricate: passwords, `gh auth login`, secrets, SSH keys.
 

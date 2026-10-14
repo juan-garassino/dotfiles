@@ -1,4 +1,4 @@
-# mysandbox-requirements.txt — the global pyenv `mySandbox` playground (Python 3.12).
+# mysandbox-requirements.txt — the global uv `~/.venv-sandbox` playground (Python 3.12, `mysandbox`).
 # A curated snapshot of Juan's real mySandbox env (captured 2026-06-21): Le Wagon DS base
 # + the LLM/agents/RAG stack + ML + finance + media/OCR/CAD + dev tools.
 # Local editable projects (agents-bench, framework, blocks-mvp, …) are intentionally excluded.

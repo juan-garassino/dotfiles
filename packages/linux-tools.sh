@@ -22,7 +22,7 @@ if ! have docker; then
     echo "  ↪ docker repo has no '$CODENAME' yet — using Ubuntu's docker.io"
     sudo apt-get install -y docker.io docker-compose-v2 || sudo apt-get install -y docker.io
   fi
-  sudo usermod -aG docker "$USER" 2>/dev/null && echo "  👥 $USER added to docker group (re-login to apply)"
+  sudo usermod -aG docker "$(id -un)" 2>/dev/null && echo "  👥 $(id -un) added to docker group (re-login to apply)"
 fi
 
 # Google Cloud CLI (codename-independent repo)

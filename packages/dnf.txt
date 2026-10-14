@@ -20,7 +20,7 @@ direnv
 postgresql
 postgresql-server
 
-# pyenv build dependencies (to compile Python for the `sandbox` env)
+# Native build deps: uv ships prebuilt Pythons, but sdist-only wheels still compile C.
 make
 gcc
 patch

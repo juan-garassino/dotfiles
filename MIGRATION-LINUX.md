@@ -1,119 +1,125 @@
-# MIGRATION-LINUX.md — Intel Mac → Ubuntu (Claude Code runs this on the Linux box)
+# MIGRATION-LINUX.md — old Mac → Ubuntu, rsync-first (Claude Code runs this on the Linux box)
 
 **Claude Code on Linux: this is an executable runbook.** Follow it top to bottom, verify each
-step, and STOP at every 🙋 (human-only: logins, secrets a machine can't fabricate, physical
-transfer). The Intel Mac is the **read-only source and the rollback** — never modify, delete, or
-push from it during this run. Pairs with `MIGRATION.md` (macOS/M5 variant) and `SETUP.md`.
+step, and STOP at every 🙋 (human-only: passwords, logins, secrets). The Mac is the **read-only
+source and the rollback**: only read from it, never modify, delete or push from it.
 
-**Carrier model:** personal repos come from **GitHub**; engenious (work IP) + all non-git state
-come from the **payload** staged on the Intel (`$SRC`). Nothing secret ever touches this public repo.
+**Carrier model:** `rsync` over ssh pulls `~/Code` and the home-level config straight from the
+Mac — byte-for-byte, including engenious, `.env` files, dirty trees and loose folders. GitHub is
+already complete for personal repos (see the bottom section); it is the backup and the sync
+layer from now on, not the transport. `.venv` / `node_modules` / caches are NOT copied —
+macOS binaries are useless on Linux; they are rebuilt with `envup`.
 
-## 0. Human bootstrap (the only manual part, ~5 commands, on Ubuntu)
+## 0. Bootstrap (human, one command — already done if you are reading this in Claude)
 
 ```bash
-sudo apt-get update && sudo apt-get install -y git curl openssh-server
-curl -fsSL https://claude.ai/install.sh | bash            # Claude Code; then `claude` → log in (🙋)
-mkdir -p ~/Code/000-config
-git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
-cd ~/Code/000-config/001-dotfiles && claude               # say: "execute MIGRATION-LINUX.md"
+curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/uv-only/bootstrap.sh | bash
 ```
-(https clone because SSH keys aren't here yet; the remote is switched to SSH in step 4.)
-
-## Intel-side prerequisites (done BEFORE this run; Claude: verify, don't redo)
-
-Payload staged on the Intel at `$SRC` (e.g. `intel-mac:stage/`, or a mounted ext4 drive `/mnt/x/stage/`):
-`custom_scripts/stage_handcarry.sh --to <stage>` output + `002-engenious/` rsync + `~/git-bundles/`
-+ a fresh `repo-manifest-<date>.txt` + `SHA256SUMS`. Intel gate already green: `repo_sweep.sh` (personal
-= 0 flagged), `verify_coverage.sh` = 0 uncovered, `~/env-snapshots/fingerprint-intel-<date>.txt` written.
-If any is missing → STOP and tell the user; do not improvise on the Intel.
 
 ## 1. Preflight (read-only)
 
-- `uname -m` (expect x86_64 or aarch64), `lsb_release -d`, `df -h ~` — need **≥ 200G free on ext4**.
-  Target is **Ubuntu 26.04.1**; `install.sh` was rehearsed on 24.04 — if an apt package name is
-  missing on 26.04, skip it, note it in the scorecard, and fix `packages/apt.txt` afterwards.
-  `~/Code` MUST live on ext4 under `$HOME`, **never** the NTFS/Windows partition (no perms/symlinks).
-- `id -un` → record as `$LU`. Home is `/home/$LU`, **not** `/Users/juan-garassino`.
-- Reachability of `$SRC`: `ssh -o BatchMode=yes <intel> true` or `ls $SRC`. 🙋 if unreachable.
+- `lsb_release -d` (target Ubuntu 26.04), `uname -m`, `df -h ~` — need **≥ 150G free on ext4**
+  (`~/Code` without envs is ~93G). `~/Code` MUST be on ext4 under `$HOME`, never the NTFS/Windows partition.
+- `id -un` → `$LU`. Home is `/home/$LU`, not `/Users/juan-garassino`.
+- 🙋 Ask for the Mac's address (`<name>.local` or IP) → `$MAC`, user `juan-garassino`.
+  The Mac needs **Remote Login ON** (System Settings → General → Sharing).
 
-## 2. Pull + verify the payload
+## 2. ssh access to the Mac (no passwords inside Claude)
 
 ```bash
-mkdir -p ~/stage && rsync -aE --partial --info=progress2 "$SRC"/ ~/stage/
-cd ~/stage && sha256sum -c SHA256SUMS | grep -v ': OK$' || echo "payload verified"
+ssh-keygen -t ed25519 -f ~/.ssh/id_mac_pull -N "" -C "linux-pull"
 ```
-Any mismatch → STOP. Then place (home-relative layout is preserved under `~/stage/handcarry/`):
-`~/.secrets` `~/.secrets-cheatsheet.md` (chmod 600), `~/.ssh/*` (dir 700, keys 600, `.pub` 644),
-`~/.aws`, `~/.config/gcloud`, `~/env-snapshots`, `~/git-bundles`, `Code/000-config/002-gcp-credentials/`.
-Do **not** copy `Library/Application Support/*` (macOS-only). Then `eval $(ssh-agent) && ssh-add ~/.ssh/id_ed25519_personal ~/.ssh/id_ed25519_work`
-and verify `ssh -T git@github.com` → `Hi juan-garassino`; `ssh -T git@github-work` → work account.
+🙋 The user runs in a normal terminal (it asks the Mac password once):
+`ssh-copy-id -i ~/.ssh/id_mac_pull.pub juan-garassino@$MAC`
+Verify: `ssh -i ~/.ssh/id_mac_pull -o BatchMode=yes juan-garassino@$MAC 'echo ok; du -sh ~/Code'`.
+Then `export RSYNC_RSH="ssh -i $HOME/.ssh/id_mac_pull"` for every rsync below.
 
-## 3. `~/.claude` (memory is keyed by the cwd path!)
+## 3. Path compatibility (recommended)
 
-Copy `handcarry/.claude/` → `~/.claude/` **except** `settings.json`/`settings.local.json`
-(let `install.sh` restore the sanitized one; then re-add Linux-valid allow entries). Claude Code keys
-`~/.claude/projects/<slug>/` by the working path, so macOS memory/standing/plans for
-`/Users/juan-garassino/Code…` are invisible at `/home/$LU/Code…`. Fix by **copying** each
-`~/.claude/projects/-Users-juan-garassino-*` dir to `-home-$LU-*` (`cp -a`, keep originals). Memory
-files may cite `/Users/...` paths — treat as historical, verify before acting.
+🙋 (sudo) `sudo mkdir -p /Users && sudo ln -sfn /home/$LU /Users/juan-garassino`
+Old absolute paths keep working: git worktree `.git` files, `~/.claude` project memory, scripts
+and configs that hard-coded `/Users/juan-garassino/...`. Harmless, removable later.
 
-## 4. Dotfiles + toolchain
+## 4. Pull home-level config
+
+```bash
+S=juan-garassino@$MAC
+rsync -a --info=progress2 $S:'.secrets .secrets-cheatsheet.md' ~/
+rsync -a $S:.ssh/ ~/.ssh/ --exclude config            # ~/.ssh/config is symlinked by install.sh
+rsync -a --info=progress2 $S:.claude/ ~/.claude/ \
+  --exclude settings.json --exclude settings.local.json --exclude statusline-command.sh
+rsync -a $S:.config/gcloud/ ~/.config/gcloud/
+rsync -a $S:.aws/ ~/.aws/
+rsync -a --info=progress2 $S:env-snapshots $S:git-bundles ~/
+chmod 600 ~/.secrets ~/.secrets-cheatsheet.md; chmod 700 ~/.ssh; chmod 600 ~/.ssh/id_*; chmod 644 ~/.ssh/*.pub
+```
+Excluded on purpose: `settings.json` and the statusline (install.sh restores the sanitized
+Linux-safe versions), `~/.ssh/config` (symlink). Then `eval $(ssh-agent) && ssh-add ~/.ssh/id_ed25519_personal ~/.ssh/id_ed25519_work`;
+verify `ssh -T git@github.com` → `Hi juan-garassino`.
+
+**Claude memory is keyed by path:** for each `~/.claude/projects/-Users-juan-garassino-*` dir, also
+`cp -a` it to `-home-$LU-*` (keep the original) so sessions at `/home/$LU/Code/...` find their memory.
+
+## 5. Pull `~/Code` (the big one, ~93G — resumable, just re-run if interrupted)
+
+```bash
+rsync -aH --partial --info=progress2 \
+  --exclude .venv --exclude venv --exclude node_modules --exclude __pycache__ \
+  --exclude .pytest_cache --exclude .mypy_cache --exclude .DS_Store --exclude '._*' \
+  --exclude /000-config/001-dotfiles/ --exclude /000-config/dotfiles-uv-worktree/ \
+  $S:Code/ ~/Code/
+```
+The dotfiles checkouts are excluded: this machine already has its own clone on `uv-only`
+(the Mac's are a `main` checkout + a worktree tied to Mac paths).
+**Byte-verify:** run the same command with `-anc --itemize-changes` (checksum dry-run) → must print
+nothing. Wi-Fi: 1–3 h; ethernet: minutes.
+
+## 6. Install the toolchain
 
 ```bash
 cd ~/Code/000-config/001-dotfiles
 git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetch
-./install.sh        # Linux branch: apt (packages/apt.txt), gh, VS Code, uv, OMZ+p10k, symlinks, statusline, skills/agents
+./install.sh      # apt + linux-tools.sh (docker, gcloud, terraform, kubectl, helm, aws), uv, nvm,
+                  # MesloLGS NF + terminal font, OMZ + p10k, symlinks, Claude statusline/settings/skills
 ```
-Don't open new terminals mid-install. Then: `chsh -s $(command -v zsh)` 🙋 (needs password), `exec zsh`.
-Not covered by install.sh — do these explicitly:
-- **Docker Engine** (official apt repo, not docker.io) + `sudo usermod -aG docker $LU`; verify `docker run --rm hello-world` (re-login for group).
-- **uv**: `which uv` → `~/.local/bin/uv` (installer.sh); never pip/pipx/pyenv. `uv python install 3.11 3.12`.
-- **Node 20 + gcloud SDK** only if needed by the project being touched (on demand).
-- Postgres: `apt.txt` still lists host `postgresql` + pyenv build-deps — policy is **DBs in containers, no pyenv**. Skip/purge host postgres; keep the build-deps (harmless). Restore DB data from `env-snapshots/*pgdata*.tar.gz` into a container only if the user asks.
-- 🙋 `gh auth login` twice (personal `juan-garassino`, work `j-garassino-engenious`); `gcloud auth login` + `application-default login` (skip if `~/.config/gcloud` carried and valid).
+Don't open new terminals mid-install. 🙋 `chsh` asks the password; first zsh: **decline** the p10k
+wizard. Re-login once (zsh default shell + docker group). 🙋 `gh auth login` twice (personal
+`juan-garassino`, work `j-garassino-engenious`); `gcloud auth login` only if the carried
+`~/.config/gcloud` tokens fail.
 
-## 5. Code
+## 7. Settle the code
 
-1. **Personal fleet** — clone to the **exact old paths** (`includeIf` identity + `gh_auto_switch` key off them):
-   `custom_scripts/code_manager.sh` driven by the newest `repo-manifest-*.txt` (`PATH | REMOTE`). Skip
-   `002-engenious/*`, `NO-REMOTE` rows, and `lewagon/official-content/*` unless reachable. Report every clone failure; don't retry blindly.
-2. **Case-sensitivity check:** macOS APFS was case-insensitive, ext4 is not. After clones, `git status` any repo with
-   `D`/`??` pairs differing only by case → report, don't fix silently.
-3. **Engenious** — `rsync -aE ~/stage/Code/002-engenious/ ~/Code/002-engenious/` (working trees incl. dirty + worktree fleet).
-   For the 3 no-remote repos (`my-ai-underwriter`, `engenious_university`, `discord-me-mcp`) also verify against `~/git-bundles`
-   (`git bundle verify`). **Never push engenious anywhere**; work remotes only via the work SSH alias.
-4. **Loose non-git dirs** (`006-research-prototypes/{OTH-candidate-assistant,GRAPH-*,DIF-*,…}`, `005-products/001-assessment`,
-   `ds-book-template` with its local-only commit): already inside the engenious/payload rsync? If not, copy from `~/stage/handcarry/Code/…`.
-5. **`.env` files:** `custom_scripts/env_registry.sh --restore-from ~/stage/Code` (never overwrites; re-applies 600).
-6. **Absolute paths:** `grep -rIl '/Users/juan-garassino' ~/Code --include='*.md' --include='*.sh' --include='*.toml' --include='*.yml' --include='.envrc' 2>/dev/null | head -50`.
-   Report only; for tooling you must run (scripts, tfvars), prefer `$HOME`. Don't mass-sed repos. Optional compat: `sudo ln -s /home/$LU /Users/juan-garassino` 🙋 (ask first).
-7. `mysandbox` once (global `~/.venv-sandbox`). Per-project envs on touch: `envup`.
+- Nothing to clone — everything came with rsync, `.env` files included.
+- Git worktrees (ai-underwriter fleet, etc.) resolve through the `/Users` symlink; if any shows
+  `fatal: not a git repository`, run `git worktree repair` in its main repo.
+- `mysandbox` once; project envs rebuild on touch with `envup` (`uv sync` / requirements).
+- Report (don't mass-fix) hard-coded `/Users/juan-garassino` paths that matter for Linux tooling.
 
-## 6. Verify (all must pass; print a PASS/FAIL scorecard)
+## 8. Verify (print a PASS/FAIL scorecard)
 
-- `zsh -n ~/Code/000-config/001-dotfiles/shell/zshrc`; `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (macOS-only checks → mark N/A with reason, never silently skip).
-- Identity: in `~/Code` → personal email + `gh api user -q .login`; in `~/Code/002-engenious` → work.
-- `custom_scripts/code_fingerprint.sh > /tmp/fp-linux.txt`; `diff <(grep -v 002-engenious ~/env-snapshots/fingerprint-intel-*.txt) <(grep -v 002-engenious /tmp/fp-linux.txt)` → empty (expected exceptions: lewagon official-content, anything the user waived).
-- 3 `envup` spot-checks (one pyproject, one requirements, one engenious), `docker run hello-world`, `claude --version`, statusline renders.
-- Final report to user: PASS/FAIL table, every skipped/N-A item with reason, anything left on Intel only.
+- `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (macOS-only checks → N/A with reason).
+- Look: prompt shows clean icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`.
+- Identity: `git config user.email` + `gh api user -q .login` in `~/Code` vs `~/Code/002-engenious`.
+- Byte parity: `custom_scripts/code_fingerprint.sh` here vs the same script run on the Mac over ssh
+  (`ssh $S zsh ~/Code/000-config/dotfiles-uv-worktree/custom_scripts/code_fingerprint.sh`) → `diff` empty.
+- `docker run --rm hello-world`, `uv run --python 3.12 python -V`, `claude --version`, statusline renders,
+  3 `envup` spot-checks (a pyproject repo, a requirements repo, an engenious repo).
+- Final report: PASS/FAIL table, every N/A or skip with its reason.
 
 ## Hard rules
 
-- Intel is read-only; no `--force`, no deletes, no `git push` from here except the dotfiles repo if the user asks.
-- Never echo secret values; never commit `~/.secrets`, keys, GCP JSON, `.env` into any repo.
-- GitHub push protection / rule violations: report, never bypass.
-- Ambiguous → ask the user (AskUserQuestion), one short question.
+- The Mac is read-only: only `rsync`/`ssh` reads from it. No `--delete` toward the Mac, ever.
+- Never echo secret values; never commit `~/.secrets`, keys, GCP JSON or `.env` into any repo.
+- Push protection / rule violations: report, never bypass. Engenious never goes to personal remotes.
+- Ambiguous → one short question to the user.
 
-## State of GitHub vs Intel (2026-10-14)
+## State of GitHub (2026-10-14) — the backup layer
 
-- All personal repos (all branches) pushed; dirty trees committed (`wip/pre-migration-2026-10-14`
-  branches where the current branch was the default). Rewritten-before-push backups:
-  `~/git-bundles/pre-fix-2026-10-14/` (achievementsAI, carreer-navigator, mini-networks, SelfGPT).
-- 10 formerly non-git dirs are now private repos (`candidate-assistant`, `graphrag-integration`,
+- All personal repos, all branches, pushed; dirty trees committed (`wip/pre-migration-2026-10-14`
+  where the branch was the default). Pre-rewrite backups: `~/git-bundles/pre-fix-2026-10-14/`.
+- 10 formerly loose dirs are now private repos (`candidate-assistant`, `graphrag-integration`,
   `custom-graphrag`, `chroma-rag`, `emoji-generation`, `adversarial-diffusion`, `orchestration-coreo`,
-  `multiagent-orchestrator`, `nlsql`, `assessment`) — the manifest predates them; clone to the same paths.
-- SelfGPT: fork `juan-garassino/SelfGPT` as remote `mine`. pyboy-rl / deep-research: remote `mine`.
-- **Payload-only (never GitHub):** `002-engenious`, `000-config` root (GCP creds), `012-temps`,
-  ~100 loose non-repo files/dirs (lewagon sandbox lectures, 006 small experiments, folder-level
-  CLAUDE.md/DOCS.md), neuefische `ds-curriculum` local commit, all `.env`, `~/.claude`, keys.
+  `multiagent-orchestrator`, `nlsql`, `assessment`). SelfGPT → fork `juan-garassino/SelfGPT` (remote `mine`).
+- Not on GitHub by design (rsync only): `002-engenious`, `000-config` root (GCP creds), `012-temps`,
+  ~100 loose non-repo files/dirs, neuefische `ds-curriculum` local commit, `.env`, `~/.claude`, keys.
 - Keys to rotate (were in local-only history): SelfGPT OpenAI key, achievementsAI Azure key.
