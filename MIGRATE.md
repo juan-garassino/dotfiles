@@ -86,7 +86,7 @@ home: also `sudo ln -sfn $HOME $SRC_HOME`).
 ```bash
 cd ~/Code/000-config/001-dotfiles
 rsync -ar --info=progress2 --files-from=packages/home-carry.txt \
-  --exclude .ssh/config --exclude .claude/settings.json --exclude .claude/settings.local.json \
+  --exclude .ssh/config --exclude .claude/settings.json \
   --exclude .claude/statusline-command.sh $S: ~/        # exit 23 = some listed path absent: fine
 rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged below
 ```
