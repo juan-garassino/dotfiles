@@ -116,8 +116,9 @@ if [ -f "${HOMEBREW_PREFIX:-/usr/local}/Caskroom/gcloud-cli/latest/google-cloud-
   . "${HOMEBREW_PREFIX:-/usr/local}/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc"
 fi
 # Without this, gcloud's launcher picks a Homebrew python whose site-packages
-# protobuf breaks gcloud's bundled proto libs.
-export CLOUDSDK_PYTHON="${HOMEBREW_PREFIX:-/usr/local}/opt/python@3.12/bin/python3.12"
+# protobuf breaks gcloud's bundled proto libs. macOS-only: Linux gcloud (apt) brings its own.
+[ -x "${HOMEBREW_PREFIX:-/usr/local}/opt/python@3.12/bin/python3.12" ] && \
+  export CLOUDSDK_PYTHON="${HOMEBREW_PREFIX:-/usr/local}/opt/python@3.12/bin/python3.12"
 
 # 🔑 GCP credentials — loaded per context (personal/work), not hardcoded
 # Use `workon` or `personal` to activate the right credentials

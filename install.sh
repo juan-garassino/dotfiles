@@ -332,7 +332,7 @@ echo "🌐 Global npm CLIs + go tools..."
 if [ "${DOTFILES_MINIMAL:-0}" = 1 ]; then
   echo "  ⏭️  MINIMAL rehearsal — skipping npm/go installs ($(grep -vcE '^#|^$' "$DOTFILES_DIR/packages/npm-globals.txt" 2>/dev/null) npm globals in list)"
 else
-_brew_nvm="$(brew --prefix 2>/dev/null)/opt/nvm/nvm.sh"
+_brew_nvm="$(brew --prefix 2>/dev/null || true)/opt/nvm/nvm.sh"
 [ -s "$_brew_nvm" ] || _brew_nvm="$HOME/.nvm/nvm.sh"   # Linux: standalone nvm from step 0
 if [ -s "$_brew_nvm" ]; then
   mkdir -p "$HOME/.nvm"; export NVM_DIR="$HOME/.nvm"
