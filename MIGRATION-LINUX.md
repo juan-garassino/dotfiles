@@ -83,9 +83,26 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
                   # MesloLGS NF + terminal font, OMZ + p10k, symlinks, Claude statusline/settings/skills
 ```
 Don't open new terminals mid-install. 🙋 `chsh` asks the password; first zsh: **decline** the p10k
-wizard. Re-login once (zsh default shell + docker group). 🙋 `gh auth login` twice (personal
-`juan-garassino`, work `j-garassino-engenious`); `gcloud auth login` only if the carried
-`~/.config/gcloud` tokens fail.
+wizard. Re-login once (zsh default shell + docker group).
+
+### Guided logins (Claude walks the user through each, one at a time)
+
+Claude cannot type passwords or click Authorize. For each login: print the exact command, say
+which answers to pick, let the user run it (`! <command>` in Claude, or a second terminal),
+wait for "done", then **verify** before moving on.
+
+1. 🙋 **GitHub personal** — `gh auth login` → GitHub.com · SSH · skip key upload (keys came with
+   rsync) · *Login with a web browser* → copy the one-time code, Authorize as `juan-garassino`.
+2. 🙋 **GitHub work** — same command again, Authorize as `j-garassino-engenious`.
+   Verify: `gh auth status` lists both; `cd ~/Code && gh api user -q .login` → `juan-garassino`,
+   `cd ~/Code/002-engenious && gh api user -q .login` → `j-garassino-engenious` (the cd-hook switches).
+3. **GCP** — the carried `~/.config/gcloud` usually just works. Check first:
+   `gcloud auth list` and `gcloud projects list --format='value(projectId)'` (expect `garassino-ml`,
+   `garassino-ai`, `garassino-op`, `engenious-mcp-prod`). Only if that fails or tokens expired:
+   🙋 `gcloud auth login` then 🙋 `gcloud auth application-default login` (browser, Authorize as
+   `juan.garassino@hotmail.com`), then `gcloud config set project garassino-ml`. Re-run the check.
+4. **AWS (work)** — carried `~/.aws`; verify `aws sts get-caller-identity`. If it fails, report it —
+   don't guess credentials.
 
 ## 7. Settle the code
 
