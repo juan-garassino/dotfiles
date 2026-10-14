@@ -11,6 +11,7 @@ accents. No gradients.
   … --dark                         the earlier charcoal-tile look (combine with --labels)
   bauhaus_icons.py --preview PNG   only write SVGs + render a contact sheet (ImageMagick), no overrides
   bauhaus_icons.py --undo     remove the overrides (system icons come back)
+  bauhaus_icons.py --mac [--undo]  macOS: set (or clear) each installed app's custom icon
 
 Overrides are per-user copies of each app's .desktop file in ~/.local/share/applications
 (same file name → same dock pin) with Icon= pointing at our SVG. Apps that aren't
@@ -312,8 +313,45 @@ def preview(out):
     print(f"  🖼️  {out}")
 
 
+MAC_APPS = {"Warp": "warp", "Visual Studio Code": "vscode", "Cursor": "cursor", "Antigravity IDE": "antigravity",
+            "Claude": "claude", "ChatGPT": "chatgpt", "DBeaver": "dbeaver", "pgAdmin 4": "pgadmin",
+            "elasticvue": "elasticvue", "Postman": "postman", "Postman Agent": "postman", "Slack": "slack",
+            "Discord": "discord", "Telegram": "telegram", "zoom.us": "zoom", "Firefox": "firefox",
+            "Google Chrome": "chrome", "Obsidian": "obsidian", "Notion": "notion", "Gephi": "gephi",
+            "balenaEtcher": "etcher", "Spotify": "spotify", "Dropbox": "dropbox", "NordVPN": "nordvpn",
+            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox"}
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+JXA_SET = "ObjC.import('AppKit');function run(a){var i=a[0]?$.NSImage.alloc.initWithContentsOfFile(a[0]):$();" \
+          "return $.NSWorkspace.sharedWorkspace.setIconForFileOptions(i,a[1],0)}"
+
+
+def mac(undo=False):
+    """macOS: custom Finder/Dock icon per app (Icon\\r in the bundle; signature stays valid).
+    Rendered by headless Chrome at Big Sur grid size (tile = 824/1024). An app update resets it."""
+    out = HOME / ".local/share/icons/bauhaus-mac"
+    out.mkdir(parents=True, exist_ok=True)
+    for app, name in MAC_APPS.items():
+        path = Path(f"/Applications/{app}.app")
+        if not path.exists():
+            continue
+        png = ""
+        if not undo:
+            svg_path, png = out / f"{name}.svg", out / f"{name}.png"
+            svg_path.write_text(svg(ICONS[name], name=name).replace(
+                'viewBox="0 0 256 256"', 'width="1024" height="1024" viewBox="-21 -21 298 298"'))
+            subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
+                            "--default-background-color=00000000", "--window-size=1024,1024",
+                            f"--screenshot={png}", svg_path.as_uri()], capture_output=True, check=True)
+        ok = subprocess.run(["osascript", "-l", "JavaScript", "-e", JXA_SET, str(png), str(path)],
+                            capture_output=True, text=True).stdout.strip() == "true"
+        print(f"  {'↩️ ' if undo else '🎨'} {app}" if ok else f"  ⚠️  {app}: no write access (try sudo)")
+    subprocess.run(["killall", "Dock"], check=False)
+
+
 if __name__ == "__main__":
-    if "--undo" in sys.argv:
+    if "--mac" in sys.argv:
+        mac(undo="--undo" in sys.argv)
+    elif "--undo" in sys.argv:
         undo()
     elif "--preview" in sys.argv:
         i = sys.argv.index("--preview")
