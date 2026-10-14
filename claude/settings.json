@@ -2,7 +2,7 @@
   "theme": "dark-ansi",
   "env": {
     "MCP_TIMEOUT": "60000",
-    "CLAUDE_CODE_TMPDIR": "/home/garassino-juan/.claude-tmp"
+    "CLAUDE_CODE_TMPDIR": "/Users/juan-garassino/.claude-tmp"
   },
   "permissions": {
     "allow": [

@@ -34,7 +34,7 @@ if [ -f "$CLAUDE_SETTINGS" ] && command -v jq >/dev/null 2>&1; then
   mkdir -p "$REPO/claude"
   # autoMode holds infra recon (secret names, SAs, prod services) — never publish it
   jq 'del(.autoMode) | (.permissions.allow) |= map(select((test("AZURE_OPENAI_API_KEY|sk-[A-Za-z0-9]{20}|AKIA|ghp_|/Users/|/home/")) | not))' \
-     "$CLAUDE_SETTINGS" > "$REPO/claude/settings.json"
+     "$CLAUDE_SETTINGS" | sed "s#$HOME#/Users/juan-garassino#g" > "$REPO/claude/settings.json"   # canonical home; install.sh rewrites it
   echo "  ✅ claude/settings.json refreshed (secrets + personal-path allow entries stripped)"
 else
   echo "  ⚠️  settings.json or jq missing — skipping"
