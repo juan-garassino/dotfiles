@@ -55,7 +55,8 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 (`post-as-me`) and claude.ai-synced skills are not in this public repo; they come with the
 `~/.claude` hand-carry.
 
-**Check it matches:** `exec zsh` → the prompt shows clean icons (no boxes) and an ochre
+**Check it matches:** `custom_scripts/check_setup.sh` (PASS/FAIL scorecard of the whole dev setup;
+add `--code user@old-machine` to also prove `~/Code` — every repo, branch, stash and file — equals the source). Or by eye: `exec zsh` → the prompt shows clean icons (no boxes) and an ochre
 `personal` badge; `cd ~/Code/002-engenious` → it turns burgundy `work`; `which uv` →
 `~/.local/bin/uv`; `claude` → the status line renders.
 

@@ -170,6 +170,13 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
 
 ## 10. Verify + clean up (print a PASS/FAIL scorecard)
 
+**One command does most of it:** `custom_scripts/check_setup.sh --code $S` — setup scorecard (shell,
+look, identity, uv, every tool, docker, Claude + MCPs, secrets perms, migration hygiene, git
+worktrees) **plus** code sync vs the source: per-repo HEAD + ALL branches/tags + stashes +
+uncommitted changes (fingerprint runs on the source over ssh), and an rsync dry-run listing any
+file that differs. `--deep` byte-compares every file (slow). Exit code = FAIL count. Fix every
+FAIL (or explain it), re-run until clean. The bullets below are the manual equivalents/extras.
+
 - `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (OS-specific checks → N/A with reason).
 - Look: p10k icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`; Warp `phenomenon`.
 - Tools: `docker compose version`, `minikube version`, `kubectl version --client`, `psql --version`,
