@@ -39,7 +39,7 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 | **Shell** | zsh + Oh-My-Zsh · plugins `git gitfast last-working-dir common-aliases zsh-autosuggestions zsh-syntax-highlighting history-substring-search` · lazy-loaded nvm/rbenv/kubectl (fast startup) | `shell/zshrc` |
 | **Prompt** | Powerlevel10k, Bauhaus palette (cobalt / ochre / burgundy + grays), custom `gh_identity` segment: ochre `personal` / burgundy `work` | `prompt/p10k.zsh` |
 | **Font** | **MesloLGS NF**: Brewfile cask on macOS; on Linux `install.sh` downloads it to `~/.local/share/fonts` and sets GNOME Terminal / Ptyxis to `MesloLGS NF 12` | `install.sh` |
-| **Terminal** | **Warp** on both (Brewfile cask / Warp apt repo), same settings: theme `phenomenon`, MesloLGS NF 14, `honor_ps1` so the p10k prompt shows. Default Ubuntu terminal also set to MesloLGS NF 14 | `terminal/warp-settings.toml` |
+| **Terminal** | **Warp** on both (Brewfile cask / Warp apt repo), same settings: theme `dracula`, MesloLGS NF 14, `honor_ps1` so the p10k prompt shows. Default Ubuntu terminal also set to MesloLGS NF 14 | `terminal/warp-settings.toml` |
 | **App icons** | Linux GNOME: one Bauhaus icon set for every launcher (palette of the prompt, labelled in Jost). `bauhaus_icons.py` (`--labels` / plain / `--undo`), applied by `install.sh` | `custom_scripts/bauhaus_icons.py` |
 | **Python** | **uv only, no pyenv.** uv 3.11 + 3.12, `ruff` + `pre-commit` as uv tools, global `~/.venv-sandbox` (`mysandbox`), per-project `.venv` auto-activated on `cd`, `envup` rebuilds any project | `shell/zshrc`, `packages/mysandbox-requirements.txt` |
 | **Node** | nvm (brew on macOS, standalone on Linux), LTS + global CLIs | `packages/npm-globals.txt` |

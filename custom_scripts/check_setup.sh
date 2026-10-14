@@ -56,9 +56,9 @@ if [ "$OS" = mac ]; then chk "MesloLGS NF font" 'ls ~/Library/Fonts /Library/Fon
 elif [ "$OS" = wsl ]; then na "MesloLGS NF font (WSL: lives on the Windows side)"
 else chk "MesloLGS NF font" 'fc-list | grep -qi "MesloLGS NF"'; fi
 case "$OS" in
-  mac) chk "Warp settings (theme phenomenon)" 'grep -q phenomenon ~/.warp/settings.toml' ;;
+  mac) chk "Warp settings (theme dracula)" 'grep -q dracula ~/.warp/settings.toml' ;;
   wsl) na "Warp settings (WSL: Warp for Windows)" ;;
-  *)   chk "Warp installed + settings (theme phenomenon)" 'have warp-terminal && grep -q phenomenon "${XDG_CONFIG_HOME:-$HOME/.config}/warp-terminal/settings.toml"' ;;
+  *)   chk "Warp installed + settings (theme dracula)" 'have warp-terminal && grep -q dracula "${XDG_CONFIG_HOME:-$HOME/.config}/warp-terminal/settings.toml"' ;;
 esac
 chk "global git ignore (~/.config/git/ignore)" 'test -s ~/.config/git/ignore'
 

@@ -62,7 +62,7 @@ A "MesloLGS NF font installed"                     "test -f ~/.local/share/fonts
 A "nvm installed (standalone)"                     "test -s ~/.nvm/nvm.sh"
 A "rustup installed"                               "test -x ~/.cargo/bin/rustup"
 A "global git ignore linked"                        "test -L ~/.config/git/ignore"
-A "Warp settings placed (Linux path)"                "grep -q phenomenon ~/.config/warp-terminal/settings.toml"
+A "Warp settings placed (Linux path)"                "grep -q dracula ~/.config/warp-terminal/settings.toml"
 for t in docker gcloud terraform kubectl helm aws ffmpeg git-lfs tesseract warp-terminal minikube k3d act runpodctl cloud-sql-proxy psql ngrok; do
   A "$t on PATH (Brewfile parity)"                 "command -v $t"
 done

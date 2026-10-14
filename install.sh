@@ -394,7 +394,7 @@ if [ -d "$DOTFILES_DIR/claude/skills" ]; then
 fi
 
 ###############################################################################
-# 8b. Warp terminal settings (theme "phenomenon", MesloLGS NF 14, honor_ps1 → p10k prompt)
+# 8b. Warp terminal settings (theme "dracula", MesloLGS NF 14, honor_ps1 → p10k prompt)
 #     Copied, not symlinked: Warp rewrites the file. __HOME__ = this machine's $HOME.
 ###############################################################################
 if [ -f "$DOTFILES_DIR/terminal/warp-settings.toml" ]; then

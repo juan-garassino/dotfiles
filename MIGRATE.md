@@ -134,7 +134,7 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
   systemd → 🙋 `wsl --shutdown` in PowerShell, reopen, re-run `./install.sh`.
 - **mac:** Homebrew (noninteractive) + Brewfile.
 - **all:** MesloLGS NF + terminal font 14, OMZ + plugins, Powerlevel10k + `~/.p10k.zsh`, Warp settings
-  (`phenomenon`), uv + Python 3.11/3.12/3.13 + ruff/pre-commit, nvm + LTS + npm globals, VS Code
+  (`dracula`), uv + Python 3.11/3.12/3.13 + ruff/pre-commit, nvm + LTS + npm globals, VS Code
   settings + 48 extensions, global git ignore, Claude status line/settings/skills/agents.
 - **Postgres = containers only** (host gets `psql`/`pg_dump`). See step 9 for data.
 - After: `sudo chsh -s $(command -v zsh) $USER`; 🙋 **re-login** (zsh + docker group); reopen Claude
@@ -184,7 +184,7 @@ file that differs. `--deep` byte-compares every file (slow). Exit code = FAIL co
 FAIL (or explain it), re-run until clean. The bullets below are the manual equivalents/extras.
 
 - `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (OS-specific checks → N/A with reason).
-- Look: p10k icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`; Warp `phenomenon`.
+- Look: p10k icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`; Warp `dracula`.
 - Tools: `docker compose version`, `minikube version`, `kubectl version --client`, `psql --version`,
   `terraform -version`, `gcloud --version`, `rustc --version`, `ngrok version`, `claude mcp list`.
 - Byte parity: `custom_scripts/code_fingerprint.sh` here vs on the source (`ssh $S zsh ~/Code/000-config/001-dotfiles/custom_scripts/code_fingerprint.sh`
