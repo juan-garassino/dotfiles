@@ -455,6 +455,13 @@ def mac_launcher(target, png):
     return app
 
 
+def refresh_dock():
+    """killall Dock alone keeps stale icons — drop its icon cache first."""
+    cache = subprocess.run(["getconf", "DARWIN_USER_CACHE_DIR"], capture_output=True, text=True).stdout.strip()
+    Path(cache, "com.apple.dock.iconcache").unlink(missing_ok=True)
+    refresh_dock()
+
+
 def mac(undo=False):
     """macOS: custom Finder/Dock icon per app (Icon\\r in the bundle; signature stays valid) + launchers
     for Apple's apps. Rendered by headless Chrome at Big Sur grid size (tile = 824/1024).
@@ -472,7 +479,7 @@ def mac(undo=False):
         for target, name in MAC_SYSTEM.items():
             if Path(target).exists():
                 print(f"  🚀 {mac_launcher(target, mac_png(name)).name}")
-    subprocess.run(["killall", "Dock"], check=False)
+    refresh_dock()
 
 
 def mac_dock(undo=False):
@@ -495,7 +502,7 @@ def mac_dock(undo=False):
                 data.pop("book", None)
                 print(f"  🔁 {Path(path).stem}")
         subprocess.run(["defaults", "import", "com.apple.dock", "-"], input=plistlib.dumps(dock), check=True)
-    subprocess.run(["killall", "Dock"], check=False)
+    refresh_dock()
 
 
 if __name__ == "__main__":
