@@ -11,7 +11,8 @@
 
 set -euo pipefail
 
-REPO="$HOME/Code/000-config/001-dotfiles"
+# The checkout this script lives in (live symlinks may point at a worktree, e.g. uv-only).
+REPO="${DOTFILES_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 PUSH=1
 [ "${1:-}" = "--no-push" ] && PUSH=0
@@ -19,17 +20,20 @@ PUSH=1
 cd "$REPO"
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 
-say "🍺 Refreshing Brewfile..."
+say "🍺 Checking Brewfile drift (report-only)..."
+# The Brewfile is hand-curated (leaves only, commented) — never `brew bundle dump` over it.
 if command -v brew >/dev/null 2>&1; then
-  brew bundle dump --file="$REPO/packages/Brewfile" --force >/dev/null 2>&1 && echo "  ✅ Brewfile updated"
+  drift="$(brew bundle cleanup --file="$REPO/packages/Brewfile" 2>/dev/null | grep -vE '^Would|^Run' || true)"
+  [ -n "$drift" ] && { echo "  ⚠️  installed but not in Brewfile (add by hand if wanted):"; printf '%s\n' "$drift" | sed 's/^/       /'; } || echo "  ✅ Brewfile matches installed leaves"
 else
-  echo "  ⚠️  brew not found — skipping"
+  echo "  ⏭️  brew not found — skipping"
 fi
 
 say "🤖 Re-sanitizing Claude settings snapshot..."
 if [ -f "$CLAUDE_SETTINGS" ] && command -v jq >/dev/null 2>&1; then
   mkdir -p "$REPO/claude"
-  jq '(.permissions.allow) |= map(select((test("AZURE_OPENAI_API_KEY|sk-[A-Za-z0-9]{20}|AKIA|ghp_|/Users/")) | not))' \
+  # autoMode holds infra recon (secret names, SAs, prod services) — never publish it
+  jq 'del(.autoMode) | (.permissions.allow) |= map(select((test("AZURE_OPENAI_API_KEY|sk-[A-Za-z0-9]{20}|AKIA|ghp_|/Users/|/home/")) | not))' \
      "$CLAUDE_SETTINGS" > "$REPO/claude/settings.json"
   echo "  ✅ claude/settings.json refreshed (secrets + personal-path allow entries stripped)"
 else
@@ -38,7 +42,10 @@ fi
 
 say "🧩 Refreshing Claude skills/agents snapshot..."
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete --exclude '.DS_Store' ~/.claude/skills/  "$REPO/claude/skills/"  2>/dev/null
+  # synced/ = claude.ai account cache; .trash/ = Anthropic-licensed skills; post-as-me = private
+  # voice/work notes. All travel in the ~/.claude hand-carry, never in this PUBLIC repo.
+  rsync -a --delete --exclude '.DS_Store' --exclude 'synced/' --exclude '.trash/' --exclude 'post-as-me/' \
+    ~/.claude/skills/  "$REPO/claude/skills/"  2>/dev/null
   rsync -a --delete --exclude '.DS_Store' ~/.claude/agents/ "$REPO/claude/agents/" 2>/dev/null
   echo "  ✅ skills/agents synced"
 fi

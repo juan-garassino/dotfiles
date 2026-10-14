@@ -9,8 +9,6 @@
       "Bash(cd:*)",
       "Bash(find:*)",
       "Bash(PYTHONPATH=src:. python:*)",
-      "Bash(python -m py_compile:*)",
-      "Bash(python -c:*)",
       "Bash(1)",
       "Bash(wc:*)",
       "Bash(ls:*)",
@@ -25,7 +23,6 @@
       "Bash(/tmp/makefile-snippet.txt:*)",
       "Bash(git checkout:*)",
       "Bash(make test-cli:*)",
-      "Bash(chmod:*)",
       "Bash(.env.example:*)",
       "Bash(docker/README.md:*)",
       "Bash(DOCKER_QUICKSTART.md:*)",
@@ -85,8 +82,6 @@
       "Bash(docker rm:*)",
       "Bash(docker-compose down:*)",
       "Bash(timeout 35 python:*)",
-      "Bash(python:*)",
-      "Bash(python3:*)",
       "WebFetch(domain:github.com)",
       "Bash(rm -rf v2/)",
       "Bash(rm -f base.py base_tool.py)",
@@ -94,6 +89,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -115,12 +111,23 @@
     "context7@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "atlassian@claude-plugins-official": true
   },
   "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "high"
+    }
+  },
   "autoMemoryEnabled": true,
   "skipWorkflowUsageWarning": true,
   "theme": "dark-ansi",
   "verbose": true,
+  "switchModelsOnFlag": true,
+  "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true
 }

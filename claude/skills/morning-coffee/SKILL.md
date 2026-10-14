@@ -11,7 +11,7 @@ description: >
   Calendar, Gmail, Google Drive (Drive is used to read Meet's Gemini-generated
   meeting notes Docs). Falls back gracefully when MCPs aren't authenticated.
   Local AI-news agent at
-  /Users/juan-garassino/Code/002-engenious/fetch_learning_resources.
+  /Users/juan-garassino/Code/002-engenious/mcp_and_services/fetch_learning_resources.
 ---
 
 # morning-coffee — daily briefing in one shot
@@ -153,7 +153,7 @@ real computed values before sending.
 > Run the user's local AI-news agent for the `{NEWS_TOPIC}` topic via Bash:
 >
 > ```
-> cd /Users/juan-garassino/Code/002-engenious/fetch_learning_resources && \
+> cd /Users/juan-garassino/Code/002-engenious/mcp_and_services/fetch_learning_resources && \
 > .venv/bin/python -m fetch_learning_resources \
 >   --topic {NEWS_TOPIC} --target-count 3 --score-threshold 7 \
 >   --max-iterations 5 --dry-run -v 2>&1 | tail -40

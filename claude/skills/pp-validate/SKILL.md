@@ -1,67 +1,63 @@
 ---
 name: pp-validate
 description: >
-  Validates GCode before sending it to the pen plotter. Checks for syntax errors,
-  out-of-bounds moves, missing pen lifts, dangerous feed rates, and structural issues.
-  Use before every streaming job and after every GCode generation. Triggers include
-  "validate this gcode", "check the gcode before sending", "is this safe to run",
-  "validate before plotting", "check bounds". Runs the bundled validator script directly.
+  Checks a GCode file is safe to plot — bounds against the real paper, pen-state
+  sanity (G0 must be pen-up, G1 pen-down), colour-layer structure and per-layer
+  stroke counts. Use before every streaming job and after every generation.
+  Triggers include "validate this gcode", "check the gcode before sending",
+  "is this safe to run", "check bounds", "what layers does this have".
 ---
 
-# pp-validate — GCode Validator
+# pp-validate — pre-flight check
 
-Pre-flight validation before anything touches the plotter. Catches issues that would
-cause failed drawings, machine crashes, or wasted paper.
+Everything here uses the installed package. **There is no `scripts/validate.py`** —
+an older version of this skill invented one.
 
-Run this automatically before every `pp-stream` job.
-
----
-
-## Usage
+## Fast path — the CLI
 
 ```bash
-python scripts/validate.py <gcode_file> \
-  --x-max 300 \
-  --y-max 420 \
-  --z-safe 5 \
-  --max-feed 5000
+python -m promptplot preview FILE.gcode --stats --score   # bounds, stats, grade
+python -m promptplot plot layer FILE.gcode --list         # colour layers + strokes
 ```
 
-Default bounds (A3 canvas): X=297mm, Y=420mm. Override with your machine's actual limits.
+`plot layer --list` is the one that matters before a real plot: it tells you how many
+pens the file needs and how many strokes each will take.
 
----
+## Exact bounds check — the API
 
-## What Gets Checked
+`preview` reports the extent; this refuses:
 
-| Check | What it catches |
-|-------|----------------|
-| Syntax | Malformed G/M codes, missing coordinates |
-| Bounds | Any move outside X/Y canvas limits |
-| Z safety | Moves without pen lift between strokes |
-| Feed rate | Dangerously high F values |
-| Start/end | Missing G28 home or G0 Z5 pen-up at end |
-| Empty file | Zero moves — nothing to draw |
-| Units | G20/G21 mismatch (inches vs mm) |
+```python
+from promptplot.config import PaperConfig, get_config
+from promptplot.engine import PenState
+from promptplot.orchestrate import split_color_layers, validate_chunk
+from promptplot.pipeline import FilePipeline
 
----
+config = get_config()
+config.paper = PaperConfig.from_size("a5", orientation="landscape")  # Leo
+program = FilePipeline(config).load_gcode_file("FILE.gcode")
 
-## Output
-
-```
-pp-validate — GCode Validation Report
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-File:     drawing.gcode
-Lines:    1204
-Moves:    847
-
-✅ Syntax:       OK
-✅ Bounds:       OK  (X: 0-284mm, Y: 0-398mm — within 297x420)
-⚠️  Z safety:    2 missing pen lifts at lines 342, 891
-✅ Feed rates:   OK  (max: 3000 mm/min)
-✅ Start/end:    OK
-✅ Units:        mm (G21)
-
-Result: ⚠️  WARNINGS — safe to run but review flagged lines
+pen = PenState()
+for color, cmds in split_color_layers(program):
+    cmds, warnings, pen = validate_chunk(cmds, pen, config.paper)
+    if warnings:
+        print(f"layer {color}: {warnings[:3]}")
 ```
 
-Exit codes: `0` = clean, `1` = warnings, `2` = errors (do not run)
+`validate_chunk` clamps to the drawable area and threads `PenState` across layers —
+always pass the returned state into the next call, never a fresh one.
+
+## What actually matters
+
+| Check | Why |
+|---|---|
+| **Paper matches the machine** | Leo is **A5 landscape**. A file rendered for A3 will run off the sheet. Re-render at the target paper — never scale GCode. |
+| Bounds | `validate_chunk` warnings. Any warning = do not stream. |
+| Pen convention | **`G0` = travel (pen up), `G1` = draw (pen down).** A `G1` used for positioning inks a line across the sheet. |
+| Layer count | Each colour is a physical pen swap. 30 layers means 30 interruptions. |
+| Ink density | Lines closer than the pen tip ink solid. See `limit_ink_density` / `enforce_line_spacing` in `generative/engine/policies.py`. |
+
+## Then
+
+If it passes and the user wants it plotted, hand to **pp-stream** — which traces the
+frame first. Do not stream from this skill.

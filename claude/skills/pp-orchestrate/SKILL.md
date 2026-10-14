@@ -90,20 +90,43 @@ program = merge_chunks(all_chunks, config)
 - `load_and_continue(prior_gcode_path, new_commands, config) -> GCodeProgram`
   Resume an existing .gcode file by appending new commands with safe travel.
 
-## Ready-made script
+## From the CLI
 
-The bundled `scripts/orchestrate.py` runs the full loop standalone:
+There is **no `scripts/orchestrate.py`** — an earlier version of this skill invented
+one. The loop is reachable from the CLI:
 
 ```
-python scripts/orchestrate.py \
-    --prompt "a dense ocean of waves" \
-    --port /dev/cu.usbserial-14220 \
-    --regions 8 \
-    --strategy grid_3x3 \
-    --out drawing.gcode
+python -m promptplot draw "a dense ocean of waves" --orchestrate --regions 8 \
+    --paper a5 --orientation landscape --simulate
 ```
 
-Add `--simulate` to use `SimulatedPlotter` instead of hardware.
+Drop `--simulate` and add `--port /dev/cu.usbserial-14120` for hardware — but trace
+the frame first (below).
+
+## Before any of this reaches paper
+
+`stream_chunk` puts ink down. Two things this skill predates:
+
+**1. Trace the frame first.** Non-negotiable:
+
+```
+python -m promptplot plot frame --paper a5:landscape --margin 15
+```
+
+**2. Colour layers.** If the drawing has more than one pen, do NOT stream region by
+region — you would swap pens once per region. Merge first, then stream by pen:
+
+```python
+from promptplot.orchestrate import merge_chunks, stream_pen_layers
+program = merge_chunks(all_chunks, config)
+await stream_pen_layers(program, plotter, config)   # parks + pauses per swap
+```
+
+Stream per region only for a single-pen drawing.
+
+`split_color_layers` keeps each layer's pen-up approach travel attached, and
+`stream_chunk(enforce_pen_state=True)` injects the missing `M5`/`M3`. Never hand-roll
+around either. **`G0` = travel (pen up), `G1` = draw (pen down).**
 
 ## Decision rules
 
