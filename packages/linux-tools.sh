@@ -102,7 +102,8 @@ have act || { echo "  📦 act..."; curl -fsSL https://raw.githubusercontent.com
 have runpodctl || { echo "  📦 runpodctl..."; curl -fsSL cli.runpod.net | sudo bash >/dev/null 2>&1 || echo "  ⚠️  runpodctl install failed"; }
 if ! have cloud-sql-proxy; then
   echo "  📦 cloud-sql-proxy..."
-  tag="$(curl -fsSL https://api.github.com/repos/GoogleCloudPlatform/cloud-sql-proxy/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)"
+  # "latest" can be a v1 maintenance tag (not hosted on this bucket) — take the newest v2.x
+  tag="$(curl -fsSL "https://api.github.com/repos/GoogleCloudPlatform/cloud-sql-proxy/releases?per_page=40" | grep -o '"tag_name": *"v2[^"]*"' | head -1 | cut -d'"' -f4)"
   [ -n "$tag" ] && sudo curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
     "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${tag}/cloud-sql-proxy.linux.${GOARCH}" \
     && sudo chmod +x /usr/local/bin/cloud-sql-proxy
