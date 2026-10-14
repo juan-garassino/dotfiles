@@ -32,6 +32,4 @@ env-snapshots
 git-bundles
 migration-snapshot
 
-# Code that lived outside ~/Code on the Intel Mac (non-git) — move into ~/Code after copy if wanted
-Desktop/juanjose
-Downloads/interpretive_plotter
+# Code: ONLY ~/Code is copied (MIGRATE.md step 7). Nothing from Desktop/Downloads/Documents.

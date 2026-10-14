@@ -97,7 +97,7 @@ rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged bel
   mac → `ssh-add --apple-use-keychain …`. Verify `ssh -T git@github.com` → `Hi juan-garassino`.
 - **Claude memory is keyed by path:** if `$SRC_HOME` ≠ `$HOME`, for each `~/.claude/projects/<src-slug>-*`
   also `cp -a` it to the slug with `$HOME` (`/` → `-`), keeping the original.
-- 🙋 Ask once whether to also bring personal data dirs (Documents, other Downloads, ML results) — default **no**.
+- Code comes ONLY from `~/Code` (step 7). Never copy Desktop/Downloads/Documents — not even code found there.
 
 ## 7. Pull ~/Code (~93G, resumable — just re-run if interrupted)
 
@@ -166,7 +166,6 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
 - **macOS-only bits in code** (report, fix only if the user asks): `caffeinate` in boundaryBrush/dataDiffusion
   Makefiles (→ `systemd-inhibit`), `brew install` hints in marketing_agent/deepCab/deepMaze Makefiles,
   `engenious_university` launchd plist + `run_bot_cron.sh` (→ a systemd user timer on Linux).
-- Loose code carried from the source's Desktop/Downloads: suggest moving into `~/Code`.
 
 ## 10. Verify + clean up (print a PASS/FAIL scorecard)
 
