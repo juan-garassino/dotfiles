@@ -877,6 +877,9 @@ export PATH="$HOME/.antigravity-ide/antigravity-ide/bin:$PATH"
 # ANTHROPIC_API_KEY, NVIDIA_API_KEY, PERPLEXITY_API_KEY.
 # New machine setup: copy ~/.secrets over manually (scp/AirDrop).
 [[ -f "$HOME/.secrets" ]] && source "$HOME/.secrets"
+# Claude Code runs on the claude.ai login; a visible ANTHROPIC_API_KEY switches off
+# the claude.ai connectors (Gmail, Calendar, Drive…). Hide it from claude only.
+alias claude='env -u ANTHROPIC_API_KEY claude'
 
 # Align gh account with the directory the shell opened in (last-working-dir
 # restores cwd before our cd() wrapper exists, so the hook missed it).
