@@ -2,11 +2,13 @@
 """Bauhaus app icons — one design language for every launcher on Linux (GNOME).
 
 Same palette as the p10k prompt / Claude status line: cobalt, ochre, burgundy + grays.
-Every icon is a charcoal rounded tile carrying a flat glyph built from circles, squares
-and triangles — no gradients, no text.
+Every icon is a rounded tile in one primary (Kandinsky-balanced, ~a third each) carrying a
+flat gray glyph built from circles, squares and triangles; the other primaries stay as
+accents. No gradients.
 
   bauhaus_icons.py                 write SVGs to ~/.local/share/icons/bauhaus + apply overrides
   bauhaus_icons.py --labels        same, but the variant with the app name set small (Jost)
+  … --dark                         the earlier charcoal-tile look (combine with --labels)
   bauhaus_icons.py --preview PNG   only write SVGs + render a contact sheet (ImageMagick), no overrides
   bauhaus_icons.py --undo     remove the overrides (system icons come back)
 
@@ -212,14 +214,39 @@ LABELS = {"vscode": "vs code", "disk-usage": "disk usage", "text-editor": "text 
 FONT = "Jost, Futura, 'Ubuntu Sans', sans-serif"     # Jost = open Futura revival (Google Fonts)
 
 
-def svg(glyph, label=None):
+INK = {C: L, R: L, O: BG}       # the gray drawn on each colored tile (charcoal on ochre for contrast)
+SWAP = {C: {C: L, L: BG}, R: {R: L, L: BG}, O: {O: BG, BG: L, L: BG}}   # per tile: keep every shape visible
+TILE = {**dict.fromkeys(["warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
+                         "zoom", "obsidian", "nordvpn", "dropbox", "network", "disks", "updater", "security",
+                         "images", "text-editor"], C),
+        **dict.fromkeys(["claude", "chatgpt", "files", "etcher", "spotify", "notion", "firmware", "imagemagick",
+                         "nvidia", "fonts", "passwords", "papers", "app-center", "vim", "calculator", "characters",
+                         "clocks", "texinfo"], O)}
+# everything else → burgundy (terminal, postman, slack, discord, firefox, chrome, settings, gephi, pritunl, …)
+
+
+def tile_of(name, glyph):
+    return TILE.get(name, R)
+
+
+def colorize(glyph, tile):
+    """Kandinsky swap: the tile's primary turns gray; other primaries stay as accents."""
+    m = SWAP[tile]
+    return re.sub("|".join(map(re.escape, m)), lambda x: m[x.group(0)], glyph)
+
+
+def svg(glyph, label=None, name="", dark=False):
+    tile, ink = (BG, L) if dark else (tile_of(name, glyph), None)
+    if not dark:
+        ink = INK[tile]
+        glyph = colorize(glyph, tile)
     if label:   # glyph shrinks + lifts; name set small in the bottom band
         size = 30 if len(label) <= 8 else 26
         glyph = (f'<g transform="translate(128 106) scale(.74) translate(-128 -128)">{glyph}</g>'
                  f'<text x="128" y="218" text-anchor="middle" font-family="{FONT}" font-weight="500" '
-                 f'font-size="{size}" letter-spacing="1" fill="{L}">{label}</text>')
+                 f'font-size="{size}" letter-spacing="1" fill="{ink}">{label}</text>')
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">'
-            f'<rect x="8" y="8" width="240" height="240" rx="52" fill="{BG}"/>{glyph}</svg>\n')
+            f'<rect x="8" y="8" width="240" height="240" rx="52" fill="{tile}"/>{glyph}</svg>\n')
 
 
 def set_icon(text, icon):
@@ -233,8 +260,9 @@ def write_svgs():
     for d in (ICON_DIR, LABEL_DIR):
         d.mkdir(parents=True, exist_ok=True)
     for name, glyph in ICONS.items():
-        (ICON_DIR / f"{name}.svg").write_text(svg(glyph))
-        (LABEL_DIR / f"{name}.svg").write_text(svg(glyph, LABELS.get(name, name)))
+        dark = "--dark" in sys.argv
+        (ICON_DIR / f"{name}.svg").write_text(svg(glyph, name=name, dark=dark))
+        (LABEL_DIR / f"{name}.svg").write_text(svg(glyph, LABELS.get(name, name), name=name, dark=dark))
 
 
 def apply(icon_dir):
