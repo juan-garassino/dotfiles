@@ -7,7 +7,8 @@
 #   check_setup.sh --code user@source --deep   (byte-compare every file: slow, reads ~93G)
 #
 # Code check (no script needed on the source — the fingerprint runs there over ssh):
-#   1. per repo: HEAD · current branch · hash of ALL branches+tags · stash count · dirty count
+#   1. per repo: HEAD · current branch · hash of ALL branches (local + remote-tracking) + tags ·
+#      stash count · dirty count — a missing repo or branch shows up as a difference
 #   2. rsync dry-run with the MIGRATE.md excludes → files missing/different (size+mtime, or
 #      checksums with --deep)
 # Read-only everywhere. Never prints secret values. Exit code = number of FAILs.
@@ -135,7 +136,7 @@ if [ -n "$SRC" ]; then
   find "$C" -name .git \( -type d -o -type f \) -prune 2>/dev/null | grep -v -e /node_modules/ -e /.venv/ -e /000-config/001-dotfiles/ -e /000-config/dotfiles-uv-worktree/ | sort | while read -r g; do
     r="${g%/.git}"; cd "$r" 2>/dev/null || continue
     head=$(git rev-parse --short=12 HEAD 2>/dev/null || echo -); br=$(git branch --show-current 2>/dev/null); [ -n "$br" ] || br=DETACHED
-    refs=$(git for-each-ref --format="%(refname) %(objectname)" refs/heads refs/tags 2>/dev/null | $H | cut -c1-12)
+    refs=$(git for-each-ref --format="%(refname) %(objectname)" refs/heads refs/tags refs/remotes 2>/dev/null | $H | cut -c1-12)
     nb=$(git for-each-ref refs/heads 2>/dev/null | wc -l | tr -d " "); st=$(git stash list 2>/dev/null | wc -l | tr -d " ")
     d=$(git status --porcelain 2>/dev/null | wc -l | tr -d " ")
     printf "%s|%s|%s|branches:%s:%s|stash:%s|dirty:%s\n" "${r#$C/}" "$head" "$br" "$nb" "$refs" "$st" "$d"
@@ -149,7 +150,7 @@ if [ -n "$SRC" ]; then
   if [ "$nt" -eq 0 ]; then fail "could not fingerprint the source over ssh ($SRC)"
   else
     dif=$(diff "$there" "$here" | grep -c '^[<>]')
-    if [ "$dif" -eq 0 ]; then pass "all $nh repos identical: HEAD, branch, ALL branches+tags, stashes, uncommitted changes"
+    if [ "$dif" -eq 0 ]; then pass "all $nh repos present and identical: HEAD, branch, ALL local+remote branches, tags, stashes, uncommitted changes"
     else
       fail "repo state differs ($nt repos on source, $nh here) — first differences (< source, > here):"
       diff "$there" "$here" | grep '^[<>]' | head -20 | sed 's/^/       /'
