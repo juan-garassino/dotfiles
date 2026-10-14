@@ -11,7 +11,9 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 > **Claude Code — read this first.** If you're working in this repo, your single most
 > likely task is to **set up / replicate this environment on a machine** (usually a fresh
 > one). **Migrating from another machine? → follow `MIGRATION.md` end-to-end** (pre-flight,
-> hand-carry list, bring-up, verification). Routine fresh setup → go straight to
+> hand-carry list, bring-up, verification). **Running on Ubuntu/Linux, migrating from the Intel
+> Mac? → follow `MIGRATION-LINUX.md` instead** (Claude-executed: payload pull, ~/.claude path-slug
+> fix, install.sh, reclone from GitHub, verify). Routine fresh setup → go straight to
 > **[Full machine setup](#full-machine-setup--claude-code-follow-this-end-to-end)**
 > and run it end-to-end, pausing only at the 🙋 (human-only) steps. The other most common
 > task is editing a config + pushing via `/backup-env`. If the user clearly wants something
