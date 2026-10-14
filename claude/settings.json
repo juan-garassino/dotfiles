@@ -1,7 +1,8 @@
 {
+  "theme": "dark-ansi",
   "env": {
     "MCP_TIMEOUT": "60000",
-    "CLAUDE_CODE_TMPDIR": "/Users/juan-garassino/.claude-tmp"
+    "CLAUDE_CODE_TMPDIR": "/home/garassino-juan/.claude-tmp"
   },
   "permissions": {
     "allow": [
@@ -125,7 +126,6 @@
   },
   "autoMemoryEnabled": true,
   "skipWorkflowUsageWarning": true,
-  "theme": "dark-ansi",
   "verbose": true,
   "switchModelsOnFlag": true,
   "agentPushNotifEnabled": true,

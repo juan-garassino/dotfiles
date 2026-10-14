@@ -9,11 +9,11 @@ enabled = true
 compact_subtitle = "command"
 
 [appearance.themes]
-theme = "phenomenon"
+theme = "dracula"
 system_theme = false
 
 [appearance.window]
-zoom_level = 70
+zoom_level = 80
 open_windows_at_custom_size = false
 
 [appearance.input]
