@@ -11,16 +11,19 @@ accents. No gradients.
   … --dark                         the earlier charcoal-tile look (combine with --labels)
   bauhaus_icons.py --preview PNG   only write SVGs + render a contact sheet (ImageMagick), no overrides
   bauhaus_icons.py --undo     remove the overrides (system icons come back)
-  bauhaus_icons.py --mac [--undo]  macOS: set (or clear) each installed app's custom icon
+  bauhaus_icons.py --mac [--undo]  macOS: set (or clear) each installed app's custom icon + Apple-app launchers
+  bauhaus_icons.py --mac-dock [--undo]  macOS: swap Apple-app Dock tiles for the launchers (backup → undo)
 
 Overrides are per-user copies of each app's .desktop file in ~/.local/share/applications
 (same file name → same dock pin) with Icon= pointing at our SVG. Apps that aren't
 installed are skipped. Re-run after an app update rewrites its launcher.
 """
+import plistlib
 import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 C, O, R = "#6496D7", "#E6B446", "#B94655"          # cobalt · ochre · burgundy
 L, M, BG = "#DCDCDC", "#9E9E9E", "#232323"          # light gray · mid gray · tile
@@ -39,10 +42,11 @@ ICONS = {
                 f'<rect x="122" y="140" width="44" height="10" fill="{C}"/>',
     "vscode": f'<polygon points="88,92 52,128 88,164" fill="{C}"/><polygon points="168,92 204,128 168,164" fill="{C}"/>'
               f'<rect x="121" y="58" width="14" height="140" rx="4" fill="{O}" transform="rotate(20 128 128)"/>',
-    "cursor": f'<polygon points="78,56 78,188 112,156 176,154" fill="{L}"/>'
-              f'<circle cx="172" cy="184" r="18" fill="{C}"/>',
-    "antigravity": f'<polygon points="128,120 198,196 58,196" fill="{C}"/>'
-                   f'<circle cx="128" cy="80" r="28" fill="{O}"/>',
+    "cursor": f'<polygon points="128,56 190,92 128,128 66,92" fill="{L}"/>'
+              f'<polygon points="66,92 128,128 128,200 66,164" fill="{C}"/>'
+              f'<polygon points="190,92 128,128 128,200 190,164" fill="{M}"/>',
+    "antigravity": f'<path d="M70,204 V128 A58,58 0 0,1 186,128 V204" fill="none" stroke="{C}" stroke-width="30"/>'
+                   f'<circle cx="128" cy="134" r="22" fill="{O}"/>',
     "claude": "".join(f'<rect x="118" y="54" width="20" height="148" rx="10" fill="{O}" transform="rotate({a} 128 128)"/>'
                       for a in (0, 45, 90, 135)),
     "chatgpt": f'<circle cx="128" cy="128" r="64" fill="none" stroke="{O}" stroke-width="20"/>'
@@ -50,9 +54,13 @@ ICONS = {
     "dbeaver": f'<rect x="64" y="66" width="128" height="34" rx="17" fill="{C}"/>'
                f'<rect x="64" y="112" width="128" height="34" rx="17" fill="{M}"/>'
                f'<rect x="64" y="158" width="128" height="34" rx="17" fill="{M}"/>',
-    "pgadmin": f'<circle cx="118" cy="114" r="54" fill="{C}"/>'
-               f'<rect x="150" y="128" width="20" height="70" rx="10" fill="{M}"/>'
-               f'<circle cx="138" cy="100" r="9" fill="{BG}"/>',
+    "pgadmin": f'<rect x="54" y="74" width="96" height="108" fill="{C}"/>'
+               f'<ellipse cx="102.0" cy="182" rx="48.0" ry="20" fill="{C}"/>'
+               f'<path d="M54,110 Q102.0,138 150,110" fill="none" stroke="{BG}" stroke-width="6"/>'
+               f'<path d="M54,146 Q102.0,174 150,146" fill="none" stroke="{BG}" stroke-width="6"/>'
+               f'<ellipse cx="102.0" cy="74" rx="48.0" ry="20" fill="{M}"/>'
+               f'<circle cx="166" cy="150" r="28" fill="none" stroke="{O}" stroke-width="14"/>'
+               f'<rect x="186" y="168" width="16" height="40" rx="6" fill="{O}" transform="rotate(-45 194 188)"/>',
     "elasticvue": f'<circle cx="112" cy="112" r="44" fill="none" stroke="{C}" stroke-width="18"/>'
                   f'<rect x="146" y="140" width="22" height="64" rx="6" fill="{O}" transform="rotate(-45 157 172)"/>',
     "postman": f'<circle cx="128" cy="128" r="62" fill="none" stroke="{M}" stroke-width="12"/>'
@@ -64,17 +72,17 @@ ICONS = {
              f'<rect x="136" y="136" width="58" height="58" rx="14" fill="{M}"/>',
     "discord": f'<rect x="54" y="78" width="148" height="100" rx="42" fill="{R}"/>'
                f'<circle cx="100" cy="126" r="15" fill="{L}"/><circle cx="156" cy="126" r="15" fill="{L}"/>',
-    "telegram": f'<circle cx="128" cy="128" r="72" fill="{C}"/>'
-                f'<polygon points="82,126 178,88 148,172" fill="{L}"/>'
-                f'<polygon points="126,140 148,172 178,88" fill="{M}"/>',
+    "telegram": f'<polygon points="96,120 206,70 176,186" fill="{C}"/>'
+                f'<polygon points="140,140 176,186 206,70" fill="{M}"/>'
+                f'<rect x="48" y="104" width="36" height="10" rx="5" fill="{O}"/>'
+                f'<rect x="58" y="128" width="26" height="10" rx="5" fill="{O}"/>'
+                f'<rect x="48" y="152" width="36" height="10" rx="5" fill="{O}"/>',
     "zoom": f'<rect x="50" y="86" width="108" height="84" rx="16" fill="{C}"/>'
             f'<polygon points="166,128 206,94 206,162" fill="{O}"/>',
     "firefox": f'<circle cx="128" cy="128" r="72" fill="{O}"/>'
                f'<circle cx="150" cy="114" r="60" fill="{R}"/>',
-    "chrome": f'<path d="M128,128 L128,56 A72,72 0 0,1 190.35,164 Z" fill="{R}"/>'
-              f'<path d="M128,128 L190.35,164 A72,72 0 0,1 65.65,164 Z" fill="{O}"/>'
-              f'<path d="M128,128 L65.65,164 A72,72 0 0,1 128,56 Z" fill="{M}"/>'
-              f'<circle cx="128" cy="128" r="34" fill="{BG}"/><circle cx="128" cy="128" r="25" fill="{C}"/>',
+    "chrome": f'<circle cx="128" cy="128" r="72" fill="{O}"/><circle cx="128" cy="128" r="42" fill="{BG}"/>'
+              f'<circle cx="128" cy="128" r="22" fill="{C}"/>',
     "files": f'<rect x="56" y="70" width="64" height="32" rx="8" fill="{O}"/>'
              f'<rect x="56" y="88" width="144" height="100" rx="12" fill="{O}"/>'
              f'<rect x="56" y="112" width="144" height="10" fill="{BG}" fill-opacity=".25"/>',
@@ -82,8 +90,9 @@ ICONS = {
                         for a in (0, 45, 90, 135))
                 + f'<circle cx="128" cy="128" r="54" fill="{M}"/><circle cx="128" cy="128" r="26" fill="{BG}"/>'
                   f'<circle cx="128" cy="128" r="11" fill="{C}"/>',
-    "obsidian": f'<polygon points="128,50 190,128 128,206 66,128" fill="{C}"/>'
-                f'<polygon points="128,50 190,128 128,206" fill="{L}" fill-opacity=".28"/>',
+    "obsidian": f'<polygon points="140,46 186,120 150,208 84,170 96,90" fill="{C}"/>'
+                f'<polygon points="140,46 186,120 150,208 122,128" fill="{M}"/>'
+                f'<polygon points="72,58 84,70 72,82 60,70" fill="{O}"/>',
     "notion": f'<rect x="62" y="58" width="132" height="140" rx="12" fill="{L}"/>'
               f'<rect x="90" y="86" width="20" height="84" fill="{BG}"/>'
               f'<rect x="146" y="86" width="20" height="84" fill="{BG}"/>'
@@ -104,8 +113,12 @@ ICONS = {
                f'<polygon points="128,64 153,104 103,104" fill="{L}"/>',
     "pritunl": f'<path d="M128,54 L190,78 L190,130 Q190,180 128,206 Q66,180 66,130 L66,78 Z" fill="{R}"/>'
                f'<circle cx="128" cy="118" r="17" fill="{L}"/><rect x="121" y="122" width="14" height="40" rx="4" fill="{L}"/>',
-    "inkscape": f'<polygon points="72,68 184,68 128,162" fill="{M}"/>'
-                f'<circle cx="128" cy="186" r="18" fill="{C}"/>',
+    "inkscape": f'<line x1="62" y1="180" x2="96" y2="70" stroke="{M}" stroke-width="6"/>'
+                f'<line x1="194" y1="76" x2="160" y2="186" stroke="{M}" stroke-width="6"/>'
+                f'<path d="M62,180 C96,70 160,186 194,76" fill="none" stroke="{L}" stroke-width="12"/>'
+                f'<circle cx="96" cy="70" r="10" fill="{M}"/><circle cx="160" cy="186" r="10" fill="{M}"/>'
+                f'<rect x="50" y="168" width="24" height="24" fill="{C}"/>'
+                f'<rect x="182" y="64" width="24" height="24" fill="{O}"/>',
     # — system / GNOME apps (the "Show Apps" grid) —
     "security": f'<path d="M128,54 L190,78 L190,130 Q190,180 128,206 Q66,180 66,130 L66,78 Z" fill="{C}"/>'
                 f'<polyline points="98,128 120,150 160,104" fill="none" stroke="{L}" stroke-width="16" '
@@ -196,10 +209,11 @@ ICONS = {
                f'<rect x="92" y="104" width="72" height="50" rx="6" fill="{O}"/>'
                f'<polyline points="94,108 128,134 162,108" fill="none" stroke="{BG}" stroke-width="7" stroke-linejoin="round"/>',
     "onedrive": f'<circle cx="168" cy="90" r="24" fill="{O}"/>' + cloud(M, -18, -16, .78) + cloud(C, 14, 18, .86),
-    "deepl": f'<rect x="56" y="62" width="144" height="112" rx="24" fill="{O}"/>'
-             f'<polygon points="88,168 88,206 126,168" fill="{O}"/>'
-             f'<polyline points="156,94 100,118 156,142" fill="none" stroke="{M}" stroke-width="8"/>'
-             + "".join(f'<circle cx="{x}" cy="{y}" r="13" fill="{C}"/>' for x, y in ((100, 118), (156, 94), (156, 142))),
+    "deepl": f'<circle cx="128" cy="120" r="70" fill="{O}"/><polygon points="78,166 64,210 112,184" fill="{O}"/>'
+             f'<rect x="92" y="98" width="58" height="12" fill="{C}"/>'
+             f'<polygon points="148,88 172,104 148,120" fill="{C}"/>'
+             f'<rect x="106" y="132" width="58" height="12" fill="{M}"/>'
+             f'<polygon points="108,122 84,138 108,154" fill="{M}"/>',
     "comet": "".join(f'<line x1="{a}" y1="{b}" x2="{c}" y2="{d}" stroke="{C}" stroke-width="{w}" stroke-linecap="round"/>'
                      for a, b, c, d, w in ((140, 116, 64, 192, 18), (128, 90, 78, 140, 12), (166, 128, 116, 178, 12)))
              + f'<circle cx="162" cy="94" r="32" fill="{O}"/>',
@@ -228,6 +242,21 @@ ICONS = {
     "pylauncher": f'<rect x="54" y="72" width="112" height="112" rx="22" fill="{C}"/>'
                   f'<circle cx="84" cy="102" r="10" fill="{L}"/>'
                   f'<polygon points="150,92 206,128 150,164" fill="{O}"/>',
+    "maps": f'<rect x="58" y="58" width="140" height="140" rx="12" fill="{L}"/>'
+            f'<line x1="58" y1="106" x2="198" y2="106" stroke="{C}" stroke-width="12"/>'
+            f'<line x1="106" y1="58" x2="106" y2="198" stroke="{C}" stroke-width="12"/>'
+            f'<line x1="58" y1="190" x2="198" y2="96" stroke="{M}" stroke-width="8"/>'
+            f'<circle cx="158" cy="130" r="20" fill="{O}"/><polygon points="141,140 175,140 158,168" fill="{O}"/>'
+            f'<circle cx="158" cy="130" r="8" fill="{L}"/>',
+    "safari": f'<circle cx="128" cy="128" r="72" fill="{R}"/>'
+              f'<g transform="rotate(45 128 128)"><polygon points="128,64 146,128 110,128" fill="{C}"/>'
+              f'<polygon points="128,192 146,128 110,128" fill="{M}"/></g>'
+              f'<circle cx="128" cy="128" r="10" fill="{BG}"/>',
+    "launchpad": "".join(f'<circle cx="{76 + 52 * (i % 3)}" cy="{76 + 52 * (i // 3)}" r="20" '
+                         f'fill="{ {4: C, 8: R}.get(i, O) }"/>' for i in range(9)),
+    "photos": f'<rect x="70" y="58" width="116" height="96" rx="8" fill="{M}" transform="rotate(-10 128 106)"/>'
+              f'<rect x="64" y="88" width="128" height="104" rx="8" fill="{L}"/>'
+              f'<polygon points="80,182 122,128 164,182" fill="{C}"/><circle cx="160" cy="114" r="12" fill="{R}"/>',
 }
 
 # desktop file ID → icon
@@ -271,10 +300,10 @@ INK = {C: L, R: L, O: BG}       # the gray drawn on each colored tile (charcoal 
 SWAP = {C: {C: L, L: BG}, R: {R: L, L: BG}, O: {O: BG, BG: L, L: BG}}   # per tile: keep every shape visible
 TILE = {**dict.fromkeys(["warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
                          "zoom", "obsidian", "nordvpn", "dropbox", "network", "disks", "updater", "security",
-                         "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher"], C),
+                         "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher", "maps"], C),
         **dict.fromkeys(["claude", "chatgpt", "files", "etcher", "spotify", "notion", "firmware", "imagemagick",
                          "nvidia", "fonts", "passwords", "papers", "app-center", "vim", "calculator", "characters",
-                         "clocks", "texinfo", "whatsapp", "deepl", "omniplayer", "unarchiver", "idle"], O)}
+                         "clocks", "texinfo", "whatsapp", "deepl", "omniplayer", "unarchiver", "idle", "launchpad", "photos"], O)}
 # everything else → burgundy (terminal, postman, slack, discord, firefox, chrome, settings, gephi, pritunl, …)
 
 
@@ -382,33 +411,97 @@ JXA_SET = "ObjC.import('AppKit');function run(a){var i=a[0]?$.NSImage.alloc.init
           "return $.NSWorkspace.sharedWorkspace.setIconForFileOptions(i,a[1],0)}"
 
 
+# Apple's own apps sit on the sealed system volume (no custom icons without disabling SIP), so they
+# get look-alike launchers in ~/Applications/Bauhaus that open the real app; --mac-dock swaps them
+# into the Dock. While the real app runs, the Dock also shows its stock icon next to the launcher.
+MAC_SYSTEM = {"/System/Applications/Utilities/Terminal.app": "terminal", "/Applications/Safari.app": "safari",
+              "/System/Applications/System Preferences.app": "settings", "/System/Applications/App Store.app": "app-center",
+              "/System/Applications/TextEdit.app": "text-editor", "/System/Applications/Photos.app": "photos",
+              "/System/Applications/Maps.app": "maps", "/System/Applications/Launchpad.app": "launchpad"}
+MAC_OUT = HOME / ".local/share/icons/bauhaus-mac"
+LAUNCHERS = HOME / "Applications/Bauhaus"
+DOCK_BACKUP = MAC_OUT / "dock-backup.plist"
+
+
+def mac_png(name):
+    svg_path, png = MAC_OUT / f"{name}.svg", MAC_OUT / f"{name}.png"
+    svg_path.write_text(svg(ICONS[name], name=name).replace(
+        'viewBox="0 0 256 256"', 'width="1024" height="1024" viewBox="-21 -21 298 298"'))
+    subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
+                    "--default-background-color=00000000", "--window-size=1024,1024",
+                    f"--screenshot={png}", svg_path.as_uri()], capture_output=True, check=True)
+    return png
+
+
+def mac_set_icon(png, path):
+    cmd = ["osascript", "-l", "JavaScript", "-e", JXA_SET, str(png), str(path)]
+    ok = subprocess.run(cmd, capture_output=True, text=True).stdout.strip() == "true"
+    if not ok and sys.stdin.isatty():       # root-owned bundles (pkg installs): one sudo prompt
+        ok = subprocess.run(["sudo", *cmd], capture_output=True, text=True).stdout.strip() == "true"
+    return ok
+
+
+def mac_launcher(target, png):
+    stem = Path(target).stem
+    app = LAUNCHERS / f"{stem} Bauhaus.app"   # distinct name: `tell application "Terminal"` must not hit it
+    (app / "Contents/MacOS").mkdir(parents=True, exist_ok=True)
+    exe = app / "Contents/MacOS/launch"
+    exe.write_text(f'#!/bin/sh\nexec open -a "{target}"\n')
+    exe.chmod(0o755)
+    plistlib.dump({"CFBundleExecutable": "launch", "CFBundleName": f"{stem} Bauhaus", "CFBundlePackageType": "APPL",
+                   "CFBundleIdentifier": "dev.garassino.bauhaus." + re.sub(r"\W", "", stem).lower(),
+                   "LSUIElement": True}, (app / "Contents/Info.plist").open("wb"))
+    mac_set_icon(png, app)
+    return app
+
+
 def mac(undo=False):
-    """macOS: custom Finder/Dock icon per app (Icon\\r in the bundle; signature stays valid).
-    Rendered by headless Chrome at Big Sur grid size (tile = 824/1024). An app update resets it."""
-    out = HOME / ".local/share/icons/bauhaus-mac"
-    out.mkdir(parents=True, exist_ok=True)
+    """macOS: custom Finder/Dock icon per app (Icon\\r in the bundle; signature stays valid) + launchers
+    for Apple's apps. Rendered by headless Chrome at Big Sur grid size (tile = 824/1024).
+    An app update resets its icon — re-run."""
+    MAC_OUT.mkdir(parents=True, exist_ok=True)
     for app, name in MAC_APPS.items():
         path = Path(f"/Applications/{app}.app")
         if not path.exists():
             continue
-        png = ""
-        if not undo:
-            svg_path, png = out / f"{name}.svg", out / f"{name}.png"
-            svg_path.write_text(svg(ICONS[name], name=name).replace(
-                'viewBox="0 0 256 256"', 'width="1024" height="1024" viewBox="-21 -21 298 298"'))
-            subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
-                            "--default-background-color=00000000", "--window-size=1024,1024",
-                            f"--screenshot={png}", svg_path.as_uri()], capture_output=True, check=True)
-        cmd = ["osascript", "-l", "JavaScript", "-e", JXA_SET, str(png), str(path)]
-        ok = subprocess.run(cmd, capture_output=True, text=True).stdout.strip() == "true"
-        if not ok and sys.stdin.isatty():       # root-owned bundles (pkg installs): one sudo prompt
-            ok = subprocess.run(["sudo", *cmd], capture_output=True, text=True).stdout.strip() == "true"
+        ok = mac_set_icon("" if undo else mac_png(name), path)
         print(f"  {'↩️ ' if undo else '🎨'} {app}" if ok else f"  ⚠️  {app}: root-owned — run this in a terminal (one sudo prompt)")
+    if undo:
+        subprocess.run(["rm", "-rf", str(LAUNCHERS)], check=False)
+    else:
+        for target, name in MAC_SYSTEM.items():
+            if Path(target).exists():
+                print(f"  🚀 {mac_launcher(target, mac_png(name)).name}")
+    subprocess.run(["killall", "Dock"], check=False)
+
+
+def mac_dock(undo=False):
+    """Swap Dock tiles of Apple apps for their Bauhaus launchers (backup first; --undo restores it)."""
+    if undo:
+        subprocess.run(["defaults", "import", "com.apple.dock", str(DOCK_BACKUP)], check=True)
+    else:
+        raw = subprocess.run(["defaults", "export", "com.apple.dock", "-"], capture_output=True, check=True).stdout
+        if not DOCK_BACKUP.exists():
+            DOCK_BACKUP.write_bytes(raw)
+        dock = plistlib.loads(raw)
+        for tile in dock.get("persistent-apps", []):
+            data = tile.get("tile-data", {})
+            path = unquote(data.get("file-data", {}).get("_CFURLString", "")).removeprefix("file://").rstrip("/")
+            launcher = LAUNCHERS / f"{Path(path).stem} Bauhaus.app"
+            if path in MAC_SYSTEM and launcher.exists():
+                data["file-data"] = {"_CFURLString": launcher.as_uri() + "/", "_CFURLStringType": 15}
+                data["file-label"] = Path(path).stem
+                data["bundle-identifier"] = plistlib.load((launcher / "Contents/Info.plist").open("rb"))["CFBundleIdentifier"]
+                data.pop("book", None)
+                print(f"  🔁 {Path(path).stem}")
+        subprocess.run(["defaults", "import", "com.apple.dock", "-"], input=plistlib.dumps(dock), check=True)
     subprocess.run(["killall", "Dock"], check=False)
 
 
 if __name__ == "__main__":
-    if "--mac" in sys.argv:
+    if "--mac-dock" in sys.argv:
+        mac_dock(undo="--undo" in sys.argv)
+    elif "--mac" in sys.argv:
         mac(undo="--undo" in sys.argv)
     elif "--undo" in sys.argv:
         undo()
