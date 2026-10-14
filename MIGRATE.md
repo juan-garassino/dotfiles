@@ -95,8 +95,15 @@ rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged bel
 - Perms: `chmod 600 ~/.secrets ~/.secrets-cheatsheet.md ~/.engenious_university.env; chmod 700 ~/.ssh; chmod 600 ~/.ssh/id_*; chmod 644 ~/.ssh/*.pub`.
 - Keys: linux → `eval $(ssh-agent) && ssh-add ~/.ssh/id_ed25519_personal ~/.ssh/id_ed25519_work`;
   mac → `ssh-add --apple-use-keychain …`. Verify `ssh -T git@github.com` → `Hi juan-garassino`.
-- **Claude memory is keyed by path:** if `$SRC_HOME` ≠ `$HOME`, for each `~/.claude/projects/<src-slug>-*`
-  also `cp -a` it to the slug with `$HOME` (`/` → `-`), keeping the original.
+- **Claude history is keyed by path** — only when `$SRC_HOME` ≠ `$HOME`, so sessions can be resumed here:
+  - Sessions, memory, plans, standing: for each `~/.claude/projects/<src-slug>-*` also `cp -a` it to
+    the slug with `$HOME` (`/` → `-`), keeping the original. Then `/resume` in a project lists its old sessions.
+  - Prompt history (up-arrow): append path-rewritten copies of the source entries:
+    ```bash
+    jq -c --arg s "$SRC_HOME" --arg h "$HOME" 'select((.project // "") | startswith($s)) | .project |= sub("^"+$s; $h)' \
+      ~/.claude/history.jsonl > /tmp/h.jsonl && cat /tmp/h.jsonl >> ~/.claude/history.jsonl && rm /tmp/h.jsonl
+    ```
+  - Old transcripts contain `/Users/juan-garassino/...` paths; they keep working through step 5's symlink.
 - Code comes ONLY from `~/Code` (step 7). Never copy Desktop/Downloads/Documents — not even code found there.
 
 ## 7. Pull ~/Code (~93G, resumable — just re-run if interrupted)
