@@ -96,6 +96,27 @@ elif [ "$OS" = "Linux" ]; then
   fi
   # uv (official installer) — the ONLY Python manager; no pyenv
   command -v uv >/dev/null 2>&1 || { echo "  📦 uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
+  # MesloLGS NF — the p10k font (macOS gets it from the Brewfile cask). Without it the prompt
+  # renders tofu boxes. Then point the desktop terminal at it (GNOME Terminal / Ptyxis).
+  FONT_DIR="$HOME/.local/share/fonts"; mkdir -p "$FONT_DIR"
+  for v in "Regular" "Bold" "Italic" "Bold Italic"; do
+    f="$FONT_DIR/MesloLGS NF $v.ttf"
+    [ -f "$f" ] || curl -fsSL -o "$f" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${v// /%20}.ttf" || echo "  ⚠️  font download failed: $v"
+  done
+  command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONT_DIR" >/dev/null 2>&1 && echo "  🔤 MesloLGS NF installed"
+  if command -v gsettings >/dev/null 2>&1; then
+    prof="$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")"
+    if [ -n "$prof" ]; then
+      p="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$prof/"
+      gsettings set "$p" use-system-font false 2>/dev/null && gsettings set "$p" font 'MesloLGS NF 12' 2>/dev/null \
+        && echo "  🖥️  GNOME Terminal font → MesloLGS NF 12"
+    fi
+    gsettings set org.gnome.Ptyxis use-system-font false 2>/dev/null && gsettings set org.gnome.Ptyxis font-name 'MesloLGS NF 12' 2>/dev/null \
+      && echo "  🖥️  Ptyxis font → MesloLGS NF 12"
+  fi
+  # nvm (standalone; zshrc lazy-loads $NVM_DIR/nvm.sh). PROFILE=/dev/null: never let it edit
+  # the symlinked zshrc.
+  [ -s "$HOME/.nvm/nvm.sh" ] || { echo "  📦 nvm..."; curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | PROFILE=/dev/null bash >/dev/null 2>&1 || echo "  ⚠️  nvm install failed"; }
   # default shell → zsh
   if command -v zsh >/dev/null 2>&1 && [ "$SHELL" != "$(command -v zsh)" ]; then
     chsh -s "$(command -v zsh)" 2>/dev/null && echo "  🐚 default shell → zsh (re-login to apply)" || true
@@ -291,6 +312,7 @@ if [ "${DOTFILES_MINIMAL:-0}" = 1 ]; then
   echo "  ⏭️  MINIMAL rehearsal — skipping npm/go installs ($(grep -vcE '^#|^$' "$DOTFILES_DIR/packages/npm-globals.txt" 2>/dev/null) npm globals in list)"
 else
 _brew_nvm="$(brew --prefix 2>/dev/null)/opt/nvm/nvm.sh"
+[ -s "$_brew_nvm" ] || _brew_nvm="$HOME/.nvm/nvm.sh"   # Linux: standalone nvm from step 0
 if [ -s "$_brew_nvm" ]; then
   mkdir -p "$HOME/.nvm"; export NVM_DIR="$HOME/.nvm"
   . "$_brew_nvm" 2>/dev/null

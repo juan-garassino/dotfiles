@@ -5,17 +5,54 @@ Python tooling, and Claude Code config. Everything is organized into subdirs and
 into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys stay in
 `~/.secrets` (chmod 600), outside any repo.
 
-## 🚀 Fresh Linux (Ubuntu) — 3 steps, then Claude does the rest
+## 🚀 Fresh machine — git, clone, claude
 
 ```bash
-sudo apt-get update && sudo apt-get install -y git curl openssh-server   # 1. git
-git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles   # 2. clone
-curl -fsSL https://claude.ai/install.sh | bash && cd ~/Code/000-config/001-dotfiles && claude    # 3. claude
+# 1. git  (macOS: xcode-select --install instead)
+sudo apt-get update && sudo apt-get install -y git curl openssh-server
+# 2. clone  (branch uv-only until it's merged to main)
+git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles
+# 3. claude
+curl -fsSL https://claude.ai/install.sh | bash
+cd ~/Code/000-config/001-dotfiles && claude
 ```
 
-Then tell Claude: **"execute MIGRATION-LINUX.md"**. It pulls the private payload from the old Mac,
-runs `install.sh`, reclones every repo, restores `.env` files and prints a PASS/FAIL scorecard,
-stopping only for logins and secrets. (Branch `uv-only` until it's merged to `main`.)
+Then tell Claude one of:
+- **"set up this machine"** — runs `install.sh` and the [`CLAUDE.md`](./CLAUDE.md) checklist
+  (empty machine, no old data).
+- **"execute MIGRATION-LINUX.md"** — full move from the old Mac: pulls the private payload
+  (secrets, keys, `~/.claude`, work repos), installs, reclones every repo to its old path,
+  restores `.env` files, prints a PASS/FAIL scorecard.
+
+Claude stops only for what a machine can't fabricate: passwords, `gh auth login`, secrets, SSH keys.
+
+---
+
+## 🎨 What you get — exactly this setup
+
+| Layer | Setup | Where |
+|---|---|---|
+| **Shell** | zsh + Oh-My-Zsh · plugins `git gitfast last-working-dir common-aliases zsh-autosuggestions zsh-syntax-highlighting history-substring-search` · lazy-loaded nvm/rbenv/kubectl (fast startup) | `shell/zshrc` |
+| **Prompt** | Powerlevel10k, Bauhaus palette (cobalt / ochre / burgundy + grays), custom `gh_identity` segment: ochre `personal` / burgundy `work` | `prompt/p10k.zsh` |
+| **Font** | **MesloLGS NF**: Brewfile cask on macOS; on Linux `install.sh` downloads it to `~/.local/share/fonts` and sets GNOME Terminal / Ptyxis to `MesloLGS NF 12` | `install.sh` |
+| **Terminal** | macOS: Warp (Brewfile). Linux: the default terminal with the font above | — |
+| **Python** | **uv only, no pyenv.** uv 3.11 + 3.12, `ruff` + `pre-commit` as uv tools, global `~/.venv-sandbox` (`mysandbox`), per-project `.venv` auto-activated on `cd`, `envup` rebuilds any project | `shell/zshrc`, `packages/mysandbox-requirements.txt` |
+| **Node** | nvm (brew on macOS, standalone on Linux), LTS + global CLIs | `packages/npm-globals.txt` |
+| **Git identity** | `~/Code/` personal, `~/Code/002-engenious/` work (gitconfig `includeIf`, work SSH alias), gh CLI account auto-switches on `cd` | `git/`, `ssh/config` |
+| **Claude Code** | Bauhaus 3-zone status line, sanitized `settings.json` (hooks, plugins, model), personal skills + agents, plugins: superpowers · context7 · code-simplifier · frontend-design · atlassian | `claude/` |
+| **Editor** | VS Code / Antigravity settings + 48 extensions | `editor/settings.json`, `packages/vscode-extensions.txt` |
+| **Packages** | macOS: curated `Brewfile` (leaves only). Linux: `apt.txt` + gh / VS Code apt repos | `packages/` |
+| **Secrets** | `~/.secrets` (chmod 600, never in git), seeded empty from `.secrets.sample` | — |
+
+**Not automated** (do it by hand or let Claude do it): Docker Engine on Linux (official apt
+repo + `usermod -aG docker $USER`); `chsh` asks for your password; first `p10k` launch:
+**decline** the config wizard, since `~/.p10k.zsh` is already symlinked. Private skills
+(`post-as-me`) and claude.ai-synced skills are not in this public repo; they come with the
+`~/.claude` hand-carry.
+
+**Check it matches:** `exec zsh` → the prompt shows clean icons (no boxes) and an ochre
+`personal` badge; `cd ~/Code/002-engenious` → it turns burgundy `work`; `which uv` →
+`~/.local/bin/uv`; `claude` → the status line renders.
 
 > New machine? Two ways to set up:
 > - **Human:** clone → `./install.sh` → drop in your secrets/keys (below).
@@ -140,8 +177,10 @@ Refresh and push the whole kit:
 custom_scripts/backup_env.sh        # or the /backup-env Claude Code skill
 ```
 
-Regenerates the Brewfile, re-sanitizes the Claude settings snapshot, re-snapshots
-skills/agents, runs a **secret-scan gate** (aborts on any leak), commits, and pushes.
+Reports Brewfile drift (never overwrites the curated Brewfile), re-sanitizes the Claude
+settings snapshot (strips secrets, personal paths and `autoMode`), re-snapshots skills/agents
+(minus private and synced ones), runs a **secret-scan gate** (aborts on any leak), commits, and
+pushes. Commits to whichever checkout the script lives in.
 
 ---
 
