@@ -85,8 +85,8 @@ home: also `sudo ln -sfn $HOME $SRC_HOME`).
 
 ```bash
 cd ~/Code/000-config/001-dotfiles
-rsync -ar --info=progress2 --files-from=packages/home-carry.txt \
-  --exclude .ssh/config --exclude .claude/settings.json \
+rsync -ar --stats --files-from=packages/home-carry.txt \
+  --exclude .ssh/config --exclude .ssh/known_hosts --exclude .ssh/authorized_keys --exclude .claude/settings.json \
   --exclude .claude/statusline-command.sh $S: ~/        # exit 23 = some listed path absent: fine
 rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged below
 ```
@@ -98,6 +98,8 @@ rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged bel
 - **Claude history is keyed by path** — only when `$SRC_HOME` ≠ `$HOME`, so sessions can be resumed here:
   - Sessions, memory, plans, standing: for each `~/.claude/projects/<src-slug>-*` also `cp -a` it to
     the slug with `$HOME` (`/` → `-`), keeping the original. Then `/resume` in a project lists its old sessions.
+    Slugs start with `-`, so pass `--`: `cd ~/.claude/projects && for d in ./-Users-juan-garassino*; do d=${d#./};
+    n="-home-<user>${d#-Users-juan-garassino}"; mkdir -p -- "./$n" && cp -a --update=none -- "./$d"/. "./$n"/; done`
   - Prompt history (up-arrow): append path-rewritten copies of the source entries:
     ```bash
     jq -c --arg s "$SRC_HOME" --arg h "$HOME" 'select((.project // "") | startswith($s)) | .project |= sub("^"+$s; $h)' \
@@ -109,7 +111,7 @@ rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged bel
 ## 7. Pull ~/Code (~93G, resumable — just re-run if interrupted)
 
 ```bash
-rsync -aH --partial --info=progress2 \
+rsync -aH --partial --stats \
   --exclude .venv --exclude venv --exclude '.venv-*' --exclude node_modules --exclude .next \
   --exclude __pycache__ --exclude .pytest_cache --exclude .mypy_cache --exclude .terraform \
   --exclude .DS_Store --exclude '._*' \
@@ -117,7 +119,7 @@ rsync -aH --partial --info=progress2 \
   $S:Code/ ~/Code/
 ```
 The dotfiles checkouts are excluded (this machine has its own clone on `main`). macOS sources ship
-rsync 2.6.9 — it works, just scans all ~665k files before sending; **don't `brew install rsync` on an
+rsync 2.6.9 — it works, just scans all ~665k files before sending; it rejects every `--info=` flag (use `--stats`); **don't `brew install rsync` on an
 unsupported (old) Mac** (it compiles OpenSSL from source). **Byte-verify:** same command with
 `-anc --itemize-changes` → must print nothing.
 
@@ -132,13 +134,17 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
   `linux-tools.sh` (docker+compose, gcloud, terraform, kubectl, helm, aws, minikube, k3d, act, runpodctl,
   cloud-sql-proxy, ngrok, rustup, Warp, llm, ollama). wsl: skips Warp (use Warp for Windows) and enables
   systemd → 🙋 `wsl --shutdown` in PowerShell, reopen, re-run `./install.sh`.
-- **mac:** Homebrew (noninteractive) + Brewfile.
+- **mac:** Homebrew (noninteractive) + Brewfile (incl. the desktop-app casks).
+- **Desktop apps (official sources only)** — linux: 🙋 ask which groups, then `packages/linux-apps.sh [core dev comms sync graphics]`
+  (`--check` to verify); mac: the Brewfile casks; wsl: 🙋 user runs `packages/windows-apps.txt` with winget in PowerShell.
+  Linux GNOME also gets the Bauhaus icon set (`custom_scripts/bauhaus_icons.py`, applied by install.sh).
 - **all:** MesloLGS NF + terminal font 14, OMZ + plugins, Powerlevel10k + `~/.p10k.zsh`, Warp settings
   (`dracula`), uv + Python 3.11/3.12/3.13 + ruff/pre-commit, nvm + LTS + npm globals, VS Code
   settings + 48 extensions, global git ignore, Claude status line/settings/skills/agents.
 - **Postgres = containers only** (host gets `psql`/`pg_dump`). See step 9 for data.
 - After: `sudo chsh -s $(command -v zsh) $USER`; 🙋 **re-login** (zsh + docker group); reopen Claude
   here and continue. First zsh: **decline** the p10k wizard. Open Warp → should look like the old machine.
+  Terminals opened before install.sh don't see the new fonts (glyphs show as boxes) — the re-login fixes it.
 
 ### Guided logins (one at a time; print the command, user runs it, verify)
 1. 🙋 `gh auth login` → GitHub.com · SSH · skip key upload · browser → Authorize as `juan-garassino`.
@@ -165,6 +171,10 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
   `find ~/Code -name .git -prune -exec sh -c 'git -C "$(dirname "$1")" config core.ignorecase false' _ {} \;`
   then `git worktree repair` / `git worktree prune` in repos with worktrees (ai-underwriter OCR +
   prediction, deepVogue, carreer-navigator, PromptPlot). First `git status` per repo rehashes — normal.
+  **Before pruning**, capture fresh WIP of every source worktree outside `~/Code` (`git diff --binary HEAD` +
+  untracked tar, over ssh) — the snapshot may be stale. Then check every pruned HEAD is reachable from a ref.
+- **Tracked `.DS_Store`** (committed by mistake, excluded by rsync → shows as deleted): restore from git —
+  `git ls-files -d | grep -E '(^|/)(\.DS_Store|\._[^/]*)$' | xargs -r git checkout --` in each repo.
 - **Scratch-worktree WIP** (uncommitted work from `~/.claude-tmp` worktrees): `~/Archive/migration/env-snapshots/worktree-wip-*/INDEX.txt`
   lists branch + repo; apply `*.patch` and untar `*.untracked.tgz` in a fresh worktree of that branch when the user wants it.
 - **Databases:** start each compose stack, then restore: aiuw → `gunzip -c ~/Archive/migration/env-snapshots/aiuw-pgdumpall-*.sql.gz | docker exec -i aiuw-postgres psql -U aiuw -d postgres`;
@@ -175,6 +185,9 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
   `engenious_university` launchd plist + `run_bot_cron.sh` (→ a systemd user timer on Linux).
 
 ## 10. Verify + clean up (print a PASS/FAIL scorecard)
+
+**Engenious first** (work, irreplaceable): per-repo HEAD + all refs + stash + `git status` hash vs the source,
+and a checksum dry-run (`rsync -anc`) of `002-engenious` — must show only `.git/config|index` and symlink-perm noise.
 
 **One command does most of it:** `custom_scripts/check_setup.sh --code $S` — setup scorecard (shell,
 look, identity, uv, every tool, docker, Claude + MCPs, secrets perms, migration hygiene, git
