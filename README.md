@@ -5,6 +5,18 @@ Python tooling, and Claude Code config. Everything is organized into subdirs and
 into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys stay in
 `~/.secrets` (chmod 600), outside any repo.
 
+## 🚀 Fresh Linux (Ubuntu) — 3 steps, then Claude does the rest
+
+```bash
+sudo apt-get update && sudo apt-get install -y git curl openssh-server   # 1. git
+git clone -b uv-only https://github.com/juan-garassino/dotfiles ~/Code/000-config/001-dotfiles   # 2. clone
+curl -fsSL https://claude.ai/install.sh | bash && cd ~/Code/000-config/001-dotfiles && claude    # 3. claude
+```
+
+Then tell Claude: **"execute MIGRATION-LINUX.md"**. It pulls the private payload from the old Mac,
+runs `install.sh`, reclones every repo, restores `.env` files and prints a PASS/FAIL scorecard,
+stopping only for logins and secrets. (Branch `uv-only` until it's merged to `main`.)
+
 > New machine? Two ways to set up:
 > - **Human:** clone → `./install.sh` → drop in your secrets/keys (below).
 > - **Claude Code:** open Claude Code in this repo and say *"set up this machine"* — it

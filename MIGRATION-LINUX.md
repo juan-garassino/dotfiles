@@ -29,7 +29,9 @@ If any is missing → STOP and tell the user; do not improvise on the Intel.
 
 ## 1. Preflight (read-only)
 
-- `uname -m` (expect x86_64 or aarch64), `lsb_release -d` (Ubuntu 24.04), `df -h ~` — need **≥ 200G free on ext4**.
+- `uname -m` (expect x86_64 or aarch64), `lsb_release -d`, `df -h ~` — need **≥ 200G free on ext4**.
+  Target is **Ubuntu 26.04.1**; `install.sh` was rehearsed on 24.04 — if an apt package name is
+  missing on 26.04, skip it, note it in the scorecard, and fix `packages/apt.txt` afterwards.
   `~/Code` MUST live on ext4 under `$HOME`, **never** the NTFS/Windows partition (no perms/symlinks).
 - `id -un` → record as `$LU`. Home is `/home/$LU`, **not** `/Users/juan-garassino`.
 - Reachability of `$SRC`: `ssh -o BatchMode=yes <intel> true` or `ls $SRC`. 🙋 if unreachable.
@@ -102,8 +104,16 @@ Not covered by install.sh — do these explicitly:
 - GitHub push protection / rule violations: report, never bypass.
 - Ambiguous → ask the user (AskUserQuestion), one short question.
 
-## Known open items (as of 2026-10-14)
+## State of GitHub vs Intel (2026-10-14)
 
-- `001-archives/001-achievementsAI` branch `knowledge-graph`: GitHub push protection blocks it (Azure key in history, commit `a968f3e`, `achievements_ai_graphrag/logs/indexing-engine.log`) → arrives via payload/bundle, not GitHub.
-- `009-mini-networks`, `003-carreer-navigator` have diverged branches vs origin (non-fast-forward) — GitHub copy is NOT equal to Intel for those; use payload/bundle copy or reconcile first.
-- Third-party upstream clones (neuefische `ds-curriculum`/`mle-course-curriculum`, `SelfGPT`, `diffusion-point-cloud`) have local-only changes → payload only.
+- All personal repos (all branches) pushed; dirty trees committed (`wip/pre-migration-2026-10-14`
+  branches where the current branch was the default). Rewritten-before-push backups:
+  `~/git-bundles/pre-fix-2026-10-14/` (achievementsAI, carreer-navigator, mini-networks, SelfGPT).
+- 10 formerly non-git dirs are now private repos (`candidate-assistant`, `graphrag-integration`,
+  `custom-graphrag`, `chroma-rag`, `emoji-generation`, `adversarial-diffusion`, `orchestration-coreo`,
+  `multiagent-orchestrator`, `nlsql`, `assessment`) — the manifest predates them; clone to the same paths.
+- SelfGPT: fork `juan-garassino/SelfGPT` as remote `mine`. pyboy-rl / deep-research: remote `mine`.
+- **Payload-only (never GitHub):** `002-engenious`, `000-config` root (GCP creds), `012-temps`,
+  ~100 loose non-repo files/dirs (lewagon sandbox lectures, 006 small experiments, folder-level
+  CLAUDE.md/DOCS.md), neuefische `ds-curriculum` local commit, all `.env`, `~/.claude`, keys.
+- Keys to rotate (were in local-only history): SelfGPT OpenAI key, achievementsAI Azure key.
