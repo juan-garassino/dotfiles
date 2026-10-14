@@ -193,7 +193,7 @@ elif [ -f "$HOME/.pyenv/version" ]; then
 fi
 if [ -n "$py_env" ]; then
     # ochre, lighter at center
-    py_seg="🐍 $(gradient "$py_env" 225 170 55 245 205 110)${RESET}"
+    py_seg=" $(gradient "$py_env" 225 170 55 245 205 110)${RESET}"
     # show major.minor only (3.12.9 → 3.12)
     if [ -n "$py_ver" ]; then
         py_seg="${py_seg} ${C_MUTED}${py_ver%.*}${RESET}"
@@ -211,7 +211,7 @@ if [ -d "$_gc_dir" ]; then
     _gc_proj=$(awk -F' = ' '/^project/ {print $2; exit}' "$_gc_dir/configurations/config_${_gc_cfg:-default}" 2>/dev/null)
     if [ -n "$_gc_proj" ]; then
         # ochre — same hue as the rest of the env/accounts zone
-        gcloud_seg="☁️ $(gradient "$_gc_proj" 225 170 55 245 205 110)${RESET}"
+        gcloud_seg=" $(gradient "$_gc_proj" 225 170 55 245 205 110)${RESET}"
     fi
 fi
 unset _gc_dir _gc_cfg _gc_proj
@@ -223,7 +223,7 @@ kube_seg=""
 if [ -f "$HOME/.kube/config" ]; then
     kube_ctx=$(awk '/^current-context:/ {print $2; exit}' "$HOME/.kube/config" 2>/dev/null)
     if [ -n "$kube_ctx" ]; then
-        kube_seg="☸️ $(gradient "$kube_ctx" 225 170 55 245 205 110)${RESET}"
+        kube_seg="⎈ $(gradient "$kube_ctx" 225 170 55 245 205 110)${RESET}"
     fi
 fi
 
@@ -234,14 +234,14 @@ gh_seg=""
 gh_user=$(awk '$1 == "user:" {print $2; exit}' "$HOME/.config/gh/hosts.yml" 2>/dev/null)
 if [ -n "$gh_user" ]; then
     case "$gh_user" in
-        j-garassino-engenious) gh_seg="🐙 ${BOLD}$(gradient "work" 170 60 75 210 95 110)${RESET}" ;;
-        juan-garassino)        gh_seg="🐙 $(gradient "personal" 225 170 55 245 205 110)${RESET}" ;;
-        *)                     gh_seg="🐙 ${C_MUTED}${gh_user}${RESET}" ;;
+        j-garassino-engenious) gh_seg=" ${BOLD}$(gradient "work" 170 60 75 210 95 110)${RESET}" ;;
+        juan-garassino)        gh_seg=" $(gradient "personal" 225 170 55 245 205 110)${RESET}" ;;
+        *)                     gh_seg=" ${C_MUTED}${gh_user}${RESET}" ;;
     esac
 fi
 
 # Clock — burgundy: the system cluster is the red zone
-clock_seg="🕐 ${F_BURG}$(date +%H:%M)${RESET}"
+clock_seg=" ${F_BURG}$(date +%H:%M)${RESET}"
 
 # Free RAM — calm gray when plenty, yellow under 4G, red BLOCK under 2G.
 # macOS: free+inactive pages × page size; Linux: MemAvailable from /proc/meminfo.
