@@ -401,7 +401,7 @@ MAC_APPS = {"Warp": "warp", "Visual Studio Code": "vscode", "Cursor": "cursor", 
             "Discord": "discord", "Telegram": "telegram", "zoom.us": "zoom", "Firefox": "firefox",
             "Google Chrome": "chrome", "Obsidian": "obsidian", "Notion": "notion", "Gephi": "gephi",
             "balenaEtcher": "etcher", "Spotify": "spotify", "Dropbox": "dropbox", "NordVPN": "nordvpn",
-            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox", "Docker": "docker",
+            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox",
             "GitHub Desktop": "github", "WhatsApp": "whatsapp", "Microsoft Outlook": "outlook",
             "OneDrive": "onedrive", "DeepL": "deepl", "Comet": "comet", "MKPlayer": "mkplayer",
             "OmniPlayerStore": "omniplayer", "PokerStarsDE": "pokerstars", "The Unarchiver": "unarchiver",
@@ -411,6 +411,12 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 JXA_SET = "ObjC.import('AppKit');function run(a){var i=a[0]?$.NSImage.alloc.initWithContentsOfFile(a[0]):$();" \
           "return $.NSWorkspace.sharedWorkspace.setIconForFileOptions(i,a[1],0)}"
 
+
+# A custom icon writes Icon\r + FinderInfo into the bundle, which breaks its code signature
+# ("resource fork, Finder information, or similar detritus not allowed"). Most apps still launch;
+# apps whose privileged helpers verify the bundle do not (Docker Desktop's vmnetd: the engine never
+# starts). These keep their stock icon and get a Bauhaus launcher instead, like Apple's apps below.
+MAC_LAUNCH_ONLY = {"/Applications/Docker.app": "docker"}
 
 # Apple's own apps sit on the sealed system volume (no custom icons without disabling SIP), so they
 # get look-alike launchers in ~/Applications/Bauhaus that open the real app; --mac-dock swaps them
@@ -464,8 +470,9 @@ def refresh_dock():
 
 
 def mac(undo=False):
-    """macOS: custom Finder/Dock icon per app (Icon\\r in the bundle; signature stays valid) + launchers
-    for Apple's apps. Rendered by headless Chrome at Big Sur grid size (tile = 824/1024).
+    """macOS: custom Finder/Dock icon per app (Icon\\r in the bundle; this invalidates the bundle
+    signature, harmless for most apps) + launchers for Apple's apps and MAC_LAUNCH_ONLY apps.
+    Rendered by headless Chrome at Big Sur grid size (tile = 824/1024).
     An app update resets its icon — re-run."""
     MAC_OUT.mkdir(parents=True, exist_ok=True)
     for app, name in MAC_APPS.items():
@@ -474,10 +481,14 @@ def mac(undo=False):
             continue
         ok = mac_set_icon("" if undo else mac_png(name), path)
         print(f"  {'↩️ ' if undo else '🎨'} {app}" if ok else f"  ⚠️  {app}: root-owned — run this in a terminal (one sudo prompt)")
+    for target in MAC_LAUNCH_ONLY:            # always restore the stock icon so the signature is valid
+        if Path(target).exists() and Path(target, "Icon\r").exists():
+            mac_set_icon("", target)
+            print(f"  🔏 {Path(target).stem}: stock icon kept (signature-sensitive)")
     if undo:
         subprocess.run(["rm", "-rf", str(LAUNCHERS)], check=False)
     else:
-        for target, name in MAC_SYSTEM.items():
+        for target, name in {**MAC_SYSTEM, **MAC_LAUNCH_ONLY}.items():
             if Path(target).exists():
                 print(f"  🚀 {mac_launcher(target, mac_png(name)).name}")
     refresh_dock()
@@ -496,7 +507,7 @@ def mac_dock(undo=False):
             data = tile.get("tile-data", {})
             path = unquote(data.get("file-data", {}).get("_CFURLString", "")).removeprefix("file://").rstrip("/")
             launcher = LAUNCHERS / f"{Path(path).stem} Bauhaus.app"
-            if path in MAC_SYSTEM and launcher.exists():
+            if (path in MAC_SYSTEM or path in MAC_LAUNCH_ONLY) and launcher.exists():
                 data["file-data"] = {"_CFURLString": launcher.as_uri() + "/", "_CFURLStringType": 15}
                 data["file-label"] = Path(path).stem
                 data["bundle-identifier"] = plistlib.load((launcher / "Contents/Info.plist").open("rb"))["CFBundleIdentifier"]
