@@ -50,14 +50,14 @@ for container in "$CODE_DIR"/*/; do
 
     rel="${project#$CODE_DIR/}"
 
-    if [ -d "$project/.git" ]; then
+    if [ -e "$project/.git" ]; then          # a dir, or a file for a linked worktree
 
       branch=$(git -C "$project" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
 
       remote_url=$(git -C "$project" remote get-url origin 2>/dev/null || echo "")
       [ -z "$remote_url" ] && remote_url="no-remote"
 
-      dirty=$(git -C "$project" status --porcelain 2>/dev/null)
+      dirty=$(git -C "$project" --no-optional-locks status --porcelain 2>/dev/null)
       [ -n "$dirty" ] && repo_status="dirty" || repo_status="clean"
 
       staged=$(git -C "$project" diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')

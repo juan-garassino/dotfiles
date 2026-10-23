@@ -3,23 +3,25 @@
 # ✅ check_setup.sh — is this machine the same dev setup? (Linux, WSL or Mac)
 #
 #   check_setup.sh                          # dev-setup scorecard for this machine
-#   check_setup.sh --code user@source       # + compare ~/Code with the source machine
-#   check_setup.sh --code user@source --deep   (byte-compare every file: slow, reads ~93G)
+#   check_setup.sh --code "$S"              # + prove ~/Code identical to the source machine
+#   check_setup.sh --code local:/mnt/buffer/Code   # … or to a local/mounted copy (no ssh)
 #
-# Code check (no script needed on the source — the fingerprint runs there over ssh):
-#   1. per repo: HEAD · current branch · hash of ALL branches (local + remote-tracking) + tags ·
-#      stash count · dirty count — a missing repo or branch shows up as a difference
-#   2. rsync dry-run with the MIGRATE.md excludes → files missing/different (size+mtime, or
-#      checksums with --deep)
-# Read-only everywhere. Never prints secret values. Exit code = number of FAILs.
-# Portable: bash 3.2 (macOS) and bash 5 (Linux) — no associative arrays.
+# The code part delegates to verify_code.sh (same folder): every file's sha256,
+# mode, symlink target and size on both sides (manifest runs on the source over
+# ssh, nothing is copied there) + every repo's refs (except refs/remotes), stash,
+# index and status. Honours MIGRATE_EXCL (the exclude list: declined folders are
+# not FAILs) and MIGRATE_SSH (the migration key). Always byte-level, so --deep is
+# accepted and ignored. Read-only everywhere (git --no-optional-locks).
+# Never prints secret values. Exit code = number of FAILs (capped at 125).
+# Portable: bash 3.2 (macOS) and bash 5 (Linux) — no associative arrays. LC_ALL=C.
 ###############################################################################
 set -u
-SRC=""; DEEP=0
+export LC_ALL=C
+SRC=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --code) SRC="${2:?usage: --code user@host}"; shift 2 ;;
-    --deep) DEEP=1; shift ;;
+    --code) SRC="${2:?usage: --code 'user@host' | --code local:/dir}"; shift 2 ;;
+    --deep) shift ;;                                   # always byte-level now
     -h|--help) sed -n 2,15p "$0"; exit 0 ;;
     *) echo "unknown arg: $1"; exit 2 ;;
   esac
@@ -118,63 +120,44 @@ if [ "$OS" != mac ]; then
 fi
 
 sec "Code (local)"
-REPOS=$(find "$CODE" -name .git \( -type d -o -type f \) -not -path '*/node_modules/*' -not -path '*/.venv/*' -prune 2>/dev/null | wc -l | tr -d ' ')
-[ "$REPOS" -ge 150 ] && pass "~/Code has $REPOS git repos" || warn "~/Code has $REPOS git repos (source had ~190)"
+# every .git (dir or worktree file) at any depth; node_modules/.venv/venv/.venv-* pruned, not depth-limited
+gits() { find "$CODE" \( -name node_modules -o -name .venv -o -name venv -o -name '.venv-*' \) -prune -o \
+           -name .git \( -type d -o -type f \) -print -prune 2>/dev/null; }
+REPOS=$(gits | wc -l | tr -d ' ')
+[ "$REPOS" -ge 150 ] && pass "~/Code has $REPOS git repos" || warn "~/Code has $REPOS git repos (source had ~330 incl. worktrees)"
 if [ "$OS" != mac ]; then
-  ic=0; for g in $(find "$CODE" -name .git -prune -not -path '*/node_modules/*' 2>/dev/null); do
-    [ "$(git -C "${g%/.git}" config core.ignorecase 2>/dev/null)" = true ] && ic=$((ic+1)); done
+  ic=0; while IFS= read -r g; do
+    [ "$(git -C "${g%/.git}" --no-optional-locks config core.ignorecase 2>/dev/null)" = true ] && ic=$((ic+1)); done < <(gits)
   [ "$ic" -eq 0 ] && pass "core.ignorecase=false everywhere (case-sensitive FS)" || fail "$ic repos still core.ignorecase=true (MIGRATE.md step 9)"
 fi
-bw=0; for g in $(find "$CODE" -maxdepth 6 -name .git -type f -not -path '*/node_modules/*' 2>/dev/null); do
-  git -C "${g%/.git}" rev-parse --git-dir >/dev/null 2>&1 || bw=$((bw+1)); done
+bw=0; while IFS= read -r g; do
+  git -C "${g%/.git}" --no-optional-locks rev-parse --git-dir >/dev/null 2>&1 || bw=$((bw+1)); done < <(gits | while IFS= read -r g; do [ -f "$g" ] && echo "$g"; done)
 [ "$bw" -eq 0 ] && pass "all git worktrees resolve" || fail "$bw worktrees broken (git worktree repair)"
 
 # ---------------------------------------------------------------- code sync vs source
 if [ -n "$SRC" ]; then
   sec "Code sync vs $SRC"
-  FP='set -u; C="$HOME/Code"; H=$(command -v sha1sum || echo "shasum")
-  find "$C" -name .git \( -type d -o -type f \) -prune 2>/dev/null | grep -v -e /node_modules/ -e /.venv/ -e /000-config/001-dotfiles/ -e /000-config/dotfiles-uv-worktree/ | sort | while read -r g; do
-    r="${g%/.git}"; cd "$r" 2>/dev/null || continue
-    head=$(git rev-parse --short=12 HEAD 2>/dev/null || echo -); br=$(git branch --show-current 2>/dev/null); [ -n "$br" ] || br=DETACHED
-    refs=$(git for-each-ref --format="%(refname) %(objectname)" refs/heads refs/tags refs/remotes 2>/dev/null | $H | cut -c1-12)
-    nb=$(git for-each-ref refs/heads 2>/dev/null | wc -l | tr -d " "); st=$(git stash list 2>/dev/null | wc -l | tr -d " ")
-    d=$(git status --porcelain 2>/dev/null | wc -l | tr -d " ")
-    printf "%s|%s|%s|branches:%s:%s|stash:%s|dirty:%s\n" "${r#$C/}" "$head" "$br" "$nb" "$refs" "$st" "$d"
-  done'
-  RS="${RSYNC_RSH:-ssh}"
-  echo "  … fingerprinting every repo here and on the source (a few minutes)"
-  here=$(mktemp); there=$(mktemp)
-  bash -c "$FP" > "$here" 2>/dev/null
-  $RS "$SRC" "bash -s" <<< "$FP" > "$there" 2>/dev/null
-  nh=$(wc -l < "$here" | tr -d ' '); nt=$(wc -l < "$there" | tr -d ' ')
-  if [ "$nt" -eq 0 ]; then fail "could not fingerprint the source over ssh ($SRC)"
+  VC="$(cd "$(dirname "$0")" && pwd)/verify_code.sh"; [ -x "$VC" ] || VC="$DOT/custom_scripts/verify_code.sh"
+  if [ ! -x "$VC" ]; then fail "verify_code.sh not found next to $0 (dotfiles not cloned?)"
   else
-    dif=$(diff "$there" "$here" | grep -c '^[<>]')
-    if [ "$dif" -eq 0 ]; then pass "all $nh repos present and identical: HEAD, branch, ALL local+remote branches, tags, stashes, uncommitted changes"
-    else
-      fail "repo state differs ($nt repos on source, $nh here) — first differences (< source, > here):"
-      diff "$there" "$here" | grep '^[<>]' | head -20 | sed 's/^/       /'
-    fi
+    vargs=()
+    [ -n "${MIGRATE_EXCL:-}" ] && vargs=(--excl-file "$MIGRATE_EXCL")
+    case "$SRC" in
+      local:*|*' '*) vargs+=(--source "$SRC") ;;                 # local dir, or 'SSHCMD user@host'
+      *)             vargs+=(--source "${MIGRATE_SSH:-ssh} $SRC") ;;
+    esac
+    [ -n "${MIGRATE_EXCL:-}" ] || warn "MIGRATE_EXCL unset — declined folders will show as differences"
+    echo "  … verify_code.sh ${vargs[*]} (sha256 of every file + git state, both sides; a few minutes)"
+    out=$(mktemp); "$VC" "${vargs[@]}" > "$out" 2>&1; rc=$?
+    sed 's/^/       /' "$out"; rm -f "$out"
+    case "$rc" in
+      0) pass "$CODE identical to $SRC: every file (content, mode, symlinks) and every repo's refs/stash/index/status" ;;
+      3) fail "verify_code.sh canary not detected — the comparison is blind" ;;
+      2) fail "verify_code.sh usage error (rc=2) — see output above" ;;
+      *) fail "$CODE differs from $SRC or a side reported errors (verify_code.sh rc=$rc) — re-run the MIGRATE.md step-7 rsync, then this check" ;;
+    esac
   fi
-  rm -f "$here" "$there"
-
-  flags="-an --itemize-changes"; [ "$DEEP" = 1 ] && flags="-anc --itemize-changes"
-  echo "  … rsync dry-run $( [ "$DEEP" = 1 ] && echo '(checksums, slow)' || echo '(size+mtime)')"
-  out=$(mktemp)
-  rsync $flags -e "$RS" \
-    --exclude .venv --exclude venv --exclude '.venv-*' --exclude node_modules --exclude .next \
-    --exclude __pycache__ --exclude .pytest_cache --exclude .mypy_cache --exclude .terraform \
-    --exclude .DS_Store --exclude '._*' \
-    --exclude /000-config/001-dotfiles/ --exclude /000-config/dotfiles-uv-worktree/ \
-    "$SRC:Code/" "$CODE/" 2>/dev/null | grep -v '^\.d' > "$out"
-  nf=$(wc -l < "$out" | tr -d ' ')
-  if [ "$nf" -eq 0 ]; then pass "every file in ~/Code matches the source"
-  else
-    fail "$nf files missing/different vs source (re-run the MIGRATE.md step-7 rsync) — first 15:"
-    head -15 "$out" | sed 's/^/       /'
-  fi
-  rm -f "$out"
 fi
 
 printf '\n\033[1mResult: %s PASS · %s FAIL · %s WARN\033[0m\n' "$P" "$F" "$W"
-exit "$F"
+exit $(( F > 125 ? 125 : F ))

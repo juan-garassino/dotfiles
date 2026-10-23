@@ -12,9 +12,12 @@
 # is decidable locally.
 #
 # Usage: verify_coverage.sh [root=~/Code] [bundles=~/Archive/migration/git-bundles]
-# Exit 0 = everything covered; 1 = uncovered work exists.
+# Exit 0 = everything covered; 1 = uncovered work exists (summary line at the end).
+# Finds every .git at ANY depth (node_modules/.venv/venv/.venv-* pruned); read-only
+# (git --no-optional-locks); LC_ALL=C.
 ###############################################################################
 set -u
+export LC_ALL=C GIT_OPTIONAL_LOCKS=0
 ROOT="${1:-$HOME/Code}"
 BUNDLES="${2:-$HOME/Archive/migration/git-bundles}"
 
@@ -29,8 +32,8 @@ done > "$BUNDLE_IDX"
 
 echo "🛡️  Coverage sweep under $ROOT (bundles: $(sort -u -k1,1 "$BUNDLE_IDX" | awk '{print $1}' | sort -u | wc -l | tr -d ' ') files)..."
 
-find "$ROOT" -name .git -maxdepth 6 \( -type d -o -type f \) \
-    -not -path '*/node_modules/*' -not -path '*/.venv/*' 2>/dev/null | sort | while IFS= read -r g; do
+find "$ROOT" \( -name node_modules -o -name .venv -o -name venv -o -name '.venv-*' \) -prune -o \
+    -name .git \( -type d -o -type f \) -print -prune 2>/dev/null | sort | while IFS= read -r g; do
   d="${g:h}"
   common=$(cd "$d" 2>/dev/null && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
   [ -n "$common" ] || continue
@@ -65,10 +68,13 @@ find "$ROOT" -name .git -maxdepth 6 \( -type d -o -type f \) \
   done
 done
 
-# counters live in subshells — recompute verdict cheaply by re-scanning output is
-# overkill; emit a trailer the caller greps instead.
+# zsh runs the last command of a pipeline in the current shell, so the counters survive.
 rm -f "$BUNDLE_IDX"
 echo ""
-echo "Scan complete. Any ❌ UNCOVERED line above = work not in any remote or bundle."
-echo "Fix: push the branch, or refresh the repo's bundle: git -C <repo> bundle create ~/Archive/migration/git-bundles/<name>.bundle --all"
-# exit status: grep our own output is impossible here; caller: verify_coverage.sh | grep -c UNCOVERED
+echo "Scan complete: $n_repos repos · $n_tips branch tips · $n_uncovered UNCOVERED"
+if (( n_uncovered > 0 )); then
+  echo "Every ❌ UNCOVERED line above = work not in any remote or bundle."
+  echo "Fix: push the branch, or refresh the repo's bundle: git -C <repo> bundle create ~/Archive/migration/git-bundles/<name>.bundle --all"
+  exit 1
+fi
+exit 0
