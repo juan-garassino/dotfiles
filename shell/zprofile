@@ -18,6 +18,10 @@ elif [[ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
+# Keg-only Homebrew formulae that must be on PATH (rustup: cargo/rustc proxies live here)
+[[ -n "$HOMEBREW_PREFIX" && -d "$HOMEBREW_PREFIX/opt/rustup/bin" ]] && export PATH="$HOMEBREW_PREFIX/opt/rustup/bin:$PATH"
+
 # >>> Codex installer >>>
-export PATH="/Users/juan-garassino/.local/bin:$PATH"
+# (markers kept so the Codex installer doesn't append a second, hard-coded copy; $HOME not /Users/<x>)
+export PATH="$HOME/.local/bin:$PATH"
 # <<< Codex installer <<<

@@ -12,6 +12,7 @@
 .aws
 .config/gcloud
 .bigqueryrc
+.config/dotfiles
 
 # Claude Code (memory, plans, plugins, history) — settings.json etc. are excluded on the command
 .claude

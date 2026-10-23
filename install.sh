@@ -29,22 +29,114 @@ echo ""
 # Helpers
 ###############################################################################
 
+# backup FILE — move a REAL file/dir aside as FILE.<YYYYmmdd-HHMMSS>.backup (the migration
+# hygiene gate finds leftovers with `-name '*.backup'`, so the suffix must stay `.backup`).
+# Symlinks are never backed up: symlink() replaces them in place.
 backup() {
-  local target=$1
+  local target=$1 dest
   if [ -e "$target" ] && [ ! -L "$target" ]; then
-    mv "$target" "$target.backup"
-    echo "  📦 Backed up $target → $target.backup"
+    dest="$target.$(date +%Y%m%d-%H%M%S).backup"
+    [ -e "$dest" ] && dest="$target.$(date +%Y%m%d-%H%M%S).$$.backup"
+    mv "$target" "$dest"
+    echo "  📦 Backed up $target → $dest"
   fi
 }
 
+# symlink TARGET LINK — idempotent:
+#   LINK is a symlink → TARGET        : untouched ("Already linked")
+#   LINK is a symlink → anything else : replaced (covers DANGLING links, e.g. a copied ~/.ssh/config
+#                                       pointing at /Users/<old-user>/… — `[ -e ]` is false for those,
+#                                       so the old code ran `ln -s`, hit "File exists" and set -e aborted)
+#   LINK is a real file/dir           : backed up (timestamped), then linked
+#   LINK absent                       : linked
 symlink() {
-  local file=$1
-  local link=$2
-  if [ ! -e "$link" ]; then
+  local file=$1 link=$2 current
+  if [ -L "$link" ]; then
+    current="$(readlink "$link")"
+    if [ "$current" = "$file" ]; then
+      echo "  ✅ Already linked: $link"
+    else
+      ln -sfn "$file" "$link"
+      echo "  🔁 Relinked $link (was → $current)"
+    fi
+  elif [ -e "$link" ]; then
+    backup "$link"
     ln -s "$file" "$link"
     echo "  🔗 Linked $link"
   else
-    echo "  ✅ Already linked: $link"
+    ln -s "$file" "$link"
+    echo "  🔗 Linked $link"
+  fi
+}
+
+# install_meslo_fonts DIR — the 4 "MesloLGS NF" ttf files p10k + Warp expect (Warp settings say
+# font_name = "MesloLGS NF"; the Brewfile's font-meslo-lg-nerd-font cask installs a DIFFERENT
+# family name, "MesloLGS Nerd Font", so the cask alone leaves Warp on a fallback font). Idempotent.
+install_meslo_fonts() {
+  local dir=$1 v f
+  mkdir -p "$dir"
+  for v in "Regular" "Bold" "Italic" "Bold Italic"; do
+    f="$dir/MesloLGS NF $v.ttf"
+    [ -s "$f" ] && continue
+    curl -fsSL -o "$f" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${v// /%20}.ttf" \
+      || { rm -f "$f"; echo "  ⚠️  font download failed: MesloLGS NF $v"; }
+  done
+  echo "  🔤 MesloLGS NF present in $dir"
+}
+
+# link_editor_settings — VS Code / Cursor settings.json → repo copy. Called in step 3 AND again
+# after the Brewfile step: on a first run the apps don't exist yet at step 3 (they install in
+# step 6), so the User dir is missing and the link used to be skipped silently.
+link_editor_settings() {
+  local editor_path
+  if [[ "$OS" == "Darwin" ]]; then
+    CODE_PATH="$HOME/Library/Application Support/Code/User"
+    CURSOR_PATH="$HOME/Library/Application Support/Cursor/User"
+    [ -d "/Applications/Visual Studio Code.app" ] && mkdir -p "$CODE_PATH"
+    [ -d "/Applications/Cursor.app" ]             && mkdir -p "$CURSOR_PATH"
+  else
+    CODE_PATH="$HOME/.config/Code/User"
+    CURSOR_PATH="$HOME/.config/Cursor/User"
+    if [ ! -e "$CODE_PATH" ]; then
+      if command -v code >/dev/null 2>&1; then mkdir -p "$CODE_PATH"
+      else CODE_PATH="$HOME/.vscode-server/data/Machine"; fi
+    fi
+  fi
+  for editor_path in "$CODE_PATH" "$CURSOR_PATH"; do
+    if [ -d "$editor_path" ]; then
+      symlink "$DOTFILES_DIR/editor/settings.json" "$editor_path/settings.json"
+    else
+      echo "  ⏭️  $editor_path not present yet — editor settings linked after the app installs"
+    fi
+  done
+}
+
+# merge_docker_plugins_dir DIR — Homebrew's docker-compose is a CLI plugin; `docker compose` only
+# works once ~/.docker/config.json lists $HOMEBREW_PREFIX/lib/docker/cli-plugins in
+# cliPluginsExtraDirs (the formula's caveat). jq merge via temp file + mv; an invalid file is
+# never clobbered.
+merge_docker_plugins_dir() {
+  local dir=$1 cfg="$HOME/.docker/config.json" tmp
+  command -v jq >/dev/null 2>&1 || { echo "  ⚠️  jq missing — add \"cliPluginsExtraDirs\": [\"$dir\"] to $cfg by hand"; return 0; }
+  mkdir -p "$HOME/.docker"
+  if [ ! -s "$cfg" ]; then
+    printf '{\n  "cliPluginsExtraDirs": ["%s"]\n}\n' "$dir" > "$cfg"
+    echo "  🐳 $cfg created (docker compose plugin dir)"
+    return 0
+  fi
+  if ! jq -e . "$cfg" >/dev/null 2>&1; then
+    echo "  ⚠️  $cfg is not valid JSON — left untouched; add \"cliPluginsExtraDirs\": [\"$dir\"] by hand"
+    return 0
+  fi
+  if jq -e --arg d "$dir" '(.cliPluginsExtraDirs // []) | index($d) != null' "$cfg" >/dev/null 2>&1; then
+    echo "  ✅ docker compose plugin dir already in $cfg"
+    return 0
+  fi
+  tmp="$(mktemp "$HOME/.docker/config.json.XXXXXX")" || return 0
+  if jq --arg d "$dir" '.cliPluginsExtraDirs = ((.cliPluginsExtraDirs // []) + [$d] | unique)' "$cfg" > "$tmp"; then
+    mv "$tmp" "$cfg" && echo "  🐳 docker compose plugin dir added to $cfg"
+  else
+    rm -f "$tmp"; echo "  ⚠️  jq merge failed — $cfg left untouched"
   fi
 }
 
@@ -58,13 +150,36 @@ if [ "$OS" = "Darwin" ]; then
     echo "  📦 Installing Command Line Tools (accept the GUI prompt)..."
     xcode-select --install || true
   fi
+  # brew may be installed but not on PATH yet (fresh login shell, Claude's `zsh -c`) — put it on
+  # PATH BEFORE deciding to run the installer, or an installed Homebrew gets re-installed.
+  if ! command -v brew >/dev/null 2>&1; then
+    for _b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+      [ -x "$_b" ] && { eval "$("$_b" shellenv)"; break; }
+    done
+  fi
   if ! command -v brew >/dev/null 2>&1; then
     echo "  🍺 Installing Homebrew..."
-    # NONINTERACTIVE: no "Press RETURN" prompt, so Claude can drive it (sudo must already work)
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    [ -f /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
-    [ -f /usr/local/bin/brew ]    && eval "$(/usr/local/bin/brew shellenv)"
+    # The Homebrew installer needs sudo. NONINTERACTIVE=1 skips its "Press RETURN" prompt but
+    # then it can only work with passwordless sudo; without a TTY it would die with a cryptic
+    # "sudo: a terminal is required" inside `set -e`. Say so up front instead.
+    if sudo -n true 2>/dev/null; then
+      NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+        || { echo "  ❌ Homebrew installer failed — fix the error above and re-run ./install.sh"; exit 1; }
+    elif [ -t 0 ]; then
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+        || { echo "  ❌ Homebrew installer failed — fix the error above and re-run ./install.sh"; exit 1; }
+    else
+      echo "  ❌ Homebrew is not installed and this run has no terminal and no passwordless sudo."
+      echo "     Either run in a terminal:  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+      echo "     or grant passwordless sudo for the install (e.g. a temporary /etc/sudoers.d entry), then re-run ./install.sh"
+      exit 1
+    fi
+    for _b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+      [ -x "$_b" ] && { eval "$("$_b" shellenv)"; break; }
+    done
   fi
+  # MesloLGS NF into ~/Library/Fonts (the font Warp/p10k are configured for; see install_meslo_fonts)
+  install_meslo_fonts "$HOME/Library/Fonts"
 
 elif [ "$OS" = "Linux" ]; then
   pkglist() { grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$1" 2>/dev/null; }
@@ -113,12 +228,9 @@ elif [ "$OS" = "Linux" ]; then
   command -v uv >/dev/null 2>&1 || { echo "  📦 uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
   # MesloLGS NF — the p10k font (macOS gets it from the Brewfile cask). Without it the prompt
   # renders tofu boxes. Then point the desktop terminal at it (GNOME Terminal / Ptyxis).
-  FONT_DIR="$HOME/.local/share/fonts"; mkdir -p "$FONT_DIR"
-  for v in "Regular" "Bold" "Italic" "Bold Italic"; do
-    f="$FONT_DIR/MesloLGS NF $v.ttf"
-    [ -f "$f" ] || curl -fsSL -o "$f" "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${v// /%20}.ttf" || echo "  ⚠️  font download failed: $v"
-  done
-  command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONT_DIR" >/dev/null 2>&1 && echo "  🔤 MesloLGS NF installed"
+  FONT_DIR="$HOME/.local/share/fonts"
+  install_meslo_fonts "$FONT_DIR"
+  command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
   if [ "$IS_WSL" = 1 ]; then
     echo "  🪟 WSL: the terminal is a Windows app — install MesloLGS NF on WINDOWS (double-click the 4"
     echo "     .ttf files in $FONT_DIR via "'\\\\wsl$'" → Install for all users) and set Windows Terminal /"
@@ -164,7 +276,6 @@ link_map=(
 )
 for pair in "${link_map[@]}"; do
   src="${pair%%:*}"; dst="${pair#*:}"
-  backup "$dst"
   symlink "$DOTFILES_DIR/$src" "$dst"
 done
 
@@ -175,7 +286,6 @@ echo ""
 echo "🔐 SSH config..."
 if [[ "$(uname)" == "Darwin" ]]; then
   mkdir -p ~/.ssh && chmod 700 ~/.ssh
-  backup ~/.ssh/config
   symlink "$DOTFILES_DIR/ssh/config" ~/.ssh/config
 
   # Modern macOS keychain flag (Ventura+)
@@ -192,7 +302,6 @@ if [[ "$(uname)" == "Darwin" ]]; then
 else
   # Linux — symlink config + add keys to the ssh-agent (no macOS keychain)
   mkdir -p ~/.ssh && chmod 700 ~/.ssh
-  backup ~/.ssh/config
   symlink "$DOTFILES_DIR/ssh/config" ~/.ssh/config
   eval "$(ssh-agent -s)" >/dev/null 2>&1 || true
   [ -f ~/.ssh/id_ed25519_personal ] && ssh-add ~/.ssh/id_ed25519_personal 2>/dev/null || true
@@ -205,21 +314,7 @@ fi
 echo ""
 echo "⚙️  VS Code / Cursor settings..."
 
-if [[ "$(uname)" == "Darwin" ]]; then
-  CODE_PATH=~/Library/Application\ Support/Code/User
-  CURSOR_PATH=~/Library/Application\ Support/Cursor/User
-else
-  CODE_PATH=~/.config/Code/User
-  CURSOR_PATH=~/.config/Cursor/User
-  [ ! -e "$CODE_PATH" ] && CODE_PATH=~/.vscode-server/data/Machine
-fi
-
-for editor_path in "$CODE_PATH" "$CURSOR_PATH"; do
-  if [ -d "$editor_path" ]; then
-    backup "$editor_path/settings.json"
-    symlink "$DOTFILES_DIR/editor/settings.json" "$editor_path/settings.json"
-  fi
-done
+link_editor_settings   # repeated after step 6 once the apps exist
 
 ###############################################################################
 # 4. Oh-My-Zsh + zsh plugins
@@ -236,7 +331,11 @@ if [ ! -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
     rm -rf "$HOME/.oh-my-zsh"
   fi
   echo "  📦 Installing Oh-My-Zsh..."
-  RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  # CHSH=no: never call chsh (prompts for a password → hangs without a TTY; step 0 handles the
+  # default shell on Linux, macOS already uses zsh). RUNZSH=no: don't exec a zsh at the end.
+  # KEEP_ZSHRC=yes: don't move our symlinked ~/.zshrc aside. All three are read by tools/install.sh.
+  CHSH=no RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
+    || echo "  ⚠️  Oh-My-Zsh install failed (network?) — re-run ./install.sh later; the shell still works without it"
 else
   echo "  ✅ Oh-My-Zsh present"
 fi
@@ -250,14 +349,16 @@ mkdir -p "$HOME/.nvm"   # brew nvm needs the working dir to exist
 
 if [ ! -d "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" ]; then
   echo "  📦 Installing zsh-syntax-highlighting..."
-  git clone --quiet https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+  git clone --quiet https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting" \
+    || echo "  ⚠️  zsh-syntax-highlighting clone failed (network?) — re-run ./install.sh later"
 else
   echo "  ✅ zsh-syntax-highlighting already installed"
 fi
 
 if [ ! -d "$ZSH_PLUGINS_DIR/zsh-autosuggestions" ]; then
   echo "  📦 Installing zsh-autosuggestions..."
-  git clone --quiet https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+  git clone --quiet https://github.com/zsh-users/zsh-autosuggestions "$ZSH_PLUGINS_DIR/zsh-autosuggestions" \
+    || echo "  ⚠️  zsh-autosuggestions clone failed (network?) — re-run ./install.sh later"
 else
   echo "  ✅ zsh-autosuggestions already installed"
 fi
@@ -273,7 +374,7 @@ if [ "$OS" = "Darwin" ]; then
   for pkg in "${BREW_PACKAGES[@]}"; do
     if ! command -v "$pkg" &>/dev/null; then
       echo "  📦 Installing $pkg..."
-      brew install "$pkg"
+      brew install "$pkg" || echo "  ⚠️  brew install $pkg failed — the Brewfile step retries it"
     else
       echo "  ✅ $pkg already installed"
     fi
@@ -298,6 +399,27 @@ echo ""
 echo "🍺 Restoring full Homebrew bundle..."
 if [ "$OS" = "Darwin" ] && command -v brew &>/dev/null && [ -f "$DOTFILES_DIR/packages/Brewfile" ]; then
   brew bundle --file="$DOTFILES_DIR/packages/Brewfile" || echo "  ⚠️  Some bundle entries failed — review output above"
+  _prefix="$(brew --prefix)"
+  # docker compose (CLI plugin, see merge_docker_plugins_dir) — only once the formula is there
+  [ -d "$_prefix/lib/docker/cli-plugins" ] && merge_docker_plugins_dir "$_prefix/lib/docker/cli-plugins"
+  # rustup (keg-only: its bin dir is NOT on PATH — zprofile adds $HOMEBREW_PREFIX/opt/rustup/bin)
+  # installs no toolchain by itself; without one `cargo`/`rustc` are proxies that error out.
+  # `rustup default` prints the active toolchain, so a non-zero exit = none configured yet.
+  _rustup="$_prefix/opt/rustup/bin/rustup"
+  [ -x "$_rustup" ] || _rustup="$(command -v rustup 2>/dev/null || true)"   # e.g. a carried-over ~/.cargo/bin/rustup
+  if [ -n "$_rustup" ] && [ -x "$_rustup" ]; then
+    if "$_rustup" default >/dev/null 2>&1; then
+      echo "  ✅ rust toolchain: $("$_rustup" default 2>/dev/null)"
+    else
+      echo "  🦀 rustup default stable..."
+      "$_rustup" default stable >/dev/null 2>&1 && echo "  ✅ rust stable installed (cargo via \$HOMEBREW_PREFIX/opt/rustup/bin in zprofile)" \
+        || echo "  ⚠️  rustup default stable failed — run it manually later"
+    fi
+  fi
+  # editor settings again — VS Code / Cursor exist now (first run skipped them in step 3)
+  echo ""
+  echo "⚙️  VS Code / Cursor settings (post-install)..."
+  link_editor_settings
 else
   echo "  ⏭️  Not macOS / no brew — skipping Brewfile (Linux uses packages/apt.txt|dnf.txt)"
 fi
@@ -359,7 +481,8 @@ echo ""
 echo "🎨 Powerlevel10k..."
 if [ ! -d "$HOME/.powerlevel10k" ]; then
   echo "  📦 Installing Powerlevel10k..."
-  git clone --quiet --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.powerlevel10k"
+  git clone --quiet --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.powerlevel10k" \
+    || echo "  ⚠️  powerlevel10k clone failed (network?) — re-run ./install.sh later"
 else
   echo "  ✅ Powerlevel10k present"
 fi
@@ -370,7 +493,6 @@ fi
 echo ""
 echo "🤖 Claude Code config..."
 mkdir -p "$HOME/.claude" "$HOME/.claude-tmp"   # CLAUDE_CODE_TMPDIR (settings env) must exist
-backup ~/.claude/statusline-command.sh
 symlink "$DOTFILES_DIR/claude/statusline-command.sh" ~/.claude/statusline-command.sh
 if [ -f "$DOTFILES_DIR/claude/settings.json" ]; then
   if [ ! -f "$HOME/.claude/settings.json" ]; then
@@ -380,8 +502,16 @@ if [ -f "$DOTFILES_DIR/claude/settings.json" ]; then
     # A fresh login (bootstrap.sh) can create a near-empty settings.json first — merge the
     # template in (template wins) so statusline, hooks and plugins still land.
     cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.pre-dotfiles"
-    jq -s '.[0] * .[1]' "$HOME/.claude/settings.json.pre-dotfiles" <(sed "s#/Users/juan-garassino#$HOME#g" "$DOTFILES_DIR/claude/settings.json") > "$HOME/.claude/settings.json"
-    echo "  🔗 Merged Claude settings template into the fresh settings.json (backup: settings.json.pre-dotfiles)"
+    # temp file + mv: `jq … > settings.json` truncates the target BEFORE jq reads, so a jq error
+    # (or a Ctrl-C) used to leave an empty settings.json
+    _tmp="$(mktemp "$HOME/.claude/settings.json.XXXXXX")"
+    if jq -s '.[0] * .[1]' "$HOME/.claude/settings.json.pre-dotfiles" <(sed "s#/Users/juan-garassino#$HOME#g" "$DOTFILES_DIR/claude/settings.json") > "$_tmp"; then
+      mv "$_tmp" "$HOME/.claude/settings.json"
+      echo "  🔗 Merged Claude settings template into the fresh settings.json (backup: settings.json.pre-dotfiles)"
+    else
+      rm -f "$_tmp"
+      echo "  ⚠️  jq merge failed — settings.json left as it was (template: claude/settings.json)"
+    fi
   else
     echo "  ✅ Claude settings.json exists — left as-is (diff against claude/settings.json template if needed)"
   fi
@@ -432,6 +562,13 @@ ask_yes_no() {   # $1 = env value (yes|no|ask), $2 = prompt; returns 0 for yes
 BAUHAUS_ICONS="${BAUHAUS_ICONS:-ask}"
 BAUHAUS_MAC_EXTRAS="${BAUHAUS_MAC_EXTRAS:-ask}"
 if [[ "$OS" == "Darwin" ]]; then
+  # macOS 13+ "App Management" (Privacy & Security) can block writes into other vendors' .app
+  # bundles for the terminal/agent doing it — the icon swap is untested there. Still opt-in.
+  _macver="$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)"
+  if [ "${_macver:-0}" -ge 13 ] 2>/dev/null; then
+    echo "  ⚠️  macOS $_macver: writing icons into other apps' bundles may be blocked by Privacy & Security →"
+    echo "     App Management (grant it to your terminal first). Untested on macOS ≥ 13 — default is NO."
+  fi
   if ask_yes_no "$BAUHAUS_ICONS" "Use the new Bauhaus app icons on this Mac?"; then
     python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" --mac \
       && echo "  🎨 Bauhaus app icons applied (one sudo prompt for root-owned apps)" \

@@ -27,9 +27,19 @@ unalias rm 2>/dev/null   # only exists while common-aliases provides rm='rm -i'
 #######################################################################
 # 📂 Path and Environment Settings
 #######################################################################
+# HOMEBREW_PREFIX normally comes from `brew shellenv` in zprofile (/opt/homebrew on Apple
+# Silicon, /usr/local on Intel, /home/linuxbrew/.linuxbrew on Linux). Non-login shells
+# (`zsh -c`, some IDE terminals) skip zprofile — derive it here from whichever brew exists
+# instead of guessing an arch-specific default. Empty when there's no Homebrew (Linux/apt).
+if [[ -z "$HOMEBREW_PREFIX" ]]; then
+  for _b in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+    [[ -x "$_b" ]] && { eval "$("$_b" shellenv)"; break; }
+  done
+  unset _b
+fi
 # Relative dirs APPENDED, not prepended: a cloned repo's ./bin/git must never
 # shadow the real git (classic PATH-hijack vector).
-export PATH="${PATH}:./bin:./node_modules/.bin:${HOMEBREW_PREFIX:-/opt/homebrew}/sbin"
+export PATH="${PATH}:./bin:./node_modules/.bin${HOMEBREW_PREFIX:+:$HOMEBREW_PREFIX/sbin}"
 export PATH="$PATH:$HOME/.local/bin"
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
@@ -52,10 +62,10 @@ _nvm_lazy_load() {
   unset -f nvm node npm npx yarn pnpm corepack _nvm_lazy_load
   # brew-installed nvm lives under the brew prefix, NOT in $NVM_DIR (which only
   # holds installed node versions); standalone-nvm fallback kept second.
-  local _brew_nvm="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/nvm.sh"
+  local _brew_nvm="${HOMEBREW_PREFIX}/opt/nvm/nvm.sh"
   if [ -s "$_brew_nvm" ]; then \. "$_brew_nvm"
   elif [ -s "$NVM_DIR/nvm.sh" ]; then \. "$NVM_DIR/nvm.sh"; fi
-  [ -s "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/etc/bash_completion.d/nvm" ] && \. "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/etc/bash_completion.d/nvm"
+  [ -s "${HOMEBREW_PREFIX}/opt/nvm/etc/bash_completion.d/nvm" ] && \. "${HOMEBREW_PREFIX}/opt/nvm/etc/bash_completion.d/nvm"
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
   autoload -U add-zsh-hook
   load-nvmrc() {
@@ -109,16 +119,16 @@ fi
 # NOTE: the cask was renamed google-cloud-sdk → gcloud-cli.
 # HOMEBREW_PREFIX comes from `brew shellenv` in zprofile — /opt/homebrew on
 # Apple Silicon, /usr/local on Intel. No hardcoded arch paths.
-if [ -f "${HOMEBREW_PREFIX:-/usr/local}/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc" ]; then
-  . "${HOMEBREW_PREFIX:-/usr/local}/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc"
+if [ -f "${HOMEBREW_PREFIX}/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc" ]; then
+  . "${HOMEBREW_PREFIX}/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc"
 fi
-if [ -f "${HOMEBREW_PREFIX:-/usr/local}/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc" ]; then
-  . "${HOMEBREW_PREFIX:-/usr/local}/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc"
+if [ -f "${HOMEBREW_PREFIX}/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc" ]; then
+  . "${HOMEBREW_PREFIX}/Caskroom/gcloud-cli/latest/google-cloud-sdk/completion.zsh.inc"
 fi
 # Without this, gcloud's launcher picks a Homebrew python whose site-packages
 # protobuf breaks gcloud's bundled proto libs. macOS-only: Linux gcloud (apt) brings its own.
-[ -x "${HOMEBREW_PREFIX:-/usr/local}/opt/python@3.12/bin/python3.12" ] && \
-  export CLOUDSDK_PYTHON="${HOMEBREW_PREFIX:-/usr/local}/opt/python@3.12/bin/python3.12"
+[ -x "${HOMEBREW_PREFIX}/opt/python@3.12/bin/python3.12" ] && \
+  export CLOUDSDK_PYTHON="${HOMEBREW_PREFIX}/opt/python@3.12/bin/python3.12"
 
 # 🔑 GCP credentials — loaded per context (personal/work), not hardcoded
 # Use `workon` or `personal` to activate the right credentials

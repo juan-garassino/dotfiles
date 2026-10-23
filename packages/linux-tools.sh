@@ -99,7 +99,7 @@ if ! have minikube; then
 fi
 have k3d || { echo "  📦 k3d..."; curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | sudo bash >/dev/null; }
 have act || { echo "  📦 act..."; curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash -s -- -b /usr/local/bin >/dev/null; }
-have runpodctl || { echo "  📦 runpodctl..."; curl -fsSL cli.runpod.net | sudo bash >/dev/null 2>&1 || echo "  ⚠️  runpodctl install failed"; }
+have runpodctl || { echo "  📦 runpodctl..."; curl -fsSL https://cli.runpod.net | sudo bash >/dev/null 2>&1 || echo "  ⚠️  runpodctl install failed"; }
 if ! have cloud-sql-proxy; then
   echo "  📦 cloud-sql-proxy..."
   # "latest" can be a v1 maintenance tag (not hosted on this bucket) — take the newest v2.x

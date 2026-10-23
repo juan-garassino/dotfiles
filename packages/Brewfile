@@ -1,5 +1,5 @@
 tap "hashicorp/tap"
-tap "homebrew/services"
+# (homebrew/services tap removed: deprecated, `brew services` ships with Homebrew itself)
 tap "ngrok/ngrok"
 tap "runpod/runpodctl"
 # Run your GitHub Actions locally
@@ -11,12 +11,17 @@ brew "awscli"
 # Container runtimes on MacOS (and Linux) with minimal setup
 brew "colima"
 # Load/unload environment variables based on $PWD
-brew "cloud-sql-proxy"      # garassino-mlflow Cloud SQL access
+brew "cloud-sql-proxy"      # Cloud SQL access
 brew "direnv"
 # Pack, ship and run any application as a lightweight container
 brew "docker"
-# Isolated development environments using Docker
-brew "docker-compose", link: false
+# Isolated development environments using Docker. CLI plugin: `docker compose` works once
+# ~/.docker/config.json lists $HOMEBREW_PREFIX/lib/docker/cli-plugins (install.sh does that).
+# (was `link: false` — an Intel-era workaround that left docker-compose unusable)
+brew "docker-compose"
+# Docker Desktop is NOT installed: colima (above) is the default container runtime.
+# Uncomment only if you really want the Desktop app (it conflicts with colima's docker context).
+# cask "docker-desktop"
 # OCR (Optical Character Recognition) engine — pytesseract (sandbox)
 brew "tesseract"
 # Play, record, convert, and stream select audio and video codecs — imageio-ffmpeg (sandbox)
@@ -57,11 +62,16 @@ brew "ncdu"
 # Manage multiple Node.js versions
 brew "nvm"
 # Create, run, and share large language models (LLMs)
-brew "ollama", link: false
-# Object-relational database system
+brew "ollama"
+# Postgres CLIENT only (psql, pg_dump) — servers run in containers. libpq is keg-only;
+# `link: true` puts psql/pg_dump in $HOMEBREW_PREFIX/bin so they're reachable from
+# non-login shells too (Claude's `zsh -c`), without a PATH line. Safe: no postgresql
+# formula in this Brewfile to collide with.
+brew "libpq", link: true
 # Minimal system Python (uv manages all project/dev Pythons)
-# Simplified and community-driven man pages
-brew "tldr"
+# Simplified and community-driven man pages — `tldr` formula is disabled (unmaintained,
+# 2025-10-24) and would fail `brew bundle`; tlrc is Homebrew's named replacement (same `tldr` command)
+brew "tlrc"
 # Display directories as trees (with optional color/HTML output)
 brew "tree"
 # Extremely fast Python package and project manager — THE Python toolchain
