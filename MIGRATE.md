@@ -50,6 +50,24 @@ use `src …` (it carries the migration key, `IdentitiesOnly`, `BatchMode`), and
 `"${EXCL[@]}"`-style arrays — pass the files. Answers for `install.sh` go on its command line
 (step 8), not in an `export`.
 
+## P. Before the freeze — reconcile a buffer that already holds an older `~/Code` (run on the SOURCE, only if a buffer exists)
+
+A Linux buffer filled by an earlier migration may hold work done **on the buffer** since then. The buffer is later mirrored from the
+source with `--delete` (step 10b), so that work must come to the source first. This is the only place where this runbook changes the
+source — deliberately, before the freeze, with the user approving every item. Run it from a Claude session on the source:
+1. 🙋 Buffer on, `sshd` + `rsync` + `perl` + `git`; the source can ssh to it without a password (`ssh-copy-id <user>@<buffer-ip>`). `BUF=<user>@<buffer-ip>`.
+2. **Find what exists only on the buffer** (all read-only on both sides):
+   - Files: `rsync -ani --update --exclude-from=<code-excl.txt> "$BUF:Code/" ~/Code/` — lists files missing here or newer there.
+   - Commits: per repo present on both, `git -C <repo> fetch --no-tags "ssh://$BUF/~/Code/<repo>" '+refs/heads/*:refs/remotes/buffer/*'`
+     (adds only `refs/remotes/buffer/*`, which the proof ignores), then `git -C <repo> rev-list --count --remotes=buffer --not --branches --tags`
+     → repos with buffer-only commits. Repos that exist only on the buffer: from the `rsync -ani` list.
+   - Uncommitted work: per repo on the buffer `git --no-optional-locks status --porcelain`; for each dirty one save
+     `git diff --binary HEAD` and a tar of the untracked files into `~/migration-staging/buffer-wip/<repo>/` (on the source).
+3. 🙋 Show the user one list (repo / commits / dirty files / loose files) and decide **one item at a time**: merge or cherry-pick the
+   `buffer/*` branch, apply the patch, copy the file, or drop it. Nothing is discarded without a "drop".
+4. Remove the `refs/remotes/buffer/*` refs when done (`git update-ref -d`), then **freeze** `~/Code` on the source. From here on the
+   buffer is a disposable copy.
+
 ## 0. Bootstrap (human, one command — done if you are reading this inside Claude)
 
 Pinned to the tag the migration was reviewed on (the coordinator creates it after merging):
@@ -473,12 +491,25 @@ was filled early, also right after 7b): the only post-copy differences the manif
    `printf 'BUF=%s\n' '<user>@<buffer-ip>' >> ~/.migration/env` (appending after the guard line is fine — it only tests `S`/`SRC_HOME`).
    The buffer itself needs ssh to the source:
    🙋 on the buffer `ssh-keygen -t ed25519 -f ~/.ssh/id_migrate -N ""` + `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<source-ip>`.
-3. Fill the buffer with the **same exclude list** (copy it over, then pull from the source — `run_in_background`, log it):
+3. Make the buffer an **exact mirror** of the source with the **same exclude list**. A buffer that already holds an older `~/Code` is
+   only updated (fast), but it needs `--delete` — otherwise files deleted or renamed on the source since then stay there and check 2
+   FAILs. **Section P must have been done first** if the buffer ever had its own work. Excluded paths (the buffer's Linux `.venv`,
+   `node_modules`, …) are protected from deletion; never use `--delete-excluded`. Dry run first, then the real run:
    ```bash
    source ~/.migration/env
    scp -i ~/.ssh/id_migrate -o IdentitiesOnly=yes "$MIGRATE_EXCL" "$BUF:code-excl.txt"
-   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "mkdir -p ~/Code && rsync -aH --partial --stats -e 'ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes' --exclude-from=code-excl.txt '$S:Code/' ~/Code/" > ~/.migration/logs/10b-buffer.log 2>&1
+   B="mkdir -p ~/Code && rsync -aH --partial --delete -e 'ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes' --exclude-from=code-excl.txt"
+   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "$B -n --itemize-changes '$S:Code/' ~/Code/" > ~/.migration/logs/10b-buffer-dry.log 2>&1
+   grep -c '^\*deleting' ~/.migration/logs/10b-buffer-dry.log; grep '^\*deleting' ~/.migration/logs/10b-buffer-dry.log | head -50
    ```
+   🙋 Show the user the number of deletions and the list (grouped by top-level folder) and wait for "go". Then the real run
+   (`run_in_background`, log it):
+   ```bash
+   source ~/.migration/env
+   B="mkdir -p ~/Code && rsync -aH --partial --delete --stats -e 'ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes' --exclude-from=code-excl.txt"
+   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "$B '$S:Code/' ~/Code/" > ~/.migration/logs/10b-buffer.log 2>&1
+   ```
+   `--delete` only ever points at the buffer (the destination); the source is never written.
    (`--exclude-from=code-excl.txt` is relative to the buffer's home, where the ssh command starts — never `=~/…`: a `~` after `=` is not
    expanded, and rsync would abort on a missing file.) After the proof: `ssh … "$BUF" 'rm -f ~/code-excl.txt'`.
 4. **Freeze the source** (🙋 nothing edits `~/Code` there; `caffeinate` still running) and run all three pairs from here:
@@ -506,6 +537,34 @@ done
 patch + `src "cd <path> && git ls-files -o --exclude-standard -z | tar -czf - --null -T -"` > untracked tgz — the carried snapshot may be stale.
 Then `git worktree prune` and check every rescued HEAD is reachable (`git branch --contains <sha>`). Then the `.DS_Store` restore and the
 `envup`/`mysandbox` runs from step 9. These are deliberate divergences from the source — list them in `answers.md`.
+
+### 10d. Personal data through the buffer (only for a personal machine — Round A role = Personal or Both)
+
+Used when a source machine is about to be wiped and re-used as the personal machine (e.g. the Intel Mac becoming Linux). This runbook
+otherwise never copies Documents/Downloads/Pictures; this section is the explicit exception, and its data never goes to a coding-only target.
+**Out (source → buffer, before the wipe gate):**
+1. Exclude list for personal data, `~/.migration/data-excl.txt`: `.DS_Store`, `._*`, `/Photos Library.photoslibrary/` (an iCloud cache
+   on the Intel Mac — the photos live in iCloud Photos; check them on another device instead of copying), `.Trash/`.
+2. For each folder of the user's list (default: Documents, Downloads, Pictures, Movies, `migration-staging`, `git-bundles`,
+   `env-snapshots`; Dropbox only as a fallback copy — the Dropbox app re-syncs it), on the buffer:
+   `rsync -aH --partial --stats --exclude-from=data-excl.txt "$S:<folder>/" ~/handover/<folder>/` (`run_in_background`, log it).
+   Never open or describe files in `private_unopened` folders or `Downloads/to_drive`; copy them as-is.
+3. Proof per folder: `custom_scripts/code_manifest.pl <dir> --exclude-from data-excl.txt` on the source and on the buffer (remotely as
+   `perl - <dir> --exclude-b64 <b64> < code_manifest.pl`), `cmp` of the two outputs must be silent and both stderr end with `ERRORS 0`.
+4. Credentials (they are NOT taken from the buffer's own home — its `~/.ssh` is the buffer's): 🙋 on the source the user runs, with
+   OpenSSL 3 (`openssl version`; on the Intel Mac `/usr/local/bin/openssl`, not the system LibreSSL):
+   `cd ~ && tar -czf - .secrets .ssh .aws .config/gcloud .config/dotfiles .bigqueryrc | openssl enc -aes-256-cbc -pbkdf2 -salt -out ~/handover-credentials.tgz.enc`
+   (it asks for a passphrase twice), then copy that one file to `~/handover/` on the buffer and verify its sha256 on both sides.
+**In (buffer → personal machine, after its step 10/10b; the buffer is `$S`):**
+5. Round G1 for this machine: carry credentials from the archive, not from the buffer's home (drop `.ssh`, `.secrets`, `.aws`,
+   `.config/gcloud` from the trimmed `~/.migration/home-carry.txt`).
+6. `rsync -aH --partial "$S:handover/<folder>/" ~/<folder>/` for each folder — on Linux **Movies → `~/Videos`** — then the same
+   manifest `cmp` as in 3 (must be silent).
+7. 🙋 Decrypt: `openssl enc -d -aes-256-cbc -pbkdf2 -in handover-credentials.tgz.enc | tar -xzf - -C ~`; then `chmod 600 ~/.secrets`,
+   `chmod 700 ~/.ssh`, `chmod 600 ~/.ssh/id_*`, `chmod 644 ~/.ssh/*.pub`; delete the `.enc` file here once keys work.
+8. Dropbox: install the app and let it sync from the cloud (no folder copy → no conflict copies).
+9. Backup from day one (this machine is now the only full copy of the personal files): Déjà Dup or restic to an encrypted external
+   drive; the first full backup must finish before `~/handover` is deleted on the buffer.
 
 ### Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table)
 
