@@ -410,18 +410,53 @@ if [ -f "$DOTFILES_DIR/terminal/warp-settings.toml" ]; then
 fi
 
 ###############################################################################
-# 8c. Bauhaus app icons (Linux GNOME): one design language for every launcher —
-#     colored tiles, gray glyphs. Jost (open Futura revival) is for the --labels variant.
+# 8c. Bauhaus app icons: one design language for every launcher — colored tiles, gray
+#     glyphs. Jost (open Futura revival) is for the --labels variant. Opt-in: icons change
+#     how the whole desktop looks, so ask. BAUHAUS_ICONS=yes|no|ask (default ask; with no
+#     terminal to ask on, "ask" means no). macOS extras (Dock tiles + re-apply after app
+#     updates) are a second question: BAUHAUS_MAC_EXTRAS=yes|no|ask.
 ###############################################################################
-if [[ "$(uname)" != "Darwin" ]] && [ "$IS_WSL" = 0 ] && command -v gsettings >/dev/null 2>&1; then
-  JOST="$HOME/.local/share/fonts/jost/Jost.ttf"
-  if [ ! -f "$JOST" ]; then
-    mkdir -p "$(dirname "$JOST")"
-    curl -fsSL -o "$JOST" 'https://github.com/google/fonts/raw/main/ofl/jost/Jost%5Bwght%5D.ttf' \
-      && fc-cache -f "$HOME/.local/share/fonts" >/dev/null 2>&1 || echo "  ⚠️  Jost font download failed"
+ask_yes_no() {   # $1 = env value (yes|no|ask), $2 = prompt; returns 0 for yes
+  case "$1" in
+    yes) return 0 ;;
+    no)  return 1 ;;
+  esac
+  if [ -t 0 ]; then
+    local ans; read -r "ans?  🎨 $2 [y/N] "
+    [[ "$ans" == [yY]* ]]
+  else
+    return 1
   fi
-  python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" >/dev/null \
-    && echo "  🎨 Bauhaus app icons applied (custom_scripts/bauhaus_icons.py)"
+}
+
+BAUHAUS_ICONS="${BAUHAUS_ICONS:-ask}"
+BAUHAUS_MAC_EXTRAS="${BAUHAUS_MAC_EXTRAS:-ask}"
+if [[ "$OS" == "Darwin" ]]; then
+  if ask_yes_no "$BAUHAUS_ICONS" "Use the new Bauhaus app icons on this Mac?"; then
+    python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" --mac \
+      && echo "  🎨 Bauhaus app icons applied (one sudo prompt for root-owned apps)" \
+      || echo "  ⚠️  Bauhaus icons failed — undo any partial change with: bauhaus_icons.py --mac --undo"
+    if ask_yes_no "$BAUHAUS_MAC_EXTRAS" "Also swap the Dock tiles and re-apply icons after app updates?"; then
+      python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" --mac-dock >/dev/null \
+        && python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" --mac-watch >/dev/null \
+        && echo "  🎨 Dock tiles swapped; icons re-apply after app updates (undo: --mac-dock --undo / --mac-watch --undo)"
+    fi
+  else
+    echo "  ⏭️  Bauhaus icons skipped (BAUHAUS_ICONS=yes ./install.sh, or custom_scripts/bauhaus_icons.py --mac)"
+  fi
+elif [ "$IS_WSL" = 0 ] && command -v gsettings >/dev/null 2>&1; then
+  if ask_yes_no "$BAUHAUS_ICONS" "Use the new Bauhaus app icons on this desktop?"; then
+    JOST="$HOME/.local/share/fonts/jost/Jost.ttf"
+    if [ ! -f "$JOST" ]; then
+      mkdir -p "$(dirname "$JOST")"
+      curl -fsSL -o "$JOST" 'https://github.com/google/fonts/raw/main/ofl/jost/Jost%5Bwght%5D.ttf' \
+        && fc-cache -f "$HOME/.local/share/fonts" >/dev/null 2>&1 || echo "  ⚠️  Jost font download failed"
+    fi
+    python3 "$DOTFILES_DIR/custom_scripts/bauhaus_icons.py" >/dev/null \
+      && echo "  🎨 Bauhaus app icons applied (custom_scripts/bauhaus_icons.py)"
+  else
+    echo "  ⏭️  Bauhaus icons skipped (BAUHAUS_ICONS=yes ./install.sh, or custom_scripts/bauhaus_icons.py)"
+  fi
 fi
 
 ###############################################################################

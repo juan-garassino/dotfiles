@@ -50,7 +50,10 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
    + `uv tool install ruff pre-commit`, wires the Claude statusline, restores
    `skills/` + `agents/`, and seeds `~/.secrets` from `.secrets.sample`. Verify: `ls -la ~/.zshrc`
    is a symlink into `shell/zshrc`; `brew bundle check --file=<repo>/Brewfile` is satisfied;
-   `which uv` is a brew path, never a `.pyenv/shims` one.
+   `which uv` is a brew path, never a `.pyenv/shims` one. **Icons are opt-in:** before running
+   `install.sh`, ask the user whether to use the new Bauhaus app icons (and on a Mac, whether to also swap
+   the Dock tiles and re-apply icons after app updates), then run `BAUHAUS_ICONS=yes|no BAUHAUS_MAC_EXTRAS=yes|no ./install.sh`.
+   Without a terminal the installer skips them.
 3. 🙋 **Secrets** — `~/.secrets` was seeded with EMPTY values. Ask the user to paste the real
    keys (password manager) into `~/.secrets`, then `chmod 600 ~/.secrets`. Expected keys: see
    `.secrets.sample`. **Never echo a key value; never commit `~/.secrets`.**

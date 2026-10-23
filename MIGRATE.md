@@ -137,10 +137,10 @@ git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetc
 - **mac:** Homebrew (noninteractive) + Brewfile (incl. the desktop-app casks).
 - **Desktop apps (official sources only)** — linux: 🙋 ask which groups, then `packages/linux-apps.sh [core dev comms sync graphics]`
   (`--check` to verify); mac: the Brewfile casks; wsl: 🙋 user runs `packages/windows-apps.txt` with winget in PowerShell.
-  Linux GNOME also gets the Bauhaus icon set (`custom_scripts/bauhaus_icons.py`, applied by install.sh);
-  on a Mac target run `custom_scripts/bauhaus_icons.py --mac` from a terminal (one sudo prompt for root-owned
-  apps), then `--mac-dock` to put the Apple-app launchers in the Dock and `--mac-watch` so app updates
-  don't wipe the icons.
+  Bauhaus icons are **opt-in** — 🙋 ask the user (Mac and Linux GNOME): install.sh asks on a terminal, and
+  without one it skips them, so pass the answer: `BAUHAUS_ICONS=yes|no` (Mac extras — Dock tiles + re-apply after
+  app updates: `BAUHAUS_MAC_EXTRAS=yes|no`). Mac: one sudo prompt for root-owned apps; or run
+  `custom_scripts/bauhaus_icons.py --mac` / `--mac-dock` / `--mac-watch` later by hand.
 - **all:** MesloLGS NF + terminal font 14, OMZ + plugins, Powerlevel10k + `~/.p10k.zsh`, Warp settings
   (`dracula`), uv + Python 3.11/3.12/3.13 + ruff/pre-commit, nvm + LTS + npm globals, VS Code
   settings + 48 extensions, global git ignore, Claude status line/settings/skills/agents.
