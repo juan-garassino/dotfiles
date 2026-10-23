@@ -76,6 +76,12 @@ scorecard, 3 independent checks) / quick. (2) *Second target*: also copy `~/Code
 remind to turn Remote Login off and stop `caffeinate`; keep the source untouched until every check passes. (4) *Answers file*: show
 `~/migration-answers.md` and `~/migration-skipped.md` at the end.
 
+**Round G — keep the Mac clean (the user wants it to stay really clean; ask last).** (1) *Dev-tool state*: carry only what's needed
+(secrets, keys, Claude light) / also shell history + `.codex`, `.gemini`, `.promptplot`, `.aivss` (trim `home-carry.txt` accordingly).
+(2) *Caches*: prune at the end (brew, uv, docker, npm) — recommended / keep. (3) *Installer backups* (`*.backup` that install.sh
+leaves next to every file it replaces): delete once the scorecard passes / keep. (4) *Migration notes* (`~/migration-*.md`):
+delete at the end / move to Documents. Everything not chosen in rounds B–D stays uninstalled; **no ad-hoc installs** afterwards.
+
 ## 2. Guide the user on the source (they sit there; Claude instructs from here)
 
 One at a time, wait for "done":
@@ -274,14 +280,29 @@ FAIL (or explain it), re-run until clean. The bullets below are the manual equiv
   — or the dotfiles-uv-worktree path on the Intel Mac) → `diff` empty.
 - Teaching stacks (containers only): ask first (GBs) → `custom_scripts/validate_teaching.sh` + `make build-mle`.
 - 3 `envup` spot-checks; `docker run --rm hello-world`; `uv run --python 3.12 python -V`.
-- **Clean up:** `sudo rm /etc/sudoers.d/99-migration` (verify `sudo -n true` now FAILS); remind: Remote
-  Login off + stop caffeinate on the source; `rm ~/.claude.json.src` once MCPs work.
+- **Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table):**
+  1. `sudo rm -f /etc/sudoers.d/99-migration` → `sudo -n true` must now FAIL (this is the most dangerous leftover).
+  2. Migration key: `rm -f ~/.ssh/id_migrate ~/.ssh/id_migrate.pub`; `ssh-keygen -R $SRC` (drops the source from `known_hosts`).
+  3. `rm -f ~/.claude.json.src` once the MCPs work; remove rsync partials and temp lists in `~/` (`ls -A ~ | grep -i -E 'rsync|partial|migrat'`).
+  4. `*.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.
+  5. Caches (Round G): `brew cleanup -s`, `uv cache prune`, `docker system prune -af` only if no wanted container runs, `npm cache clean --force`.
+  6. Software audit: `brew list --cask` and `brew leaves` must equal what rounds B–D chose; `ls ~/Library/LaunchAgents` shows only
+     what was asked (e.g. the icon watcher); no stray `pip install --user`, global npm, or pyenv.
+  7. Path-compat symlink from step 5 is intentional: say so and how to remove it (`sudo rm /Users/juan-garassino`).
+  8. `~/migration-answers.md`, `~/migration-skipped.md` → delete or move per Round G.
+  9. On the **source**, remind (the user does it): Remote Login off, stop `caffeinate`, and delete the `migrate-<host>` line
+     from `~/.ssh/authorized_keys`.
+  Finish with a residue report: `sudoers.d` empty of ours · no `id_migrate` · no `known_hosts` entry · no `*.backup` · no temp files ·
+  caches size · `df -h`.
 
 ## Hard rules
 
 - Source is read-only: only `rsync`/`ssh` reads. No `--delete` toward it, no installs on it.
 - Never echo secret values; never commit `~/.secrets`, keys, GCP JSON, `.env` into any repo.
 - Push protection / rule violations: report, never bypass. Engenious never goes to personal remotes.
+- **Leave nothing behind:** every temporary thing the migration creates (NOPASSWD sudoers file, `id_migrate` key, `known_hosts`
+  entry, rsync partials, `~/.claude.json.src`, `*.backup`, answers files, caches) is removed by step 10's hygiene gate — also when
+  the run is interrupted or fails. Install only what the interview selected.
 - Ambiguous → one short question.
 
 ## State of GitHub (2026-10-14) — the backup layer
