@@ -46,26 +46,39 @@ for lists). Don't start copying or installing until the last round is answered. 
 `~/migration-answers.md` (outside `~/Code`), print a one-screen summary, and ask **"Start?"** once. After that, run
 unattended except at 🙋 human-only steps. Questions that need the source's sizes are asked in step 5b (after ssh works).
 
-**Round A — role.** (1) *What is this machine for?* Coding + local AI/training · Personal daily driver · Both — drives every
-default below (a coding/training Mac skips Steam, WhatsApp, Spotify, VPNs; a personal one keeps them).
-(2) *Hostname / ComputerName* — keep or set (`sudo scutil --set …`). (3) *Account short name* — only report; step 5 handles a
-mismatch automatically. (4) *FileVault* — turn on (recommended) / later.
+**Target-aware.** Step 1 detects `$OS` = mac | linux | wsl. Say what was detected (the target may also be a Mac that was just
+turned into Linux, with a Linux machine as `$SRC` — step 5 handles the different home), then ask **only the questions that exist for
+that target**: tags below are **[mac] [linux] [wsl]**, untagged = every target. Skip a question rather than ask a pointless one.
 
-**Round B — apps (mac casks, multiSelect → `export HOMEBREW_BUNDLE_CASK_SKIP="<declined…>"` before install.sh;
-Linux → `packages/linux-apps.sh <groups>`; verify the var with `brew bundle --help`).** Group them so each question has ≤ 4 options:
+**Round A — role.** (1) *What is this machine for?* Coding + local AI/training · Personal daily driver · Both — drives every default
+below (a coding/training machine skips Steam, WhatsApp, Spotify, VPNs; a personal one keeps them). (2) *Hostname* — keep or set:
+[mac] `sudo scutil --set ComputerName|LocalHostName|HostName …` · [linux] `sudo hostnamectl set-hostname …` · [wsl] `/etc/wsl.conf`
+`[network] hostname=` then 🙋 `wsl --shutdown`. (3) *Account / home* — only report; step 5 fixes a mismatch automatically.
+(4) *Disk encryption* — [mac] turn FileVault on (recommended) / later · [linux] can't be added after install: report `lsblk -f`
+(LUKS?) and tell the user if it is not encrypted · [wsl] skip (BitLocker is a Windows setting).
+
+**Round B — apps (multiSelect, ≤ 4 options per question).**
+[mac] casks → `export HOMEBREW_BUNDLE_CASK_SKIP="<declined…>"` before install.sh (variable verified in Homebrew's bundle source).
 (1) *Editors + AI*: visual-studio-code · cursor · antigravity / antigravity-ide · claude + chatgpt.
 (2) *Data + dev tools*: dbeaver-community · pgadmin4 · elasticvue · postman · gephi · balenaetcher.
 (3) *Comms + notes*: slack · discord · zoom · telegram · spotify · obsidian · notion.
 (4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · gcloud-cli.
+[linux] by group, then `packages/linux-apps.sh <chosen groups>` (amd64 only — on arm64 say nothing is installed):
+(1) *core* (dbeaver pritunl slack antigravity discord obsidian cursor postman notion claude chatgpt) · *dev* (pgadmin elasticvue gephi etcher);
+(2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape).
+[wsl] no desktop apps inside WSL: 🙋 the user runs `packages/windows-apps.txt` with winget in PowerShell — ask which lines first.
 
-**Round C — toolchain.** (1) *Containers*: colima (default; no GPU for Docker on Apple Silicon) vs Docker Desktop.
-(2) *Local AI*: ollama + `llm` CLI (in the Brewfile) — install only / install + pull models (ask which, sizes) / skip.
-(3) *Python/Node*: uv 3.11 + 3.12 and `~/.venv-sandbox`; nvm LTS + the global CLIs — as-is / add a Python version / skip Node.
-(4) *Terminal*: Warp + the dracula/MesloLGS settings (`terminal/warp-settings.toml`) — apply / keep Terminal.app.
+**Round C — toolchain.** (1) *Containers*: [mac] colima (default; no GPU for Docker on Apple Silicon) vs Docker Desktop ·
+[linux] native Docker Engine; if `lspci | grep -i nvidia` finds a GPU also ask about the NVIDIA driver + container toolkit ·
+[wsl] Docker Engine inside WSL2 (needs systemd). (2) *Local AI*: ollama + `llm` CLI — install only / install + pull models
+(ask which, show sizes) / skip. (3) *Python/Node*: uv 3.11 + 3.12 and `~/.venv-sandbox`; nvm LTS + the global CLIs — as-is /
+add a Python version / skip Node. (4) *Terminal*: [mac] Warp + the dracula/MesloLGS settings (`terminal/warp-settings.toml`) or
+Terminal.app · [linux] Warp from its apt repo or the default terminal · [wsl] font + terminal live on the Windows side → 🙋.
 
-**Round D — look and feel.** (1) *Bauhaus icons* (step 8c): none / icons / icons + Dock tiles + re-apply after updates →
-`BAUHAUS_ICONS`, `BAUHAUS_MAC_EXTRAS`. (2) *macOS defaults* (`custom_scripts/macos_defaults.sh`: key repeat, Finder, …): run all /
-let me pick each / skip. (3) *Dock layout*: keep default / clean. (4) *Screenshots folder*: Desktop (default) / elsewhere.
+**Round D — look and feel.** (1) *Bauhaus icons* (step 8c): [mac] none / icons / icons + Dock tiles + re-apply after updates →
+`BAUHAUS_ICONS`, `BAUHAUS_MAC_EXTRAS` · [linux GNOME, needs `gsettings`] yes / no → `BAUHAUS_ICONS` · [wsl] skip.
+[mac] (2) *macOS defaults* (`custom_scripts/macos_defaults.sh`: key repeat, Finder, Dock, …): run all / let me pick each / skip.
+[mac] (3) *Dock layout*: keep default / clean. [mac] (4) *Screenshots folder*: Desktop (default) / elsewhere.
 
 **Round E — accounts and secrets (🙋, one at a time, never echo values).** Which to set up now vs later (multiSelect):
 GitHub CLI for both accounts · SSH keys (personal + work) · `~/.secrets` values · GCP service-account JSON ·
@@ -73,14 +86,15 @@ gcloud/aws logins · ngrok token · Claude Code login (done) · Google Drive/Dro
 
 **Round F — safety and proof.** (1) *Verification depth*: full (checksum dry-run + per-repo fingerprint + `check_setup.sh`
 scorecard, 3 independent checks) / quick. (2) *Second target*: also copy `~/Code` to another machine (buffer) and cross-check. (3) *When done*:
-remind to turn Remote Login off and stop `caffeinate`; keep the source untouched until every check passes. (4) *Answers file*: show
-`~/migration-answers.md` and `~/migration-skipped.md` at the end.
+remind to turn Remote Login / ssh off and stop `caffeinate` (Mac source) or `systemd-inhibit` (Linux source); keep the source untouched
+until every check passes. (4) *Answers file*: show `~/migration-answers.md` and `~/migration-skipped.md` at the end.
 
-**Round G — keep the Mac clean (the user wants it to stay really clean; ask last).** (1) *Dev-tool state*: carry only what's needed
+**Round G — keep the machine clean (ask last; the user wants it to stay really clean).** (1) *Dev-tool state*: carry only what's needed
 (secrets, keys, Claude light) / also shell history + `.codex`, `.gemini`, `.promptplot`, `.aivss` (trim `home-carry.txt` accordingly).
-(2) *Caches*: prune at the end (brew, uv, docker, npm) — recommended / keep. (3) *Installer backups* (`*.backup` that install.sh
-leaves next to every file it replaces): delete once the scorecard passes / keep. (4) *Migration notes* (`~/migration-*.md`):
-delete at the end / move to Documents. Everything not chosen in rounds B–D stays uninstalled; **no ad-hoc installs** afterwards.
+(2) *Caches*: prune at the end — recommended / keep ([mac] `brew cleanup -s`; [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge`;
+all: `uv cache prune`, npm, docker). (3) *Installer backups* (`*.backup` that install.sh leaves next to every file it replaces): delete once the
+scorecard passes / keep. (4) *Migration notes* (`~/migration-*.md`): delete at the end / move to Documents. Everything not chosen in
+rounds B–D stays uninstalled; **no ad-hoc installs** afterwards.
 
 ## 2. Guide the user on the source (they sit there; Claude instructs from here)
 
@@ -285,12 +299,13 @@ FAIL (or explain it), re-run until clean. The bullets below are the manual equiv
   2. Migration key: `rm -f ~/.ssh/id_migrate ~/.ssh/id_migrate.pub`; `ssh-keygen -R $SRC` (drops the source from `known_hosts`).
   3. `rm -f ~/.claude.json.src` once the MCPs work; remove rsync partials and temp lists in `~/` (`ls -A ~ | grep -i -E 'rsync|partial|migrat'`).
   4. `*.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.
-  5. Caches (Round G): `brew cleanup -s`, `uv cache prune`, `docker system prune -af` only if no wanted container runs, `npm cache clean --force`.
-  6. Software audit: `brew list --cask` and `brew leaves` must equal what rounds B–D chose; `ls ~/Library/LaunchAgents` shows only
-     what was asked (e.g. the icon watcher); no stray `pip install --user`, global npm, or pyenv.
+  5. Caches (Round G): [mac] `brew cleanup -s` · [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge` · all: `uv cache prune`, `docker system prune -af` only if no wanted container runs, `npm cache clean --force`.
+  6. Software audit against the interview answers: [mac] `brew list --cask` + `brew leaves`, `ls ~/Library/LaunchAgents` (only what was
+     asked, e.g. the icon watcher) · [linux]/[wsl] `apt-mark showmanual` vs `packages/apt.txt` + chosen app groups, `systemctl --user list-unit-files --state=enabled`.
+     Everywhere: no stray `pip install --user`, global npm or pyenv.
   7. Path-compat symlink from step 5 is intentional: say so and how to remove it (`sudo rm /Users/juan-garassino`).
   8. `~/migration-answers.md`, `~/migration-skipped.md` → delete or move per Round G.
-  9. On the **source**, remind (the user does it): Remote Login off, stop `caffeinate`, and delete the `migrate-<host>` line
+  9. On the **source**, remind (the user does it): Remote Login / sshd off, stop `caffeinate` (Mac) or `systemd-inhibit` (Linux), and delete the `migrate-<host>` line
      from `~/.ssh/authorized_keys`.
   Finish with a residue report: `sudoers.d` empty of ours · no `id_migrate` · no `known_hosts` entry · no `*.backup` · no temp files ·
   caches size · `df -h`.
