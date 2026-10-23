@@ -74,12 +74,16 @@ echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/99-migration && su
 Verify `sudo -n true`. **Removed in step 10.** (Declined → the user runs `./install.sh` in a second
 terminal and Claude follows its output.)
 
-## 5. Path compatibility (linux/wsl only, when `$SRC_HOME` ≠ `$HOME`)
+## 5. Path compatibility (any target, when `$SRC_HOME` ≠ `$HOME`) — automatic, detect it, don't ask
 
 Code, git worktrees (63 use absolute gitdirs), `~/.claude` memory and ~700 configs hard-code
-`/Users/juan-garassino`. Make it resolve here:
-`sudo mkdir -p /Users && sudo ln -sfn $HOME /Users/juan-garassino` (Linux source with a different
-home: also `sudo ln -sfn $HOME $SRC_HOME`).
+`/Users/juan-garassino`. Compare `echo $HOME` here with `$SRC_HOME`; if they differ (e.g. a Mac account called
+`garassino-juan` → `/Users/garassino-juan`), make the source path resolve here — one sudo prompt:
+- linux/wsl: `sudo mkdir -p /Users && sudo ln -sfn $HOME /Users/juan-garassino`
+  (Linux source with a different home: also `sudo ln -sfn $HOME $SRC_HOME`).
+- mac: `[ -e /Users/juan-garassino ] && echo "already exists — STOP and ask" || sudo ln -s "$HOME" /Users/juan-garassino`
+  (never `-f` over a real folder: it could be another account's home).
+Files stay byte-identical, so the verification steps still hold; the symlink just lets the old absolute paths work.
 
 ## 5b. 🙋 Scope: clean and light — ASK before copying anything
 
@@ -123,7 +127,8 @@ rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged bel
   - Sessions, memory, plans, standing: for each `~/.claude/projects/<src-slug>-*` also `cp -a` it to
     the slug with `$HOME` (`/` → `-`), keeping the original. Then `/resume` in a project lists its old sessions.
     Slugs start with `-`, so pass `--`: `cd ~/.claude/projects && for d in ./-Users-juan-garassino*; do d=${d#./};
-    n="-home-<user>${d#-Users-juan-garassino}"; mkdir -p -- "./$n" && cp -a --update=none -- "./$d"/. "./$n"/; done`
+    n="$(printf %s "$HOME" | tr / -)${d#-Users-juan-garassino}"; mkdir -p -- "./$n" && cp -a --update=none -- "./$d"/. "./$n"/; done`
+    (macOS `cp` has no `--update=none`: use `cp -an`.)
   - Prompt history (up-arrow): append path-rewritten copies of the source entries:
     ```bash
     jq -c --arg s "$SRC_HOME" --arg h "$HOME" 'select((.project // "") | startswith($s)) | .project |= sub("^"+$s; $h)' \
