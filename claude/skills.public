@@ -1,0 +1,27 @@
+# claude/skills.public — ALLOW-LIST of ~/.claude/skills/<name> dirs backup_env.sh may publish to this PUBLIC repo.
+# One directory name per line. Anything not listed stays private (post-as-me, synced/, .trash/ never go here).
+ag-graph
+ag-knowledge
+backup-env
+brevity-protocol
+docs-current-protocol
+ds-datagen
+ds-dataval
+ds-diffusion
+ds-gan
+ds-improve
+ds-latent
+eh-disk
+eh-geodesic
+eh-improve
+eh-render
+ev-improve
+hello-claude
+morning-coffee
+pp-orchestrate
+pp-simulate
+pp-stream
+pp-validate
+rx-simplify
+whats-the-goal
+where-were-we

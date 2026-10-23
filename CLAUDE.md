@@ -1,12 +1,12 @@
 # CLAUDE.md — Dotfiles & Machine Setup
 
-This repo is Juan's macOS **environment-replication kit**. Shell, prompt, editor, git
+This repo is Juan's macOS + Linux **environment-replication kit**. Shell, prompt, editor, git
 identity, and Claude Code config — organized into subdirs and symlinked into `$HOME` by
 `install.sh`. **Secrets never live here:** API keys are in `~/.secrets` (chmod 600, outside
 any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 
 - Canonical path: `~/Code/000-config/001-dotfiles`
-- Remote: `github.com/juan-garassino/dotfiles` — **PUBLIC** (zero secrets, ever)
+- Remote: `github.com/juan-garassino/dotfiles` — **PUBLIC fork** of `lewagon/dotfiles` (can't be made private; zero secrets, ever)
 
 > **Claude Code — read this first.** If you're working in this repo, your single most
 > likely task is to **set up / replicate this environment on a machine** (usually a fresh
@@ -16,8 +16,8 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 > **Migrations are interactive and default to clean and light:** run the `MIGRATE.md` step 1b interview (rounds A–G, ≤ 4
 > AskUserQuestion questions each: role, apps, toolchain, look and feel, accounts, verification, keeping the Mac clean) *before* touching the source, then
 > step 5b (which big folders / how much Claude history) *before* any rsync — don't copy the full 25 GB history or training
-> outputs unasked. Save the answers in `~/migration-answers.md`, never inside `~/Code`.
-> `MIGRATION.md` is the historical Intel→M5 SSD-vault plan (superseded by `MIGRATE.md`). Routine fresh setup → go straight to
+> outputs unasked. Save the answers in `~/.migration/answers.md`, never inside `~/Code`; all migration state lives in
+> `~/.migration/` (every Bash call starts with `source ~/.migration/env`). Routine fresh setup → go straight to
 > **[Full machine setup](#full-machine-setup--claude-code-follow-this-end-to-end)**
 > and run it end-to-end, pausing only at the 🙋 (human-only) steps. The other most common
 > task is editing a config + pushing via `/backup-env`. If the user clearly wants something
@@ -49,12 +49,12 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
 2. **Run the installer** — first (any OS) set up temporary passwordless sudo exactly as in
    `MIGRATE.md` step 4 (🙋 one command; Claude can't type passwords) and remove it at the
    end. Then `cd <repo> && ./install.sh` (OS-aware: **macOS** → Homebrew + Brewfile;
-   **Linux** → apt/dnf from `packages/`, gh + VS Code repos, uv installer). It then
+   **Linux** → apt/dnf from `packages/`, gh + VS Code repos, uv from the official installer; on macOS uv comes from Homebrew). It then
    symlinks all dotfiles, installs Oh-My-Zsh + Powerlevel10k, runs `uv python install 3.11 3.12 3.13`
    + `uv tool install ruff pre-commit`, wires the Claude statusline, restores
    `skills/` + `agents/`, and seeds `~/.secrets` from `.secrets.sample`. Verify: `ls -la ~/.zshrc`
    is a symlink into `shell/zshrc`; `brew bundle check --file=<repo>/Brewfile` is satisfied;
-   `which uv` is a brew path, never a `.pyenv/shims` one. **Icons are opt-in:** before running
+   `which uv` is a brew path on macOS (`~/.local/bin/uv` on Linux), never a `.pyenv/shims` one. **Icons are opt-in:** before running
    `install.sh`, ask the user whether to use the new Bauhaus app icons (and on a Mac, whether to also swap
    the Dock tiles and re-apply icons after app updates), then run `BAUHAUS_ICONS=yes|no BAUHAUS_MAC_EXTRAS=yes|no ./install.sh`.
    Without a terminal the installer skips them.
@@ -68,7 +68,7 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
    `j-garassino-engenious`). Verify `gh auth status` shows both.
 6. 🙋 **GCP creds** — ask the user to drop the service-account JSONs into
    `~/Code/000-config/002-gcp-credentials/`. `workon` / `personal` read them.
-7. **Python** — uv-only (install.sh already installed 3.11/3.12). Run `mysandbox` once
+7. **Python** — uv-only (install.sh already installed 3.11/3.12/3.13). Run `mysandbox` once
    (creates + seeds the global uv venv `~/.venv-sandbox`). Projects use `usevenv <ver>`
    (uv-managed) or `uv sync`. Verify `python --version` inside the sandbox.
 8. **Claude Code** — re-enable plugins: context7, superpowers, code-simplifier,
@@ -95,7 +95,7 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
 ## Guardrails (hard rules)
 
 - **Never commit a secret.** Keys live in `~/.secrets` only. `custom_scripts/backup_env.sh`
-  runs a secret-scan gate before every push — never bypass it.
+  runs a secret-scan gate on the staged diff before every commit — never bypass it.
 - **This repo is PUBLIC.** Before any push, confirm: no key values, no `~/.secrets`, no GCP JSON.
 - **Don't overwrite an existing `~/.secrets`** during setup — only seed it when missing.
 - **Edit in place:** edit files in their subdirs here; the `$HOME` symlinks pick up changes
@@ -105,5 +105,5 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
 
 Refresh and push the whole kit with the **`/backup-env`** skill, or
 `custom_scripts/backup_env.sh`. It regenerates the Brewfile, re-sanitizes
-`claude/settings.json`, re-snapshots skills/agents, runs the secret-scan gate, commits, and
-pushes. Full how-it-works reference: `SETUP.md`.
+`claude/settings.json` (whitelisted keys), re-snapshots the skills listed in `claude/skills.public` +
+agents, runs the secret-scan gate on the staged diff, commits, and pushes. Full how-it-works reference: `SETUP.md`.

@@ -10,8 +10,8 @@ description: >
   --news <topic>, --skip <a,b>, --format plain, --save. MCPs: Google
   Calendar, Gmail, Google Drive (Drive is used to read Meet's Gemini-generated
   meeting notes Docs). Falls back gracefully when MCPs aren't authenticated.
-  Local AI-news agent at
-  /Users/juan-garassino/Code/002-engenious/mcp_and_services/fetch_learning_resources.
+  Optional local AI-news agent: set AI_NEWS_AGENT_DIR in
+  ~/.config/dotfiles/local-paths.env (untracked); falls back to HN RSS.
 ---
 
 # morning-coffee — daily briefing in one shot
@@ -150,11 +150,14 @@ real computed values before sending.
 > fails, return `"Weather unavailable"`. Hard cap: 60 words. Hard cap: 10s.
 
 ### `news-today`
-> Run the user's local AI-news agent for the `{NEWS_TOPIC}` topic via Bash:
+> Run the user's local AI-news agent for the `{NEWS_TOPIC}` topic via Bash. Its
+> location is private config, read from `~/.config/dotfiles/local-paths.env`
+> (untracked; carried by `home-carry.txt`), key `AI_NEWS_AGENT_DIR`:
 >
 > ```
-> cd /Users/juan-garassino/Code/002-engenious/mcp_and_services/fetch_learning_resources && \
-> .venv/bin/python -m fetch_learning_resources \
+> source ~/.config/dotfiles/local-paths.env 2>/dev/null; [ -n "${AI_NEWS_AGENT_DIR:-}" ] && \
+> cd "$AI_NEWS_AGENT_DIR" && \
+> .venv/bin/python -m "$(basename "$AI_NEWS_AGENT_DIR")" \
 >   --topic {NEWS_TOPIC} --target-count 3 --score-threshold 7 \
 >   --max-iterations 5 --dry-run -v 2>&1 | tail -40
 > ```
@@ -162,8 +165,8 @@ real computed values before sending.
 > Parse the `[{NEWS_TOPIC}]` lines (each item: score, title, then `→` reason
 > + URL on next lines).
 >
-> Fallback chain if the project path doesn't exist OR the agent errors (e.g.
-> no `OPENAI_API_KEY` in its `.env`):
+> Fallback chain if `AI_NEWS_AGENT_DIR` is unset, the path doesn't exist OR
+> the agent errors (e.g. no `OPENAI_API_KEY` in its `.env`):
 >   1. WebFetch `https://hnrss.org/frontpage`, pick 3 items whose titles
 >      match `{NEWS_TOPIC}` keywords, return those.
 >   2. If that fails too: return `"News unavailable"`.

@@ -54,7 +54,7 @@ fi
 
 if [ "$SCOPE" = all ] || [ "$SCOPE" = caches ]; then
 hdr "CACHES — regenerable (uv sync / npm i / re-download rebuild them)"
-[ "$MODE" = apply ] && pgrep -f 'uv run' >/dev/null 2>&1 && echo "  ⏭️  ~/.cache/uv SKIPPED — a live 'uv run' (discord-me-mcp) holds its lock; stop it first"
+[ "$MODE" = apply ] && pgrep -f 'uv run' >/dev/null 2>&1 && echo "  ⏭️  ~/.cache/uv SKIPPED — a live 'uv run' holds its lock (e.g. a running MCP server); stop it first"
 if ! { [ "$MODE" = apply ] && pgrep -f 'uv run' >/dev/null 2>&1; }; then rc ~/.cache/uv "uv download cache"; fi
 rc ~/.cache/huggingface "HF model cache"; rc ~/.cache/puppeteer ""; rc ~/.cache/act ""
 rc ~/.cache/codex-runtimes ""; rc ~/.cache/deep_neuronal_net_utils ""; rc ~/.cache/go-build ""
@@ -85,7 +85,7 @@ if [ "$SCOPE" = all ] || [ "$SCOPE" = docker ]; then
 hdr "DOCKER DESKTOP — 51G VM (go-forward is colima)"
 ctx=$(docker context show 2>/dev/null)
 if [ "$ctx" = colima ]; then
-  echo "  ✓ colima is the active context — Docker Desktop VM is reclaimable (aiuw volume already exported)"
+  echo "  ✓ colima is the active context — Docker Desktop VM is reclaimable"
   rc ~/Library/Containers/com.docker.docker "Docker Desktop VM+data (use colima instead)"
 else
   echo "  ⏭️  active docker context = '${ctx:-none}', not colima — start colima + switch first; DRY only"

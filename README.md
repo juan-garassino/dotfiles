@@ -11,7 +11,7 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
 ```
 
-[`bootstrap.sh`](./bootstrap.sh) does **git → clone → claude**: installs git/curl, clones this
+[`bootstrap.sh`](./bootstrap.sh) does **git → clone → claude**: installs git/curl (Linux: also zsh + perl), clones this
 repo to `~/Code/000-config/001-dotfiles`, installs Claude Code, and opens it with the setup
 prompt already typed. Claude asks one question, then runs the matching runbook:
 - **fresh setup** (empty machine): `install.sh` + the [`CLAUDE.md`](./CLAUDE.md) checklist.
@@ -41,13 +41,13 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 | **Font** | **MesloLGS NF**: Brewfile cask on macOS; on Linux `install.sh` downloads it to `~/.local/share/fonts` and sets GNOME Terminal / Ptyxis to `MesloLGS NF 12` | `install.sh` |
 | **Terminal** | **Warp** on both (Brewfile cask / Warp apt repo), same settings: theme `dracula`, MesloLGS NF 14, `honor_ps1` so the p10k prompt shows. Default Ubuntu terminal also set to MesloLGS NF 14 | `terminal/warp-settings.toml` |
 | **App icons** | Linux GNOME: one Bauhaus/Kandinsky icon set for every launcher — colored tiles (cobalt / ochre / burgundy), gray glyphs, optional name labels in Jost. `bauhaus_icons.py` (`--labels` / plain / `--dark` / `--undo`), offered by `install.sh` as an opt-in question (`BAUHAUS_ICONS=yes|no`; skipped without a terminal). macOS: `bauhaus_icons.py --mac [--undo]` sets each app's custom icon (re-run after app updates) and builds look-alike launchers for Apple's own apps (sealed volume) in `~/Applications/Bauhaus`; `--mac-dock [--undo]` swaps them into the Dock; `--mac-watch` installs a LaunchAgent that re-applies icons after app updates. In-bundle icons invalidate the app's signature, so signature-sensitive apps (`MAC_LAUNCH_ONLY`, currently Docker) keep their stock icon and get a Bauhaus launcher instead | `custom_scripts/bauhaus_icons.py` |
-| **Python** | **uv only, no pyenv.** uv 3.11 + 3.12, `ruff` + `pre-commit` as uv tools, global `~/.venv-sandbox` (`mysandbox`), per-project `.venv` auto-activated on `cd`, `envup` rebuilds any project | `shell/zshrc`, `packages/mysandbox-requirements.txt` |
+| **Python** | **uv only, no pyenv.** uv (Homebrew on macOS, official installer on Linux) with Python 3.11 + 3.12 + 3.13, `ruff` + `pre-commit` as uv tools, global `~/.venv-sandbox` (`mysandbox`), per-project `.venv` auto-activated on `cd`, `envup` rebuilds any project | `shell/zshrc`, `packages/mysandbox-requirements.txt` |
 | **Node** | nvm (brew on macOS, standalone on Linux), LTS + global CLIs | `packages/npm-globals.txt` |
-| **Containers** | Docker (colima on macOS, native Engine on Linux). Used only for deploy images and the 5 teaching stacks (Le Wagon ds/da/de, Spiced, MLE): `make up-spiced` etc. Daily dev is bare uv, never containers | `~/Code/004-lewagon-spiced/teaching-containers` |
+| **Containers** | Docker — **colima is the deliberate default on macOS** (Brewfile); Docker Desktop is an opt-in interview choice in `MIGRATE.md`. Native Engine on Linux. Used only for deploy images and the 5 teaching stacks (Le Wagon ds/da/de, Spiced, MLE): `make up-spiced` etc. Daily dev is bare uv, never containers | `~/Code/004-lewagon-spiced/teaching-containers` |
 | **Git identity** | `~/Code/` personal, `~/Code/002-engenious/` work (gitconfig `includeIf`, work SSH alias), gh CLI account auto-switches on `cd` | `git/`, `ssh/config` |
 | **Claude Code** | Bauhaus 3-zone status line, sanitized `settings.json` (hooks, plugins, model), personal skills + agents, plugins: superpowers · context7 · code-simplifier · frontend-design · atlassian | `claude/` |
 | **Editor** | VS Code / Antigravity settings + 48 extensions | `editor/settings.json`, `packages/vscode-extensions.txt` |
-| **Packages** | macOS: curated `Brewfile` (leaves only). Linux: `apt.txt` + `linux-tools.sh` — docker + compose, gcloud, terraform, kubectl, helm, minikube, k3d, aws, act, runpodctl, cloud-sql-proxy, ollama, Warp | `packages/` |
+| **Packages** | macOS: curated `Brewfile` (leaves only; `tlrc` provides `tldr`, `libpq` linked for `psql`, no `homebrew/services` tap — `brew services` is built in). Linux: `apt.txt` + `linux-tools.sh` — docker + compose, gcloud, terraform, kubectl, helm, minikube, k3d, aws, act, runpodctl, cloud-sql-proxy, ollama, Warp | `packages/` |
 | **Postgres** | client only on the host (`psql`, `pg_dump`); servers always run in Docker (`docker run postgres:16` / compose) | — |
 | **Secrets** | `~/.secrets` (chmod 600, never in git), seeded empty from `.secrets.sample` | — |
 
@@ -87,7 +87,6 @@ add `--code user@old-machine` to also prove `~/Code` — every repo, branch, sta
 ├── SETUP.md          detailed how-it-works runbook
 ├── MIGRATE.md      any machine → any machine (Linux/WSL/Mac), Claude-executed
 ├── bootstrap.sh    one command: git, clone, claude
-├── MIGRATION.md    historical Intel→M5 SSD-vault plan (superseded)
 └── CLAUDE.md         autonomous setup instructions for Claude Code
 ```
 
@@ -117,7 +116,7 @@ cd ~/Code/000-config/001-dotfiles
 #    - gh auth login   (personal: juan-garassino, then work: j-garassino-engenious)
 #    - drop GCP JSONs into ~/Code/000-config/002-gcp-credentials/
 
-# 5. Python sandbox + reload  (uv-only; install.sh already installed 3.11/3.12)
+# 5. Python sandbox + reload  (uv-only; install.sh already installed 3.11/3.12/3.13)
 mysandbox        # creates + seeds ~/.venv-sandbox from packages/mysandbox-requirements.txt
 exec zsh
 ```
@@ -187,9 +186,10 @@ custom_scripts/backup_env.sh        # or the /backup-env Claude Code skill
 ```
 
 Reports Brewfile drift (never overwrites the curated Brewfile), re-sanitizes the Claude
-settings snapshot (strips secrets, personal paths and `autoMode`), re-snapshots skills/agents
-(minus private and synced ones), runs a **secret-scan gate** (aborts on any leak), commits, and
-pushes. Commits to whichever checkout the script lives in.
+settings snapshot (whitelisted keys only; `permissions` and `autoMode` are dropped), re-snapshots the
+skills listed in `claude/skills.public` + agents, stages explicit paths, runs a **secret-scan gate on the
+staged diff** (gitleaks via Docker if available, else modern key patterns) and aborts before committing on
+any hit, then commits and pushes. This repo is a **public fork** of `lewagon/dotfiles` — it can't be made private.
 
 ---
 

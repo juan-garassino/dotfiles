@@ -7,43 +7,126 @@ delete or push from it.
 
 **Goal: exactly the same dev setup** — shell, prompt, terminal, tools, configs, credentials,
 Claude memory, and `~/Code` byte-for-byte (every repo, branch, stash, uncommitted change,
-engenious, `.env`). NOT the OS itself: personal apps, documents and media are out of scope.
+work repos, `.env`). NOT the OS itself: personal apps, documents and media are out of scope.
 
 **How:** `install.sh` rebuilds the environment from this repo; `rsync` over ssh pulls `~/Code` +
 `packages/home-carry.txt` from the source. `.venv`/`node_modules`/build caches are not copied —
 they're OS/arch-specific and rebuilt (`envup`). GitHub is complete for personal repos (backup layer).
+`~/Code` is then PROVEN identical with `custom_scripts/verify_code.sh` (checksum manifest + git
+refs/stash/index/status per repo), twice on the target (step 7b and step 10) and three ways when a
+buffer machine exists (step 10b).
 
 | Target (this machine) | `$OS` | Notes |
 |---|---|---|
 | Ubuntu desktop / laptop (incl. a 2015 MacBook running Ubuntu) | linux | path-compat symlink; 2015 MBP Wi-Fi: `sudo apt install bcmwl-kernel-source` (tether USB first) |
 | WSL2 (Ubuntu inside Windows) | wsl | `~/Code` in the WSL ext4 home, **never** `/mnt/c`; font + Warp on the Windows side; systemd for Docker |
-| Apple Silicon Mac (M5) | mac | Homebrew + Brewfile; same `/Users/juan-garassino` home → no path-compat needed |
+| Apple Silicon Mac | mac | Homebrew in `/opt/homebrew` + Brewfile; the account may differ (`garassino-juan` → `/Users/garassino-juan`), step 5 handles it |
 
 | Source (old machine) | ssh on | home |
 |---|---|---|
-| Mac (e.g. the Intel today, later the M5) | System Settings/Preferences → Sharing → **Remote Login** | `/Users/juan-garassino` |
-| Linux (e.g. this Ubuntu box, when the Intel Mac becomes Linux) | `sudo apt install -y openssh-server` | `/home/<user>` |
+| Mac (e.g. the Intel today, later the Apple Silicon one) | System Settings/Preferences → Sharing → **Remote Login** | `/Users/juan-garassino` |
+| Linux (e.g. the Intel Mac once it runs Ubuntu, or the buffer) | `sudo apt install -y openssh-server` | `/home/<user>` |
+
+## State across Bash calls — `~/.migration/` (read before step 1)
+
+Every Bash call Claude makes is a fresh `zsh -c`: shell variables, arrays and `export`s vanish
+between calls. All migration state therefore lives in files under **`~/.migration/`** (chmod 700,
+created in step 1a, deleted by the hygiene gate):
+
+| File | Holds |
+|---|---|
+| `env` | `S` (user@host), `SRC` (host/IP), `SRC_HOME`, `OS`, `RSYNC_RSH`, `MIGRATE_SSH`, `MIGRATE_EXCL`, the `src()` helper and the guard |
+| `code-excl.txt` | rsync exclude patterns for `~/Code`: the fixed list + every folder declined in step 5b (`--exclude-from`) |
+| `claude-include.txt` / `claude-exclude.txt` | the light Claude-history filter (both empty = full history) |
+| `home-carry.txt` | trimmed copy of `packages/home-carry.txt` (Round G) — the tracked file is never edited |
+| `answers.md` / `skipped.md` | interview answers · every path the user declined (with sizes) |
+| `state` | number of the last completed step (resume point) |
+| `logs/` | output of every long run (`07-code.log`, `08-install.log`, …) |
+
+**Rule: every Bash call from step 2 on starts with `source ~/.migration/env`.** The file ends with a
+guard that aborts the call when `S` or `SRC_HOME` is empty (an empty `SRC_HOME` would corrupt
+`~/.claude.json` in step 9), so nothing runs with half a configuration. Never type `ssh $S …`:
+use `src …` (it carries the migration key, `IdentitiesOnly`, `BatchMode`), and never build
+`"${EXCL[@]}"`-style arrays — pass the files. Answers for `install.sh` go on its command line
+(step 8), not in an `export`.
 
 ## 0. Bootstrap (human, one command — done if you are reading this inside Claude)
 
+Pinned to the tag the migration was reviewed on (the coordinator creates it after merging):
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/migration-2026-10-24/bootstrap.sh | DOTFILES_BRANCH=migration-2026-10-24 bash
 ```
+
+The clone is left on that tag (detached HEAD). After the migration: `git checkout main`.
+On Linux, `bootstrap.sh` also installs `zsh` and `perl` (the verification needs `Digest::SHA`).
 
 ## 1. Preflight (read-only)
 
-- `git -C ~/Code/000-config/001-dotfiles pull --ff-only` — re-read this file if it changed.
+- `git -C ~/Code/000-config/001-dotfiles status -sb` — on the pinned tag? `git fetch -q && git log -1 --oneline` — re-read this file if it changed.
 - Detect target: `uname` (Darwin → mac), `grep -qi microsoft /proc/version` → wsl, else linux.
-  `df -h ~` → need **≥ 150G free** (`~/Code` without envs is ~93G). Linux/WSL: `~/Code` on ext4 under `$HOME`.
+- Disk: `df -h ~`. Size the need from the step-5b measurement — the source was ≈110 G before skips
+  and ≈68 G after the recommended ones (2026-10-22, drifts): plan **≥ 1.3 × the chosen size** free
+  (≈150 G without skips, ≈90 G with them). Re-check `df -h ~` in step 5b once the real number is known.
+  Linux/WSL: `~/Code` on ext4 under `$HOME`.
+- `rsync --version | head -1`. macOS ≥ 15.4 ships **openrsync** as `/usr/bin/rsync` (partial option
+  set; dry-run numbers won't match) and Homebrew is not installed until step 8. If it says
+  `openrsync`: 🙋 ask, then install Homebrew now (the line `install.sh` uses:
+  `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`)
+  and `brew install rsync` (it is in the Brewfile anyway). `rsync --version` must then say `rsync  3.x`.
+- Leftover from an interrupted run: `[ -e /etc/sudoers.d/99-migration ] && echo LEFTOVER`. If present,
+  `sudo -n rm -f /etc/sudoers.d/99-migration` (the leftover itself makes it passwordless) — step 4 recreates it.
+  Also `ls -d ~/.migration 2>/dev/null` → an earlier run: read `~/.migration/state` and **resume** from
+  the next step instead of starting over (see step 8).
+- Verification prerequisites: `perl -MDigest::SHA -e1 && echo perl-ok` (macOS system perl has it;
+  Debian/Ubuntu need the full `perl` package — `bootstrap.sh`/`packages/apt.txt` install it).
 - The **source** is chosen in step 2 (auto-detected on the network). Its user is `juan-garassino`
   on the Macs → `$SRC_USER`.
+
+## 1a. Create the migration state
+
+```bash
+mkdir -p -m 700 ~/.migration/logs && cd ~/.migration
+cat > code-excl.txt <<'EOF'
+/000-config/001-dotfiles/
+/000-config/dotfiles-uv-worktree/
+.venv
+venv
+.venv-*
+node_modules
+.next
+__pycache__
+.pytest_cache
+.mypy_cache
+.terraform
+.DS_Store
+._*
+EOF
+printf '%s\n' '.claude/projects/*/memory/***' '.claude/projects/*/standing/***' > claude-include.txt
+printf '%s\n' '.claude/projects/*/*' > claude-exclude.txt       # light history (default); full = empty both files
+cp ~/Code/000-config/001-dotfiles/packages/home-carry.txt home-carry.txt   # trim THIS copy in Round G
+: > answers.md; : > skipped.md; echo 1 > state
+OS=$( [ "$(uname)" = Darwin ] && echo mac || { grep -qi microsoft /proc/version 2>/dev/null && echo wsl || echo linux; } )
+cat > env <<EOF
+# ~/.migration/env — sourced at the start of every Bash call. S/SRC: step 2. SRC_HOME + guard: step 3.
+OS=$OS
+export RSYNC_RSH="ssh -i \$HOME/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes"
+export MIGRATE_SSH="\$RSYNC_RSH"
+export MIGRATE_EXCL="\$HOME/.migration/code-excl.txt"
+src() { ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "\$S" "\$@"; }
+EOF
+chmod 600 env
+```
+`RSYNC_RSH` is a plain string (rsync splits it itself) — never word-split it yourself.
+Declined step-5b folders are appended to `code-excl.txt` anchored to the `~/Code` root with a leading
+and trailing slash, e.g. `/005-products/027-ml-workspace/building-segmentation/out/`.
 
 ## 1b. 🙋 Interview — configure everything up front (then run without interrupting)
 
 The user wants a **really interactive migration**. After preflight and before touching the source, ask in **rounds of ≤ 4
 questions with AskUserQuestion** (recommended option first, one-line consequence in every description; `multiSelect`
 for lists). Don't start copying or installing until the last round is answered. Record every answer in
-`~/migration-answers.md` (outside `~/Code`), print a one-screen summary, and ask **"Start?"** once. After that, run
+`~/.migration/answers.md` (outside `~/Code`), print a one-screen summary, and ask **"Start?"** once. After that, run
 unattended except at 🙋 human-only steps. Questions that need the source's sizes are asked in step 5b (after ssh works).
 
 **Target-aware.** Step 1 detects `$OS` = mac | linux | wsl. Say what was detected (the target may also be a Mac that was just
@@ -56,9 +139,12 @@ below (a coding/training machine skips Steam, WhatsApp, Spotify, VPNs; a persona
 `[network] hostname=` then 🙋 `wsl --shutdown`. (3) *Account / home* — only report; step 5 fixes a mismatch automatically.
 (4) *Disk encryption* — [mac] turn FileVault on (recommended) / later · [linux] can't be added after install: report `lsblk -f`
 (LUKS?) and tell the user if it is not encrypted · [wsl] skip (BitLocker is a Windows setting).
+**Note for later (write it in `answers.md`):** before the source Mac is ever wiped or handed on, the user must sign out of
+iCloud / Find My (Activation Lock), the App Store and Messages on it, and revoke that machine's keys and tokens
+(GitHub ssh keys + `gh` tokens, gcloud/aws sessions, Claude/Codex logins). Not now — the source stays the rollback.
 
 **Round B — apps (multiSelect, ≤ 4 options per question).**
-[mac] casks → `export HOMEBREW_BUNDLE_CASK_SKIP="<declined…>"` before install.sh (variable verified in Homebrew's bundle source).
+[mac] declined casks → written to `answers.md` and passed as `HOMEBREW_BUNDLE_CASK_SKIP="<declined…>"` on the `install.sh` command line (step 8).
 (1) *Editors + AI*: visual-studio-code · cursor · antigravity / antigravity-ide · claude + chatgpt.
 (2) *Data + dev tools*: dbeaver-community · pgadmin4 · elasticvue · postman · gephi · balenaetcher.
 (3) *Comms + notes*: slack · discord · zoom · telegram · spotify · obsidian · notion.
@@ -68,14 +154,19 @@ below (a coding/training machine skips Steam, WhatsApp, Spotify, VPNs; a persona
 (2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape).
 [wsl] no desktop apps inside WSL: 🙋 the user runs `packages/windows-apps.txt` with winget in PowerShell — ask which lines first.
 
-**Round C — toolchain.** (1) *Containers*: [mac] colima (default; no GPU for Docker on Apple Silicon) vs Docker Desktop ·
+**Round C — toolchain.** (1) *Containers*: [mac] colima (the deliberate default, in the Brewfile) vs Docker Desktop (cask, ask) —
+on Apple Silicon **Docker has no GPU either way**, so it only runs deploy images and the teaching stacks ·
 [linux] native Docker Engine; if `lspci | grep -i nvidia` finds a GPU also ask about the NVIDIA driver + container toolkit ·
-[wsl] Docker Engine inside WSL2 (needs systemd). (2) *Local AI*: ollama + `llm` CLI — install only / install + pull models
-(ask which, show sizes) / skip. (3) *Python/Node*: uv 3.11 + 3.12 and `~/.venv-sandbox`; nvm LTS + the global CLIs — as-is /
-add a Python version / skip Node. (4) *Terminal*: [mac] Warp + the dracula/MesloLGS settings (`terminal/warp-settings.toml`) or
-Terminal.app · [linux] Warp from its apt repo or the default terminal · [wsl] font + terminal live on the Windows side → 🙋.
+[wsl] Docker Engine inside WSL2 (needs systemd). (2) *Local AI*: [mac] training/inference run **natively**, not in Docker —
+ollama native (Metal) + `llm` CLI: install only / install + pull models (ask which, show sizes) / skip; and the ML stack:
+uv env with PyTorch (MPS backend) / MLX (`uv pip install mlx mlx-lm`, Apple-Silicon-only) / both / skip ·
+[linux]/[wsl] ollama + `llm` as above; CUDA only if a GPU was found. (3) *Python/Node*: uv 3.11 + 3.12 + 3.13 and `~/.venv-sandbox`;
+nvm LTS + the global CLIs — as-is / add a Python version / skip Node. (4) *Terminal*: [mac] Warp + the dracula/MesloLGS settings
+(`terminal/warp-settings.toml`) or Terminal.app · [linux] Warp from its apt repo or the default terminal · [wsl] font + terminal live on the Windows side → 🙋.
 
-**Round D — look and feel.** (1) *Bauhaus icons* (step 8c): [mac] none / icons / icons + Dock tiles + re-apply after updates →
+**Round D — look and feel.** (1) *Bauhaus icons* (step 8c): [mac] **recommend NO on macOS ≥ 13** — writing icons into other
+vendors' app bundles is likely blocked by the App Management privacy control (untested on 15/26); the user can test
+`custom_scripts/bauhaus_icons.py --mac` by hand later. Options: none (recommended) / icons / icons + Dock tiles + re-apply after updates →
 `BAUHAUS_ICONS`, `BAUHAUS_MAC_EXTRAS` · [linux GNOME, needs `gsettings`] yes / no → `BAUHAUS_ICONS` · [wsl] skip.
 [mac] (2) *macOS defaults* (`custom_scripts/macos_defaults.sh`: key repeat, Finder, Dock, …): run all / let me pick each / skip.
 [mac] (3) *Dock layout*: keep default / clean. [mac] (4) *Screenshots folder*: Desktop (default) / elsewhere.
@@ -84,17 +175,19 @@ Terminal.app · [linux] Warp from its apt repo or the default terminal · [wsl] 
 GitHub CLI for both accounts · SSH keys (personal + work) · `~/.secrets` values · GCP service-account JSON ·
 gcloud/aws logins · ngrok token · Claude Code login (done) · Google Drive/Dropbox sign-in.
 
-**Round F — safety and proof.** (1) *Verification depth*: full (checksum dry-run + per-repo fingerprint + `check_setup.sh`
-scorecard, 3 independent checks) / quick. (2) *Second target*: also copy `~/Code` to another machine (buffer) and cross-check. (3) *When done*:
-remind to turn Remote Login / ssh off and stop `caffeinate` (Mac source) or `systemd-inhibit` (Linux source); keep the source untouched
-until every check passes. (4) *Answers file*: show `~/migration-answers.md` and `~/migration-skipped.md` at the end.
+**Round F — safety and proof.** (1) *Verification depth*: full (`verify_code.sh --canary` after step 7 AND at step 10 + `check_setup.sh --code`
+scorecard) / quick (one `verify_code.sh` run at step 10). (2) *Second target*: also copy `~/Code` to another machine (buffer) and cross-check
+three ways (step 10b) — needs a Linux box with ssh + full perl. (3) *When done*: remind to turn Remote Login / ssh off and stop `caffeinate`
+(Mac source) or `systemd-inhibit` (Linux source); keep the source untouched until every check passes. (4) *Answers file*: show
+`~/.migration/answers.md` and `~/.migration/skipped.md` at the end.
 
 **Round G — keep the machine clean (ask last; the user wants it to stay really clean).** (1) *Dev-tool state*: carry only what's needed
-(secrets, keys, Claude light) / also shell history + `.codex`, `.gemini`, `.promptplot`, `.aivss` (trim `home-carry.txt` accordingly).
-(2) *Caches*: prune at the end — recommended / keep ([mac] `brew cleanup -s`; [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge`;
-all: `uv cache prune`, npm, docker). (3) *Installer backups* (`*.backup` that install.sh leaves next to every file it replaces): delete once the
-scorecard passes / keep. (4) *Migration notes* (`~/migration-*.md`): delete at the end / move to Documents. Everything not chosen in
-rounds B–D stays uninstalled; **no ad-hoc installs** afterwards.
+(secrets, keys, Claude light) / also shell history + `.codex`, `.gemini`, `.promptplot`, `.aivss` → delete the unwanted lines from
+**`~/.migration/home-carry.txt`** (never from the tracked `packages/home-carry.txt`). (2) *Caches*: prune at the end — recommended / keep
+([mac] `brew cleanup -s`; [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge`; all: `uv cache prune`, npm, docker).
+(3) *Installer backups* (`<file>.<YYYYmmdd-HHMMSS>.backup` that install.sh leaves next to every file it replaces): delete once the
+scorecard passes / keep. (4) *Migration notes* (`~/.migration/answers.md`, `skipped.md`): delete at the end / move to `~/Documents`.
+Everything not chosen in rounds B–D stays uninstalled; **no ad-hoc installs** afterwards.
 
 ## 2. Guide the user on the source (they sit there; Claude instructs from here)
 
@@ -107,217 +200,342 @@ One at a time, wait for "done":
    + an Apple/Ubuntu name is a computer) and ask with **AskUserQuestion** which one is the source →
    `$SRC` (prefer the IP). Nothing found → re-check step 1, or 🙋 ask for the address the Sharing pane
    shows (`ssh user@<name>`), or the IP (Mac `ipconfig getifaddr en0`; Linux `hostname -I`).
-   Then `S=$SRC_USER@$SRC`.
+   Then record it: `printf 'SRC=%s\nS=%s@%s\n' "<ip>" "<user>" "<ip>" >> ~/.migration/env`.
 3. 🙋 **Keep it awake:** Mac → `caffeinate -dis` in a Terminal window left open; Linux →
    `systemd-inhibit --what=sleep:idle sleep infinity`. On power, same network (ethernet = fastest).
-4. Verify from here: `ping -c 2 $SRC` and `nc -zv $SRC 22`.
+4. Verify from here: `source ~/.migration/env; ping -c 2 "$SRC" && nc -zv "$SRC" 22`.
 Afterwards (step 10): remind the user to turn Remote Login off and stop caffeinate/inhibit.
 
 ## 3. ssh key to the source (no passwords inside Claude)
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/id_migrate -N "" -C "migrate-$(hostname)"
+source ~/.migration/env
+mkdir -p -m 700 ~/.ssh && ssh-keygen -t ed25519 -f ~/.ssh/id_migrate -N "" -C "migrate-$(hostname)"
 ```
 🙋 User runs in a normal terminal (asks the source password once):
-`ssh-copy-id -i ~/.ssh/id_migrate.pub $S` (no ssh-copy-id → `cat ~/.ssh/id_migrate.pub | ssh $S 'mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys'`).
-Verify `ssh -i ~/.ssh/id_migrate -o BatchMode=yes $S 'echo ok; uname; du -sh ~/Code'`. Then
-`export RSYNC_RSH="ssh -i $HOME/.ssh/id_migrate"` and `SRC_HOME=$(ssh $S 'echo $HOME')`.
+`ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<ip>` (no ssh-copy-id → `cat ~/.ssh/id_migrate.pub | ssh <user>@<ip> 'mkdir -p -m 700 ~/.ssh && cat >> ~/.ssh/authorized_keys'`).
+Then complete the env — `SRC_HOME` must be non-empty before anything uses it:
+```bash
+source ~/.migration/env
+src 'echo ok; uname; echo "$HOME"; du -sh ~/Code'                  # must print ok
+h=$(src 'printf %s "$HOME"'); [ -n "$h" ] || { echo "SRC_HOME empty — STOP"; exit 1; }
+printf 'SRC_HOME=%s\n' "$h" >> ~/.migration/env
+cat >> ~/.migration/env <<'EOF'
+[ -n "$S" ] && [ -n "$SRC_HOME" ] || { echo "migration env incomplete — STOP"; return 1 2>/dev/null || exit 1; }
+EOF
+source ~/.migration/env && echo "env complete: S=$S SRC_HOME=$SRC_HOME OS=$OS" && echo 3 > ~/.migration/state
+```
+From here on the guard is live: a Bash call whose `source ~/.migration/env` prints `migration env incomplete — STOP`
+must not continue.
 
 ## 4. Temporary passwordless sudo (Linux/WSL/mac — Claude can't type passwords)
 
 🙋 The user runs once in a normal terminal:
 ```bash
-echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/99-migration && sudo chmod 440 /etc/sudoers.d/99-migration
+echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/99-migration && sudo chmod 440 /etc/sudoers.d/99-migration && sudo visudo -cf /etc/sudoers.d/99-migration
 ```
-Verify `sudo -n true`. **Removed in step 10.** (Declined → the user runs `./install.sh` in a second
-terminal and Claude follows its output.)
+Verify `sudo -n true` (and `visudo -cf` printed `parsed OK`). **Removed as the LAST item of step 10's hygiene gate.**
+(Declined → the user runs `./install.sh` in a second terminal and Claude follows its output.)
 
 ## 5. Path compatibility (any target, when `$SRC_HOME` ≠ `$HOME`) — automatic, detect it, don't ask
 
 Code, git worktrees (63 use absolute gitdirs), `~/.claude` memory and ~700 configs hard-code
-`/Users/juan-garassino`. Compare `echo $HOME` here with `$SRC_HOME`; if they differ (e.g. a Mac account called
-`garassino-juan` → `/Users/garassino-juan`), make the source path resolve here — one sudo prompt:
-- linux/wsl: `sudo mkdir -p /Users && sudo ln -sfn $HOME /Users/juan-garassino`
-  (Linux source with a different home: also `sudo ln -sfn $HOME $SRC_HOME`).
-- mac: `[ -e /Users/juan-garassino ] && echo "already exists — STOP and ask" || sudo ln -s "$HOME" /Users/juan-garassino`
+the source home. `source ~/.migration/env; [ "$HOME" = "$SRC_HOME" ] && echo same || echo differs`; if they differ
+(e.g. a Mac account called `garassino-juan` → `/Users/garassino-juan`, or a Linux target pulling from `/Users/juan-garassino`),
+make the source path resolve here — one sudo:
+- linux/wsl: `sudo mkdir -p "$(dirname "$SRC_HOME")" && sudo ln -sfn "$HOME" "$SRC_HOME"`.
+- mac: `[ -e "$SRC_HOME" ] && echo "already exists — STOP and ask" || sudo ln -s "$HOME" "$SRC_HOME"`
   (never `-f` over a real folder: it could be another account's home).
 Files stay byte-identical, so the verification steps still hold; the symlink just lets the old absolute paths work.
 
 ## 5b. 🙋 Scope: clean and light — ASK before copying anything
 
-Default to **light**. Measure on the source first (`ssh $S 'du -sk <path>'`; sizes below were measured
+Default to **light**. Measure on the source first (`src 'du -sk <path>'`; the sizes below were measured
 2026-10-22 and drift), then ask with **AskUserQuestion** — recommended option first, sizes in the descriptions:
 
 1. **Claude history** — *Light (recommended, ~80 MB)*: memory, standing notes, plans, skills, agents, plugins,
    prompt history; old sessions can't be resumed. *Full (~25 GB)*: also every session transcript.
-   Light = `CLAUDE_FILTERS=(--include '.claude/projects/*/memory/***' --include '.claude/projects/*/standing/***' --exclude '.claude/projects/*/*')`;
-   Full = `CLAUDE_FILTERS=()` (used in step 6). Dry-run tested: 24.6 GB → 77 MB.
-2. **AI Underwriter data in `~/Code/002-engenious/ai-underwriter-references/`** (multiSelect; recommend **include** — slow
-   or costly to regenerate): `000-ai-underwriter-local/eval-cache` ~14 GB · `my-ai-underwriter/extraction_results` ~7 GB ·
-   `003-ai-underwriter-ocr/data` ~5 GB.
+   Light = the filter files written in step 1a (include first, then exclude). Full = `: > ~/.migration/claude-include.txt; : > ~/.migration/claude-exclude.txt`.
+   Dry-run measured: 24.6 GB → 77 MB with the light filter (step 6 re-checks that number before the real copy).
+2. **Work data under `~/Code/002-engenious/`** (multiSelect; recommend **include** — slow or costly to regenerate):
+   `src 'cd Code/002-engenious && du -sk */* 2>/dev/null | sort -n | tail -8'` and offer each folder above ~1 GB (eval caches,
+   extraction results, OCR data were 5–14 GB each). Paths and sizes go in `answers.md`, not in this public file.
 3. **Training outputs** (multiSelect; recommend **skip** — regenerated by training, or carried on the USB stick):
-   `005-products/027-ml-workspace/building-segmentation/out` ~18 GB · `…/landcover-segmentation/out` ~2.7 GB ·
-   `…/building-segmentation/data` ~2 GB · `001-archives/downloads_projects_2026/garassino-ml-results` ~2 GB.
+   `005-products/027-ml-workspace/building-segmentation/out` ~18 GB · `005-products/027-ml-workspace/landcover-segmentation/out` ~2.7 GB ·
+   `005-products/027-ml-workspace/building-segmentation/data` ~2 GB · `001-archives/downloads_projects_2026/garassino-ml-results` ~2 GB.
 4. **Re-cloneable / course material** (multiSelect; recommend **skip**): `007-sandbox/openclaw` (5.6 GB `.git` of a public
    project) · `004-lewagon-spiced/spiced` + `004-lewagon-spiced/lewagon/official-content` (~7 GB) ·
    `005-products/004-creative-tools/001-PromptPlot/gallery` (2.5 GB) · `005-products/009-mini-networks/playground/.lab-shots` (2.2 GB).
 
-Every path the user declines becomes an `--exclude /<path-relative-to-Code>` in `EXCL=(…)` (step 7) — and write the
-list to `~/migration-skipped.md` (outside `~/Code`, so `~/Code` stays byte-identical to the source) so nothing is missing silently. Reuse the same `EXCL` in the byte-verify and
-checksum dry runs, or they will report the skipped paths as differences. Build output (`dist`, `build`, `target`,
-`.cache`) was measured: 0 GB extra, no need to exclude. Regenerable environments stay out either way (step 7).
+Every path the user declines is appended to `~/.migration/code-excl.txt` as `/<path-relative-to-Code>/` (leading AND trailing
+slash) and listed with its size in `~/.migration/skipped.md`, so nothing is missing silently. The same file drives rsync (step 7),
+`verify_code.sh` and `check_setup.sh --code` (via `MIGRATE_EXCL`), so the skipped paths never show up as differences.
+Then total it: `src 'du -sk Code'` minus the skipped sizes = what will be copied; re-check `df -h ~` ≥ 1.3 × that.
+Build output (`dist`, `build`, `target`, `.cache`) was measured: 0 GB extra, no need to exclude. Regenerable environments stay
+out either way (fixed list in step 1a). `echo 5 > ~/.migration/state`.
 
 ## 6. Pull the dev setup outside ~/Code
 
+Gate first — the light filter must really be light (include file FIRST, then exclude):
 ```bash
-cd ~/Code/000-config/001-dotfiles
-rsync -ar --stats --files-from=packages/home-carry.txt "${CLAUDE_FILTERS[@]}" \
-  --exclude .ssh/config --exclude .ssh/known_hosts --exclude .ssh/authorized_keys --exclude .claude/settings.json \
-  --exclude .claude/statusline-command.sh $S: ~/        # exit 23 = some listed path absent: fine
-rsync -a $S:.claude.json ~/.claude.json.src            # MCP servers, merged below
+source ~/.migration/env
+rsync -arn --stats --files-from="$HOME/.migration/home-carry.txt" \
+  --include-from="$HOME/.migration/claude-include.txt" --exclude-from="$HOME/.migration/claude-exclude.txt" \
+  "$S:" ~/ 2>/dev/null | grep -E 'Total transferred file size'     # light ≈ 77 MB; full ≈ 25 GB. GBs with light → filter wrong, STOP
 ```
-- ngrok token: Mac source `rsync -a "$S:Library/Application Support/ngrok/ngrok.yml" ~/.config/ngrok/`
-  (Linux source: `.config/ngrok/ngrok.yml`; mac target: `~/Library/Application Support/ngrok/`).
+Then the real copy:
+```bash
+source ~/.migration/env
+rsync -ar --stats --files-from="$HOME/.migration/home-carry.txt" \
+  --include-from="$HOME/.migration/claude-include.txt" --exclude-from="$HOME/.migration/claude-exclude.txt" \
+  --exclude .ssh/config --exclude .ssh/known_hosts --exclude .ssh/authorized_keys --exclude .claude/settings.json \
+  --exclude .claude/statusline-command.sh "$S:" ~/ 2>&1 | tee ~/.migration/logs/06-home.log   # exit 23 = some listed path absent: fine
+rsync -a "$S:.claude.json" ~/.claude.json.src            # MCP servers, merged in step 9
+```
+- ngrok token (path has a space — don't let rsync/ssh split it): Mac source → Mac target
+  `(umask 077; mkdir -p ~/Library/Application\ Support/ngrok; src 'cat "Library/Application Support/ngrok/ngrok.yml"' > ~/Library/Application\ Support/ngrok/ngrok.yml)`;
+  Linux/WSL target: `(umask 077; mkdir -p ~/.config/ngrok; src 'cat "Library/Application Support/ngrok/ngrok.yml"' > ~/.config/ngrok/ngrok.yml)`;
+  Linux source: read `.config/ngrok/ngrok.yml` instead.
 - Perms: `chmod 600 ~/.secrets ~/.secrets-cheatsheet.md ~/.engenious_university.env; chmod 700 ~/.ssh; chmod 600 ~/.ssh/id_*; chmod 644 ~/.ssh/*.pub`.
 - Keys: linux → `eval $(ssh-agent) && ssh-add ~/.ssh/id_ed25519_personal ~/.ssh/id_ed25519_work`;
   mac → `ssh-add --apple-use-keychain …`. Verify `ssh -T git@github.com` → `Hi juan-garassino`.
-- **Claude history is keyed by path** — only when `$SRC_HOME` ≠ `$HOME`, so sessions can be resumed here:
-  - Sessions, memory, plans, standing: for each `~/.claude/projects/<src-slug>-*` also `cp -a` it to
-    the slug with `$HOME` (`/` → `-`), keeping the original. Then `/resume` in a project lists its old sessions.
-    Slugs start with `-`, so pass `--`: `cd ~/.claude/projects && for d in ./-Users-juan-garassino*; do d=${d#./};
-    n="$(printf %s "$HOME" | tr / -)${d#-Users-juan-garassino}"; mkdir -p -- "./$n" && cp -a --update=none -- "./$d"/. "./$n"/; done`
-    (macOS `cp` has no `--update=none`: use `cp -an`.)
-  - Prompt history (up-arrow): append path-rewritten copies of the source entries:
-    ```bash
-    jq -c --arg s "$SRC_HOME" --arg h "$HOME" 'select((.project // "") | startswith($s)) | .project |= sub("^"+$s; $h)' \
-      ~/.claude/history.jsonl > /tmp/h.jsonl && cat /tmp/h.jsonl >> ~/.claude/history.jsonl && rm /tmp/h.jsonl
-    ```
-  - Old transcripts contain `/Users/juan-garassino/...` paths; they keep working through step 5's symlink.
+- **Claude history is keyed by path** — only when `$SRC_HOME` ≠ `$HOME`, so sessions can be resumed here.
+  Sessions, memory, plans, standing: copy each `~/.claude/projects/<src-slug>-*` to the slug with `$HOME`
+  (`/` → `-`), keeping the original and never overwriting what this machine already wrote. The old slug comes
+  from `$SRC_HOME` (it is NOT always `-Users-juan-garassino` — a Linux buffer source has `-home-<user>`):
+  ```bash
+  source ~/.migration/env
+  old="$(printf %s "$SRC_HOME" | tr / -)"; new="$(printf %s "$HOME" | tr / -)"
+  cd ~/.claude/projects && for d in ./"$old"*; do [ -d "$d" ] || continue; d=${d#./}
+    n="$new${d#"$old"}"; mkdir -p -- "./$n" && rsync -a --ignore-existing -- "./$d/" "./$n/"; done
+  ```
+  (`rsync --ignore-existing` is the portable `cp --update=none`: macOS `cp` has no such flag.)
+  The prompt-history rewrite needs `jq` and is done in step 9 (fresh Ubuntu has no jq until install.sh ran).
+  Old transcripts contain the source's absolute paths; they keep working through step 5's symlink.
 - Code comes ONLY from `~/Code` (step 7). Never copy Desktop/Downloads/Documents — not even code found there.
+- `echo 6 > ~/.migration/state`.
 
-## 7. Pull ~/Code (~93G; ~110G measured 2026-10-22 before the 5b skips; resumable — just re-run if interrupted)
+## 7. Pull ~/Code (≈110 G before the 5b skips, ≈68 G after the recommended ones; resumable — re-run if interrupted)
 
+Long run: start it with the Bash tool's **`run_in_background`**, logging to `~/.migration/logs/07-code.log`,
+and watch the log instead of blocking (Intel Mac → Apple Silicon over gigabit ethernet: expect 20–40 min; Wi-Fi: hours).
 ```bash
-rsync -aH --partial --stats "${EXCL[@]}" \
-  --exclude .venv --exclude venv --exclude '.venv-*' --exclude node_modules --exclude .next \
-  --exclude __pycache__ --exclude .pytest_cache --exclude .mypy_cache --exclude .terraform \
-  --exclude .DS_Store --exclude '._*' \
-  --exclude /000-config/001-dotfiles/ --exclude /000-config/dotfiles-uv-worktree/ \
-  $S:Code/ ~/Code/
+source ~/.migration/env
+rsync -aH --partial --stats --exclude-from="$MIGRATE_EXCL" "$S:Code/" ~/Code/ > ~/.migration/logs/07-code.log 2>&1
+echo "rsync exit $?" >> ~/.migration/logs/07-code.log
 ```
-The dotfiles checkouts are excluded (this machine has its own clone on `main`). macOS sources ship
+When the log ends with `rsync exit 0` (24 = a file vanished on the source — re-run; anything else → read the log), `echo 7 > ~/.migration/state`.
+The dotfiles checkouts are excluded (this machine has its own clone). macOS sources ship
 rsync 2.6.9 — it works, just scans all ~665k files before sending; it rejects every `--info=` flag (use `--stats`); **don't `brew install rsync` on an
-unsupported (old) Mac** (it compiles OpenSSL from source). **Byte-verify:** same command with
-`-anc --itemize-changes` → must print nothing.
+unsupported (old) Mac** (it compiles OpenSSL from source). An rsync checksum dry-run (`-anc --itemize-changes`, same
+`--exclude-from`, no `--stats`) is an optional extra: any itemized line is a difference — but it is NOT the proof; step 7b is.
+
+## 7b. Prove ~/Code — BEFORE step 8/9 touch it
+
+The proof is `custom_scripts/verify_code.sh` (read-only on every side; works with BSD/GNU userland, zsh or bash):
+`verify_code.sh [--excl-file F] [--source SPEC] [--peer SPEC]... [--root DIR] [--canary] [--keep DIR] [-h]`,
+SPEC = `'SSHCMD USER@HOST'` or `local:/abs/dir`. Defaults: `--excl-file "$MIGRATE_EXCL"`, `--source "$MIGRATE_SSH $S"` — both come
+from `~/.migration/env`, so with the env sourced no flags are needed. It runs `custom_scripts/code_manifest.pl` locally and on every
+remote (`perl - Code --exclude-b64 <b64> < code_manifest.pl` over ssh — nothing is copied to the remote) with the same excludes:
+one line per entry `type mode size sha256 linktarget-or-dash path` (NFC + escaped paths, bytewise sort) plus, with `--git`, per-repo
+`G <repo> HEAD|REF|STASH|INDEX|STATUS …` lines (all refs except `refs/remotes/*`, stash, `ls-files -s` hash, porcelain status hash;
+git runs with `--no-optional-locks`, `GIT_OPTIONAL_LOCKS=0`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`, `LC_ALL=C` — never
+writes). It compares every pair and prints `PASS a=b` / `FAIL a≠b` (+ first differing lines) and `CASE-COLLISION <path>` /
+`ERRORS <n>` from each side. Exit **0** = every pair PASS and every side `ERRORS 0`; **1** = any FAIL; **2** = usage; **3** = the canary
+was missed. `--canary` is the positive control: it briefly creates `~/Code/.migration-canary-<random>` locally only (by design — a
+trap removes it even on failure), checks that run FAILS, removes it, then runs for real — so a PASS can't be a false pass.
+Other side specs: `USER@HOST` alone uses `$MIGRATE_SSH`; `local:/abs/dir` compares a directory on this machine (tests, a mounted disk).
+**Duration:** measured 2026-10-23 on the Intel source: ~20 min for its side (≈632 k entries, 331 repos). Sides run in parallel; with
+`--canary` the remotes are computed once (their canary-pass manifests are reused — they are frozen and the canary is local only) and
+only `here` is computed twice, so a check takes ≈ the slowest side + one local pass (≈25–30 min with a fast new Mac as `here`). Always launch it with the Bash tool's **`run_in_background: true`** (the tool stops
+foreground commands after 10 min) and wait for the completion notice; never poll in a loop.
+```bash
+source ~/.migration/env
+cd ~/Code/000-config/001-dotfiles && custom_scripts/verify_code.sh --canary > ~/.migration/logs/07b-verify.log 2>&1; rc=$?
+echo "verify exit $rc" >> ~/.migration/logs/07b-verify.log; tail -5 ~/.migration/logs/07b-verify.log   # run_in_background: true
+```
+Must end in `verify exit 0` (`PASS here=source`). A FAIL here means the copy is incomplete: re-run step 7, then this. Only then
+`echo 7b > ~/.migration/state` and continue. Normalisations the manifest applies (so later steps don't break the proof): a worktree
+`.git` FILE is hashed with its absolute prefix up to `/Code/` stripped, `.git/config` is hashed without `ignorecase =` lines, and
+`.git/index`, `.git/worktrees/*/{index,gitdir}`, `.git/FETCH_HEAD` are skipped — step 9's `core.ignorecase` flip and `git worktree
+repair` are therefore the ONLY allowed post-copy changes. Anything else (commits, checkouts, `envup`, prune) waits until step 10 PASSED.
 
 ## 8. Install the toolchain (Claude runs it, narrating each phase)
 
+Long run: `run_in_background`, log to `~/.migration/logs/08-install.log`. Interview answers go **on the command line** (nothing to `export`;
+each Bash call is fresh). `install.sh` is non-interactive and idempotent — re-run it as often as needed.
 ```bash
+source ~/.migration/env
 cd ~/Code/000-config/001-dotfiles
-git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetch
-./install.sh
+git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetch -q
+HOMEBREW_BUNDLE_CASK_SKIP="<declined casks from answers.md, space-separated>" BAUHAUS_ICONS=yes|no BAUHAUS_MAC_EXTRAS=yes|no \
+  ./install.sh > ~/.migration/logs/08-install.log 2>&1; echo "install exit $?" >> ~/.migration/logs/08-install.log
 ```
-- **linux/wsl:** apt (core, build deps, ffmpeg, tesseract, git-lfs, go, mkcert, `postgresql-client`) +
+- **linux/wsl:** apt (core, build deps, ffmpeg, tesseract, git-lfs, go, mkcert, `postgresql-client`, `perl`, `rsync`, `jq`) +
   `linux-tools.sh` (docker+compose, gcloud, terraform, kubectl, helm, aws, minikube, k3d, act, runpodctl,
   cloud-sql-proxy, ngrok, rustup, Warp, llm, ollama). wsl: skips Warp (use Warp for Windows) and enables
   systemd → 🙋 `wsl --shutdown` in PowerShell, reopen, re-run `./install.sh`.
-- **mac:** Homebrew (noninteractive) + Brewfile (incl. the desktop-app casks).
+- **mac:** Homebrew (noninteractive) + Brewfile (incl. the desktop-app casks minus `HOMEBREW_BUNDLE_CASK_SKIP`); `docker compose` via
+  `cliPluginsExtraDirs` merged into `~/.docker/config.json`; `libpq` linked (`psql`, `pg_dump`); `tlrc` provides `tldr`.
 - **Desktop apps (official sources only)** — linux: 🙋 ask which groups, then `packages/linux-apps.sh [core dev comms sync graphics]`
   (`--check` to verify); mac: the Brewfile casks; wsl: 🙋 user runs `packages/windows-apps.txt` with winget in PowerShell.
-  Bauhaus icons are **opt-in** — 🙋 ask the user (Mac and Linux GNOME): install.sh asks on a terminal, and
-  without one it skips them, so pass the answer: `BAUHAUS_ICONS=yes|no` (Mac extras — Dock tiles + re-apply after
-  app updates: `BAUHAUS_MAC_EXTRAS=yes|no`). Mac: one sudo prompt for root-owned apps; or run
-  `custom_scripts/bauhaus_icons.py --mac` / `--mac-dock` / `--mac-watch` later by hand.
+  Bauhaus icons are **opt-in** (Round D; macOS ≥ 13 → recommended `no`): install.sh asks on a terminal and without one it skips
+  them, so pass the answer: `BAUHAUS_ICONS=yes|no` (Mac extras — Dock tiles + re-apply after app updates: `BAUHAUS_MAC_EXTRAS=yes|no`).
+  Mac: one sudo prompt for root-owned apps; or run `custom_scripts/bauhaus_icons.py --mac` / `--mac-dock` / `--mac-watch` later by hand.
 - **all:** MesloLGS NF + terminal font 14, OMZ + plugins, Powerlevel10k + `~/.p10k.zsh`, Warp settings
   (`dracula`), uv + Python 3.11/3.12/3.13 + ruff/pre-commit, nvm + LTS + npm globals, VS Code
-  settings + 48 extensions, global git ignore, Claude status line/settings/skills/agents.
+  settings + 48 extensions, global git ignore, Claude status line/settings/skills/agents. Every file it replaces is kept
+  next to the original as `<file>.<YYYYmmdd-HHMMSS>.backup` (the hygiene gate lists them).
 - **Postgres = containers only** (host gets `psql`/`pg_dump`). See step 9 for data.
-- After: `sudo chsh -s $(command -v zsh) $USER`; 🙋 **re-login** (zsh + docker group); reopen Claude
-  here and continue. First zsh: **decline** the p10k wizard. Open Warp → should look like the old machine.
+- After the log ends with `install exit 0`: `sudo chsh -s $(command -v zsh) $USER`; **write `echo 8 > ~/.migration/state` NOW**, then
+  🙋 **re-login** (zsh + docker group) — the re-login ends this Claude session. The user reopens Claude in
+  `~/Code/000-config/001-dotfiles`; on restart read `~/.migration/state` (and `answers.md`) and **resume at step 8's guided logins** —
+  don't redo earlier steps. First zsh: **decline** the p10k wizard. Open Warp → should look like the old machine.
   Terminals opened before install.sh don't see the new fonts (glyphs show as boxes) — the re-login fixes it.
 
 ### Guided logins (one at a time; print the command, user runs it, verify)
 1. 🙋 `gh auth login` → GitHub.com · SSH · skip key upload · browser → Authorize as `juan-garassino`.
 2. 🙋 again → Authorize as `j-garassino-engenious`. Verify `gh auth status` (both) and the cd-switch:
    `~/Code` → `juan-garassino`, `~/Code/002-engenious` → `j-garassino-engenious`.
-3. GCP: carried `~/.config/gcloud` usually works — `gcloud auth list`; `gcloud projects list` shows
-   `garassino-ml/ai/op` + `engenious-mcp-prod`. Else 🙋 `gcloud auth login` + `gcloud auth application-default login`.
+3. GCP: carried `~/.config/gcloud` usually works — `gcloud auth list`; `gcloud projects list` shows the expected personal
+   and work projects (compare with the source: `src 'gcloud projects list --format="value(projectId)"'`). Else 🙋 `gcloud auth login` + `gcloud auth application-default login`.
 4. AWS: `aws sts get-caller-identity` (carried `~/.aws`); report failures, don't guess.
 5. runpod: `runpodctl config --apiKey "$RUNPOD_API_KEY"` (key from `~/.secrets`). Codex: 🙋 `codex login`.
    ngrok: `ngrok config check`.
 
-## 9. Settle the code and data
+## 9. Settle the code and data (only the two allowed changes touch `~/Code`)
 
-- **MCP servers:** merge the source's `~/.claude.json` servers (user + per-project), rewriting paths:
+- **MCP servers:** merge the source's `~/.claude.json` servers (user + per-project), rewriting paths. `SRC_HOME` must be non-empty
+  (the env guard enforces it — an empty `$s` would make `sub("^"; $h)` prefix every key):
   ```bash
+  source ~/.migration/env; [ -n "$SRC_HOME" ] || exit 1
   jq -s --arg h "$HOME" --arg s "$SRC_HOME" '.[0] as $n | .[1] as $o
     | $n + {mcpServers: (($n.mcpServers // {}) + ($o.mcpServers // {})),
             projects: (($n.projects // {}) * (($o.projects // {}) | with_entries(.key |= sub("^"+$s; $h))
                        | map_values({mcpServers: (.mcpServers // {})})))}' \
-    ~/.claude.json ~/.claude.json.src > /tmp/cj && mv /tmp/cj ~/.claude.json && chmod 600 ~/.claude.json
+    ~/.claude.json ~/.claude.json.src > ~/.migration/cj.tmp && mv ~/.migration/cj.tmp ~/.claude.json && chmod 600 ~/.claude.json
   ```
-  Then restart Claude and check `claude mcp list` (discord-me + marketing_agent servers).
-- **git, per repo** (Linux is case-sensitive; Mac paths moved):
+  Then restart Claude and check `claude mcp list` against the source (`src 'claude mcp list'`) and `claude/mcp-servers.md`.
+- **Prompt history (up-arrow)** — only when `$SRC_HOME` ≠ `$HOME`; append path-rewritten copies of the source entries:
+  ```bash
+  source ~/.migration/env; [ -n "$SRC_HOME" ] || exit 1
+  jq -c --arg s "$SRC_HOME" --arg h "$HOME" 'select((.project // "") | startswith($s)) | .project |= sub("^"+$s; $h)' \
+    ~/.claude/history.jsonl > ~/.migration/h.tmp && cat ~/.migration/h.tmp >> ~/.claude/history.jsonl && rm ~/.migration/h.tmp
+  ```
+- **git, per repo** (Linux is case-sensitive; Mac paths moved) — allowed change 1:
   `find ~/Code -name .git -prune -exec sh -c 'git -C "$(dirname "$1")" config core.ignorecase false' _ {} \;`
-  then `git worktree repair` / `git worktree prune` in repos with worktrees (ai-underwriter OCR +
-  prediction, deepVogue, carreer-navigator, PromptPlot). First `git status` per repo rehashes — normal.
-  **Before pruning**, capture fresh WIP of every source worktree outside `~/Code` (`git diff --binary HEAD` +
-  untracked tar, over ssh) — the snapshot may be stale. Then check every pruned HEAD is reachable from a ref.
-- **Tracked `.DS_Store`** (committed by mistake, excluded by rsync → shows as deleted): restore from git —
-  `git ls-files -d | grep -E '(^|/)(\.DS_Store|\._[^/]*)$' | xargs -r git checkout --` in each repo.
-- **Scratch-worktree WIP** (uncommitted work from `~/.claude-tmp` worktrees): `~/Archive/migration/env-snapshots/worktree-wip-*/INDEX.txt`
-  lists branch + repo; apply `*.patch` and untar `*.untracked.tgz` in a fresh worktree of that branch when the user wants it.
-- **Databases:** start each compose stack, then restore: aiuw → `gunzip -c ~/Archive/migration/env-snapshots/aiuw-pgdumpall-*.sql.gz | docker exec -i aiuw-postgres psql -U aiuw -d postgres`;
-  Le Wagon DE → untar `lewagon-de-pgdata-*.tgz` into the `lewagon-de_de-pgdata` volume before first start.
-- **Envs:** `mysandbox` once; project envs on touch with `envup`. `terraform init` where `.terraform` was dropped.
-- **macOS-only bits in code** (report, fix only if the user asks): `caffeinate` in boundaryBrush/dataDiffusion
-  Makefiles (→ `systemd-inhibit`), `brew install` hints in marketing_agent/deepCab/deepMaze Makefiles,
-  `engenious_university` launchd plist + `run_bot_cron.sh` (→ a systemd user timer on Linux).
+  Allowed change 2: `git worktree repair` in every repo that has worktrees
+  (`find ~/Code -path '*/.git/worktrees' -prune -print`). **No `git worktree prune` yet** — it happens in step 10c, after the final
+  proof. First `git status` per repo rehashes — normal. Fresh WIP of every source worktree outside `~/Code` is captured in 10c too.
+- **Tracked `.DS_Store`** (committed by mistake, excluded by rsync → shows as deleted): leave it until step 10 PASSED, then restore from git —
+  `git ls-files -d | grep -E '(^|/)(\.DS_Store|\._[^/]*)$' | xargs -r git checkout --` in each repo (changes `~/Code` → after the proof).
+- **Scratch-worktree WIP** (uncommitted work from `~/.claude-tmp` worktrees), **if present**: `~/Archive/migration/env-snapshots/worktree-wip-*/INDEX.txt`
+  lists branch + repo; apply `*.patch` and untar `*.untracked.tgz` in a fresh worktree of that branch when the user wants it (after step 10).
+- **Databases, if present:** start each compose stack, then restore its dump from `~/Archive/migration/env-snapshots/` (`*-pgdumpall-*.sql.gz`
+  → `gunzip -c … | docker exec -i <postgres-container> psql -U <user> -d postgres`; `*-pgdata-*.tgz` → untar into the named volume before first start).
+- **Envs:** `mysandbox` once; project envs on touch with `envup` — **after step 10** (`.venv` is excluded from the proof, but `uv sync`
+  can touch lockfiles). `terraform init` where `.terraform` was dropped.
+- **macOS-only bits in code** (report, fix only if the user asks): `caffeinate` in Makefiles (→ `systemd-inhibit`), `brew install`
+  hints in Makefiles, launchd plists / cron wrappers (→ a systemd user timer on Linux). Find them: `grep -rl --include=Makefile -e caffeinate -e 'brew install' ~/Code`.
+- `echo 9 > ~/.migration/state`.
 
 ## 10. Verify + clean up (print a PASS/FAIL scorecard)
 
-**Engenious first** (work, irreplaceable): per-repo HEAD + all refs + stash + `git status` hash vs the source,
-and a checksum dry-run (`rsync -anc`) of `002-engenious` — must show only `.git/config|index` and symlink-perm noise.
-
-**One command does most of it:** `custom_scripts/check_setup.sh --code $S` — setup scorecard (shell,
-look, identity, uv, every tool, docker, Claude + MCPs, secrets perms, migration hygiene, git
-worktrees) **plus** code sync vs the source: per-repo HEAD + ALL branches/tags + stashes +
-uncommitted changes (fingerprint runs on the source over ssh), and an rsync dry-run listing any
-file that differs. `--deep` byte-compares every file (slow). Exit code = FAIL count. Fix every
-FAIL (or explain it), re-run until clean. The bullets below are the manual equivalents/extras.
+**Code first** (work repos are irreplaceable) — the same proof as 7b, now after install.sh and step 9:
+```bash
+source ~/.migration/env
+cd ~/Code/000-config/001-dotfiles && custom_scripts/verify_code.sh --canary > ~/.migration/logs/10-verify.log 2>&1; echo "verify exit $?" >> ~/.migration/logs/10-verify.log   # run_in_background: true (~20 min)
+custom_scripts/check_setup.sh > ~/.migration/logs/10-scorecard.log 2>&1; echo "scorecard exit $?" >> ~/.migration/logs/10-scorecard.log
+```
+`verify_code.sh` must exit 0 again (the manifest normalises the two step-9 changes). `check_setup.sh` prints the setup scorecard (shell,
+look, identity, uv, every tool, docker, Claude + MCPs, secrets perms, migration hygiene, git worktrees). Its `--code SPEC` option runs the
+same code proof by delegating to `verify_code.sh` (honours `MIGRATE_EXCL`/`MIGRATE_SSH`; SPEC = `USER@HOST`, `'SSHCMD USER@HOST'` or
+`local:/dir`; `--deep` is accepted and ignored — the proof is always byte-level) — not needed here because the line above already ran
+it. Exit code = FAIL count (capped at 125). Fix every FAIL (or explain it), re-run until clean. The bullets below are the manual equivalents/extras.
 
 - `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (OS-specific checks → N/A with reason).
 - Look: p10k icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`; Warp `dracula`.
 - Tools: `docker compose version`, `minikube version`, `kubectl version --client`, `psql --version`,
   `terraform -version`, `gcloud --version`, `rustc --version`, `ngrok version`, `claude mcp list`.
-- Byte parity: `custom_scripts/code_fingerprint.sh` here vs on the source (`ssh $S zsh ~/Code/000-config/001-dotfiles/custom_scripts/code_fingerprint.sh`
-  — or the dotfiles-uv-worktree path on the Intel Mac) → `diff` empty.
+- Fingerprint by eye: `custom_scripts/code_fingerprint.sh --exclude-from "$MIGRATE_EXCL"` here; on the source the same script
+  only exists if its checkout has this version — otherwise compare the `G` lines of the manifests that
+  `verify_code.sh --keep ~/.migration/manifests` leaves behind → `diff` empty.
 - Teaching stacks (containers only): ask first (GBs) → `custom_scripts/validate_teaching.sh` + `make build-mle`.
 - 3 `envup` spot-checks; `docker run --rm hello-world`; `uv run --python 3.12 python -V`.
-- **Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table):**
-  1. `sudo rm -f /etc/sudoers.d/99-migration` → `sudo -n true` must now FAIL (this is the most dangerous leftover).
-  2. Migration key: `rm -f ~/.ssh/id_migrate ~/.ssh/id_migrate.pub`; `ssh-keygen -R $SRC` (drops the source from `known_hosts`).
-  3. `rm -f ~/.claude.json.src` once the MCPs work; remove rsync partials and temp lists in `~/` (`ls -A ~ | grep -i -E 'rsync|partial|migrat'`).
-  4. `*.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.
-  5. Caches (Round G): [mac] `brew cleanup -s` · [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge` · all: `uv cache prune`, `docker system prune -af` only if no wanted container runs, `npm cache clean --force`.
-  6. Software audit against the interview answers: [mac] `brew list --cask` + `brew leaves`, `ls ~/Library/LaunchAgents` (only what was
+
+### 10b. 3-way proof (Round F.2: a Linux buffer machine exists — needed before the source Mac becomes Linux)
+
+Three independent pairs must PASS: new Mac ↔ source, buffer ↔ source, new Mac ↔ buffer. Run it **before step 10c** (and, if the buffer
+was filled early, also right after 7b): the only post-copy differences the manifest tolerates are the step-9 ones.
+1. Buffer prerequisites (🙋 on the buffer, Ubuntu/Debian): `sudo apt install -y openssh-server rsync perl && perl -MDigest::SHA -e1 && echo perl-ok`
+   (Debian/Ubuntu base images lack `Digest::SHA`; the full `perl` package has it). Its user@host → `BUF`.
+2. Authorize this machine's migration key on the buffer: 🙋 `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<buffer-ip>`; then
+   `printf 'BUF=%s\n' '<user>@<buffer-ip>' >> ~/.migration/env` (appending after the guard line is fine — it only tests `S`/`SRC_HOME`).
+   The buffer itself needs ssh to the source:
+   🙋 on the buffer `ssh-keygen -t ed25519 -f ~/.ssh/id_migrate -N ""` + `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<source-ip>`.
+3. Fill the buffer with the **same exclude list** (copy it over, then pull from the source — `run_in_background`, log it):
+   ```bash
+   source ~/.migration/env
+   scp -i ~/.ssh/id_migrate -o IdentitiesOnly=yes "$MIGRATE_EXCL" "$BUF:code-excl.txt"
+   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "mkdir -p ~/Code && rsync -aH --partial --stats -e 'ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes' --exclude-from=code-excl.txt '$S:Code/' ~/Code/" > ~/.migration/logs/10b-buffer.log 2>&1
+   ```
+   (`--exclude-from=code-excl.txt` is relative to the buffer's home, where the ssh command starts — never `=~/…`: a `~` after `=` is not
+   expanded, and rsync would abort on a missing file.) After the proof: `ssh … "$BUF" 'rm -f ~/code-excl.txt'`.
+4. **Freeze the source** (🙋 nothing edits `~/Code` there; `caffeinate` still running) and run all three pairs from here:
+   ```bash
+   source ~/.migration/env
+   cd ~/Code/000-config/001-dotfiles && custom_scripts/verify_code.sh --canary --source "$MIGRATE_SSH $S" --peer "$MIGRATE_SSH $BUF" > ~/.migration/logs/10b-3way.log 2>&1; echo "3way exit $?" >> ~/.migration/logs/10b-3way.log   # run_in_background: true
+   ```
+   Expected: three `PASS` lines (`PASS here=source`, `PASS here=peer1`, `PASS source=peer1`) and `3way exit 0`. Linux `core.ignorecase` noise in `.git/config` is
+   normalised by the manifest; any other FAIL is real — re-sync that side and re-run. Record the three PASS lines in `answers.md`.
+   The buffer is now a valid source for the next target (`S=<BUF>`, `SRC_HOME=/home/<user>` — step 5's symlink handles the different home).
+
+### 10c. After the proof: worktree rescue + prune, `.DS_Store` restore, envs
+
+Only now `~/Code` may change. For every repo with worktrees: before any `git worktree prune`, save the commit each dangling worktree
+HEAD points to — one commit was reachable ONLY from a worktree HEAD (its branch had moved on):
+```bash
+for wt in ~/Code/**/.git/worktrees/*(N); do
+  repo="${wt%/.git/worktrees/*}"; name="${wt##*/}"
+  gd="$(cat "$wt/gitdir" 2>/dev/null)"; [ -e "$gd" ] && continue            # worktree still exists (or repair fixed it)
+  head="$(git -C "$repo" rev-parse --verify -q "$(cat "$wt/HEAD")" 2>/dev/null || cat "$wt/HEAD")"
+  git -C "$repo" branch "rescue/$name" "$head" 2>/dev/null && echo "rescue/$name = $head ($repo)" | tee -a ~/.migration/answers.md
+done
+```
+(Bash: `shopt -s globstar nullglob` and drop the `(N)`.) Fresh WIP of a source worktree that still exists there: `src "git -C <path> diff --binary HEAD"` >
+patch + `src "cd <path> && git ls-files -o --exclude-standard -z | tar -czf - --null -T -"` > untracked tgz — the carried snapshot may be stale.
+Then `git worktree prune` and check every rescued HEAD is reachable (`git branch --contains <sha>`). Then the `.DS_Store` restore and the
+`envup`/`mysandbox` runs from step 9. These are deliberate divergences from the source — list them in `answers.md`.
+
+### Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table)
+
+Order matters: sudo is needed until the very last item.
+  1. `<file>.<YYYYmmdd-HHMMSS>.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.
+  2. Caches (Round G): [mac] `brew cleanup -s` · [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge` · all: `uv cache prune`, `docker system prune -af` only if no wanted container runs, `npm cache clean --force`.
+  3. Software audit against the interview answers: [mac] `brew list --cask` + `brew leaves`, `ls ~/Library/LaunchAgents` (only what was
      asked, e.g. the icon watcher) · [linux]/[wsl] `apt-mark showmanual` vs `packages/apt.txt` + chosen app groups, `systemctl --user list-unit-files --state=enabled`.
      Everywhere: no stray `pip install --user`, global npm or pyenv.
-  7. Path-compat symlink from step 5 is intentional: say so and how to remove it (`sudo rm /Users/juan-garassino`).
-  8. `~/migration-answers.md`, `~/migration-skipped.md` → delete or move per Round G.
+  4. Path-compat symlink from step 5 is intentional: say so and how to remove it (`sudo rm "$SRC_HOME"` — it is a symlink, check with `ls -l` first).
+  5. [linux]/[wsl] `sudo systemctl disable --now ssh` unless this machine will be a source or buffer later (Round F.2) — then say it stays on.
+  6. `rm -f ~/.claude.json.src` once the MCPs work; rsync partials and temp lists in `~/` (`ls -A ~ | grep -i -E 'rsync|partial|migrat'` → only `.migration` may remain).
+  7. Migration key: `rm -f ~/.ssh/id_migrate ~/.ssh/id_migrate.pub`; `ssh-keygen -R "$SRC"` (and `-R "$BUF"`) drops them from `known_hosts`; then `rm -f ~/.ssh/known_hosts.old`.
+  8. Migration notes: per Round G move `~/.migration/answers.md` + `skipped.md` to `~/Documents/migration-$(date +%F)/` or let them go; then `rm -rf ~/.migration`
+     (logs included — print the residue table BEFORE this, from the logs).
   9. On the **source**, remind (the user does it): Remote Login / sshd off, stop `caffeinate` (Mac) or `systemd-inhibit` (Linux), and delete the `migrate-<host>` line
-     from `~/.ssh/authorized_keys`.
-  Finish with a residue report: `sudoers.d` empty of ours · no `id_migrate` · no `known_hosts` entry · no `*.backup` · no temp files ·
-  caches size · `df -h`.
+     from `~/.ssh/authorized_keys` (same on the buffer). `git checkout main` in this dotfiles clone.
+  10. **LAST:** `sudo rm -f /etc/sudoers.d/99-migration` → `sudo -n true` must now FAIL (this is the most dangerous leftover).
+  Finish with a residue report: `sudoers.d` empty of ours · no `id_migrate` · no `known_hosts` entry · no `known_hosts.old` · no `*.backup` · no `~/.migration` ·
+  no temp files · sshd state · caches size · `df -h`.
 
 ## Hard rules
 
 - Source is read-only: only `rsync`/`ssh` reads. No `--delete` toward it, no installs on it.
 - Never echo secret values; never commit `~/.secrets`, keys, GCP JSON, `.env` into any repo.
-- Push protection / rule violations: report, never bypass. Engenious never goes to personal remotes.
+- Push protection / rule violations: report, never bypass. Work repos never go to personal remotes.
 - **Leave nothing behind:** every temporary thing the migration creates (NOPASSWD sudoers file, `id_migrate` key, `known_hosts`
-  entry, rsync partials, `~/.claude.json.src`, `*.backup`, answers files, caches) is removed by step 10's hygiene gate — also when
+  entries, rsync partials, `~/.claude.json.src`, `*.backup`, `~/.migration`, caches) is removed by step 10's hygiene gate — also when
   the run is interrupted or fails. Install only what the interview selected.
+- `~/Code` is not modified between step 7 and the step-10 PASS, except the two normalised step-9 changes.
 - Ambiguous → one short question.
 
 ## State of GitHub (2026-10-14) — the backup layer
@@ -327,6 +545,6 @@ FAIL (or explain it), re-run until clean. The bullets below are the manual equiv
 - 10 formerly loose dirs are private repos (`candidate-assistant`, `graphrag-integration`,
   `custom-graphrag`, `chroma-rag`, `emoji-generation`, `adversarial-diffusion`, `orchestration-coreo`,
   `multiagent-orchestrator`, `nlsql`, `assessment`). SelfGPT → fork `juan-garassino/SelfGPT` (remote `mine`).
-- rsync-only by design: `002-engenious`, `000-config` root (GCP creds), `012-temps`, loose non-repo
+- rsync-only by design: `002-engenious`, `000-config` root, `012-temps`, loose non-repo
   files, neuefische `ds-curriculum` local commit, `.env`, `~/.claude`, keys.
 - Keys to rotate (were in local-only history): SelfGPT OpenAI key, achievementsAI Azure key.

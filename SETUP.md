@@ -7,8 +7,10 @@ This repo is **public-safe by design**: every config is clean, and all secrets l
 > **Platforms.** `install.sh` is OS-aware: macOS uses Homebrew (`packages/Brewfile`); Linux uses
 > apt/dnf (`packages/apt.txt` / `packages/dnf.txt`) + the gh & VS Code repos + uv.
 > The Linux steps are adapted from the [Le Wagon data-setup](https://github.com/lewagon/data-setup) guides.
-> Python is **uv-only** (no pyenv). The global playground is the uv venv **`~/.venv-sandbox`**,
-> seeded from `packages/mysandbox-requirements.txt`. Migrating machines? → **MIGRATION.md**.
+> Python is **uv-only** (no pyenv): `uv python install 3.11 3.12 3.13`. On macOS `uv` comes from Homebrew
+> (`brew "uv"` in the Brewfile); on Linux/WSL from the official installer (`~/.local/bin/uv`).
+> The global playground is the uv venv **`~/.venv-sandbox`**, seeded from `packages/mysandbox-requirements.txt`.
+> Migrating from another machine? → **[`MIGRATE.md`](./MIGRATE.md)** (Claude-executed, rsync over ssh).
 
 ---
 
@@ -34,7 +36,7 @@ chmod 600 ~/.secrets
 #    - gh auth login   (personal: juan-garassino, then work: j-garassino-engenious)
 #    - Place SSH keys ~/.ssh/id_ed25519_personal and ~/.ssh/id_ed25519_work (chmod 600)
 
-# 6. Python (uv-only — install.sh already ran `uv python install 3.11 3.12`)
+# 6. Python (uv-only — install.sh already ran `uv python install 3.11 3.12 3.13`)
 mysandbox        # creates + seeds the global ~/.venv-sandbox playground
 
 # 7. Reload
@@ -77,7 +79,7 @@ hint-only.
 | `envcheck` | compare `.env` vs `.env.example`, report missing | — |
 | `lsenvs` | list uv Pythons + sandbox + project `.venv` dirs | — |
 
-**Reproduce:** `brew install uv direnv` + `uv python install 3.11 3.12`; direnv hook is in
+**Reproduce:** `brew install uv direnv` (Linux: the uv installer) + `uv python install 3.11 3.12 3.13`; direnv hook is in
 zshrc; per-project `.envrc` needs `direnv allow .`. Existing projects: `uv sync` (pyproject)
 or `usevenv 3.12 && uv pip install -r requirements.txt` (legacy manifests).
 
@@ -101,16 +103,16 @@ Directory-aware across three layers — everything under `~/Code/` is personal *
 
 ## 3. Containers & local services
 
-- **Docker** (via `colima`): aliases `dk`, `dkc`, `dkcu`, `dkcd`, `dkcb`, `dkps`, `dklogs`, `dkclean`. `brew install docker docker-compose colima`.
+- **Docker** — `colima` is the deliberate default on macOS (Brewfile: `docker docker-compose colima`; Docker Desktop is an interview option in `MIGRATE.md`, not in the Brewfile); native Docker Engine on Linux. `docker compose` (v2 plugin) works because `install.sh` merges `cliPluginsExtraDirs` into `~/.docker/config.json` (the formula's caveat). Aliases `dk`, `dkc`, `dkcu`, `dkcd`, `dkcb`, `dkps`, `dklogs`, `dkclean`.
 - **Kubernetes / minikube**: completions load lazily on first TAB (`compdef <lazy> kubectl/minikube`) to save startup time. `brew install kubernetes-cli minikube helm`.
-- **Postgres**: `brew install postgresql@14 && brew services start postgresql@14`. No custom psql helpers.
+- **Postgres**: client only on the host (`psql`, `pg_dump` from `libpq`, linked so they are on PATH); servers run in Docker (`docker run postgres:16` / compose). No custom psql helpers.
 - **custom_scripts/**: `code_manager.sh` (`cm`/`cmr`/`cmn` — manage/rename/scan `~/Code`), `repo_scan.sh` (emit repo-tree JSON), `build_dashboard.sh` (`dashboard` — repo dashboard), `unprefix.sh` (strip `NNN-` prefixes), `ai_git_commit.sh` (AI commit messages via `llm`), `backup_env.sh` (this kit's backup, see §6).
 
 ---
 
 ## 4. Prompt, theme & status lines
 
-**Powerlevel10k** (`source ~/.powerlevel10k/powerlevel10k.zsh-theme`, instant-prompt cached): left = `os_icon` + `dir` + `vcs`; right = status/time/RAM + env tools (virtualenv/direnv) + a **custom `gh_identity` segment** (ochre `personal` / burgundy `work`, read from `~/.config/gh/hosts.yml`, no CLI exec). Font: **MesloLGS Nerd Font** — `brew install --cask font-meslo-lg-nerd-font`.
+**Powerlevel10k** (`source ~/.powerlevel10k/powerlevel10k.zsh-theme`, instant-prompt cached): left = `os_icon` + `dir` + `vcs`; right = status/time/RAM + env tools (virtualenv/direnv) + a **custom `gh_identity` segment** (ochre `personal` / burgundy `work`, read from `~/.config/gh/hosts.yml`, no CLI exec). Font: **MesloLGS NF** (the p10k build) — `install.sh` downloads the four `.ttf` files into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux); it is not the Homebrew Nerd Font cask.
 
 **Claude Code status line** (`claude/statusline-command.sh`, wired via `settings.json` → `statusLine.command`): Bauhaus 3-zone palette — **place**=cobalt blue (path/branch), **session**=gray (model/perm/context), **env/accounts**=ochre (python/gcloud/k8s/gh), **system**=burgundy (clock/RAM). State markers `● ▲ ■` (calm/caution/alarm) for context% and free RAM; permission modes `rw/auto/plan/yolo`. Reads JSON from stdin (`cwd`, `model.display_name`, `context_window.used_percentage`, `permission_mode`, `model.thinking_budget`). **Emoji only — no Nerd Font glyphs** (Claude Code strips them).
 
@@ -144,7 +146,7 @@ custom_scripts/backup_env.sh            # refresh + secret-scan + commit + push
 custom_scripts/backup_env.sh --no-push  # stage & commit locally only
 ```
 
-It regenerates the `Brewfile`, re-sanitizes `claude/settings.json`, runs a high-signal **secret-scan gate** (aborts on any hit), then commits and pushes. If it aborts: move the key into `~/.secrets`, remove it from the offending file, re-run — never bypass the gate.
+It reports Brewfile drift (never overwrites the curated Brewfile), re-sanitizes `claude/settings.json` (whitelisted keys only — no `permissions`, no `autoMode`), copies only the skills listed in `claude/skills.public`, stages explicit paths, then runs the **secret-scan gate on the staged diff** (gitleaks via Docker when available, else a modern key-pattern regex) and aborts before committing on any hit. If it aborts: move the key into `~/.secrets`, remove it from the offending file, re-run — never bypass the gate. This repo is a **public fork** of `lewagon/dotfiles`; it cannot be made private.
 
 ---
 

@@ -3,11 +3,14 @@
 !.secrets.sample
 *.secret
 *.env
-.env
-.env.*
+.env*
 !.env.example
 *-*.json.key
 *service-account*.json
+*.pem
+# private keys (id_ed25519, id_migrate, …); public halves may be shared
+id_*
+!id_*.pub
 
 # Claude Code local / runtime
 claude/settings.local.json
@@ -15,6 +18,10 @@ claude/**/.DS_Store
 
 # OS / editor noise
 .DS_Store
+
+# Python bytecode
+__pycache__/
+*.pyc
 
 # Backups & logs
 *.backup

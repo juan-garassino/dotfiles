@@ -34,8 +34,8 @@ workon
 
 **What it does:**
 - Switches `gh` CLI to `j-garassino-engenious`
-- Loads the Engenious GCP credentials from `~/Code/001-config/002-gcp-credentials/`
-- `cd` into `~/Code/006-engenious`
+- Loads the Engenious GCP credentials from `~/Code/000-config/002-gcp-credentials/`
+- `cd` into `~/Code/002-engenious`
 - Calls `engopen` so you can pick a repo immediately
 
 **When to use:** First thing when starting a work session.
@@ -53,7 +53,7 @@ personal
 **What it does:**
 - Switches `gh` CLI to `juan-garassino`
 - Loads personal GCP credentials (if present)
-- `cd` into `~/Code/004-products`
+- `cd` into `~/Code/005-products`
 
 **When to use:** When switching from work to personal projects.
 
@@ -71,12 +71,12 @@ whoami_dev
 ```
 👤 Current Dev Context
 ─────────────────────────────────────────
-  📁 Directory : ~/Code/006-engenious/ai_underwriter_chatbot
+  📁 Directory : ~/Code/002-engenious/<repo>
   📧 Git email : jgarassino@engenious.io
   🐙 gh account: j-garassino-engenious
-  ☁️  GCP creds : /Users/.../engenious-key.json
+  ☁️  GCP creds : ~/Code/000-config/002-gcp-credentials/<work>.json
   🐍 Python    : Python 3.10.6
-  📦 Venv      : /Users/.../ai_underwriter_chatbot/.venv
+  📦 Venv      : ~/Code/002-engenious/<repo>/.venv
 ```
 
 **When to use:** Any time you're unsure which identity/context is active.
@@ -307,8 +307,8 @@ newproject <name> <folder_number>
 
 **Examples:**
 ```zsh
-newproject my-api 004           # creates ~/Code/004-products/my-api
-newproject rl-experiment 003    # creates ~/Code/003-research/rl-experiment
+newproject my-api 005           # creates ~/Code/005-products/my-api
+newproject rl-experiment 006    # creates ~/Code/006-research-prototypes/rl-experiment
 ```
 
 **What it creates:**
@@ -481,20 +481,20 @@ This makes it immediately clear what's managing your Python environment — no m
 
 ```
 ~/Code/
-├── 001-config/
+├── 000-config/
 │   ├── 001-dotfiles/       ← gitconfig, zshrc, ssh/config (symlinked)
-│   └── 002-gcp-credentials/ ← GCP service account keys (loaded by workon/personal)
-├── 002-lewagon-spiced/     ← personal (git: juan-garassino@gmail.com)
-├── 003-research/           ← personal
-├── 004-products/           ← personal
-├── 005-knowledge/          ← personal
-├── 006-engenious/          ← WORK (git: jgarassino@engenious.io)
-├── 007-archives/           ← personal
-└── 008-sandbox/            ← personal
+│   └── 002-gcp-credentials/ ← GCP service account keys (loaded by workon/personal; never in git)
+├── 001-archives/           ← personal (git: juan.garassino@gmail.com)
+├── 002-engenious/          ← WORK (git: jgarassino@engenious.io)
+├── 003-knowledge-playgrounds/ ← personal
+├── 004-lewagon-spiced/     ← personal
+├── 005-products/           ← personal
+├── 006-research-prototypes/ ← personal
+└── 007-sandbox/            ← personal
 ```
 
 **Git identity is automatic** based on directory:
-- Any repo inside `006-engenious/` → `jgarassino@engenious.io` + `id_ed25519_work`
+- Any repo inside `002-engenious/` → `jgarassino@engenious.io` + `id_ed25519_work`
 - Everything else → `juan.garassino@gmail.com` + `id_ed25519_personal`
 
 **SSH:**
