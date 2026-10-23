@@ -13,8 +13,10 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 > one). **Migrating from another machine (Mac or Linux → Linux, WSL or Mac)? → follow
 > `MIGRATE.md` end-to-end** (Claude-executed: rsync `~/Code` + `packages/home-carry.txt` from the
 > source over ssh, install.sh, guided logins, verify). `bootstrap.sh` is the one-command entry.
-> **Migrations default to clean and light:** `MIGRATE.md` step 5b makes you ask the user (AskUserQuestion) which big
-> folders and how much Claude history to carry *before* any rsync — don't copy the full 25 GB history or training outputs unasked.
+> **Migrations are interactive and default to clean and light:** run the `MIGRATE.md` step 1b interview (rounds A–F, ≤ 4
+> AskUserQuestion questions each: role, apps, toolchain, look and feel, accounts, verification) *before* touching the source, then
+> step 5b (which big folders / how much Claude history) *before* any rsync — don't copy the full 25 GB history or training
+> outputs unasked. Save the answers in `~/migration-answers.md`, never inside `~/Code`.
 > `MIGRATION.md` is the historical Intel→M5 SSD-vault plan (superseded by `MIGRATE.md`). Routine fresh setup → go straight to
 > **[Full machine setup](#full-machine-setup--claude-code-follow-this-end-to-end)**
 > and run it end-to-end, pausing only at the 🙋 (human-only) steps. The other most common

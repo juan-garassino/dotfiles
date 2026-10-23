@@ -38,6 +38,44 @@ curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootst
 - The **source** is chosen in step 2 (auto-detected on the network). Its user is `juan-garassino`
   on the Macs → `$SRC_USER`.
 
+## 1b. 🙋 Interview — configure everything up front (then run without interrupting)
+
+The user wants a **really interactive migration**. After preflight and before touching the source, ask in **rounds of ≤ 4
+questions with AskUserQuestion** (recommended option first, one-line consequence in every description; `multiSelect`
+for lists). Don't start copying or installing until the last round is answered. Record every answer in
+`~/migration-answers.md` (outside `~/Code`), print a one-screen summary, and ask **"Start?"** once. After that, run
+unattended except at 🙋 human-only steps. Questions that need the source's sizes are asked in step 5b (after ssh works).
+
+**Round A — role.** (1) *What is this machine for?* Coding + local AI/training · Personal daily driver · Both — drives every
+default below (a coding/training Mac skips Steam, WhatsApp, Spotify, VPNs; a personal one keeps them).
+(2) *Hostname / ComputerName* — keep or set (`sudo scutil --set …`). (3) *Account short name* — only report; step 5 handles a
+mismatch automatically. (4) *FileVault* — turn on (recommended) / later.
+
+**Round B — apps (mac casks, multiSelect → `export HOMEBREW_BUNDLE_CASK_SKIP="<declined…>"` before install.sh;
+Linux → `packages/linux-apps.sh <groups>`; verify the var with `brew bundle --help`).** Group them so each question has ≤ 4 options:
+(1) *Editors + AI*: visual-studio-code · cursor · antigravity / antigravity-ide · claude + chatgpt.
+(2) *Data + dev tools*: dbeaver-community · pgadmin4 · elasticvue · postman · gephi · balenaetcher.
+(3) *Comms + notes*: slack · discord · zoom · telegram · spotify · obsidian · notion.
+(4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · gcloud-cli.
+
+**Round C — toolchain.** (1) *Containers*: colima (default; no GPU for Docker on Apple Silicon) vs Docker Desktop.
+(2) *Local AI*: ollama + `llm` CLI (in the Brewfile) — install only / install + pull models (ask which, sizes) / skip.
+(3) *Python/Node*: uv 3.11 + 3.12 and `~/.venv-sandbox`; nvm LTS + the global CLIs — as-is / add a Python version / skip Node.
+(4) *Terminal*: Warp + the dracula/MesloLGS settings (`terminal/warp-settings.toml`) — apply / keep Terminal.app.
+
+**Round D — look and feel.** (1) *Bauhaus icons* (step 8c): none / icons / icons + Dock tiles + re-apply after updates →
+`BAUHAUS_ICONS`, `BAUHAUS_MAC_EXTRAS`. (2) *macOS defaults* (`custom_scripts/macos_defaults.sh`: key repeat, Finder, …): run all /
+let me pick each / skip. (3) *Dock layout*: keep default / clean. (4) *Screenshots folder*: Desktop (default) / elsewhere.
+
+**Round E — accounts and secrets (🙋, one at a time, never echo values).** Which to set up now vs later (multiSelect):
+GitHub CLI for both accounts · SSH keys (personal + work) · `~/.secrets` values · GCP service-account JSON ·
+gcloud/aws logins · ngrok token · Claude Code login (done) · Google Drive/Dropbox sign-in.
+
+**Round F — safety and proof.** (1) *Verification depth*: full (checksum dry-run + per-repo fingerprint + `check_setup.sh`
+scorecard, 3 independent checks) / quick. (2) *Second target*: also copy `~/Code` to another machine (buffer) and cross-check. (3) *When done*:
+remind to turn Remote Login off and stop `caffeinate`; keep the source untouched until every check passes. (4) *Answers file*: show
+`~/migration-answers.md` and `~/migration-skipped.md` at the end.
+
 ## 2. Guide the user on the source (they sit there; Claude instructs from here)
 
 One at a time, wait for "done":
@@ -105,7 +143,7 @@ Default to **light**. Measure on the source first (`ssh $S 'du -sk <path>'`; siz
    `005-products/004-creative-tools/001-PromptPlot/gallery` (2.5 GB) · `005-products/009-mini-networks/playground/.lab-shots` (2.2 GB).
 
 Every path the user declines becomes an `--exclude /<path-relative-to-Code>` in `EXCL=(…)` (step 7) — and write the
-list to `~/Code/MIGRATION-SKIPPED.md` so nothing is missing silently. Reuse the same `EXCL` in the byte-verify and
+list to `~/migration-skipped.md` (outside `~/Code`, so `~/Code` stays byte-identical to the source) so nothing is missing silently. Reuse the same `EXCL` in the byte-verify and
 checksum dry runs, or they will report the skipped paths as differences. Build output (`dist`, `build`, `target`,
 `.cache`) was measured: 0 GB extra, no need to exclude. Regenerable environments stay out either way (step 7).
 
