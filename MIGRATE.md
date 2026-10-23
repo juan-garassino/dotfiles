@@ -294,6 +294,9 @@ out either way (fixed list in step 1a). `echo 5 > ~/.migration/state`.
 
 ## 6. Pull the dev setup outside ~/Code
 
+**Personal machine restored through a buffer (10d)?** Then the dev config comes from `"$S:handover/home/"` and the credentials from the
+encrypted archive — follow 10d steps 6–7 for this step, not the commands below as written.
+
 Gate first — the light filter must really be light (include file FIRST, then exclude):
 ```bash
 source ~/.migration/env
@@ -542,29 +545,62 @@ Then `git worktree prune` and check every rescued HEAD is reachable (`git branch
 
 Used when a source machine is about to be wiped and re-used as the personal machine (e.g. the Intel Mac becoming Linux). This runbook
 otherwise never copies Documents/Downloads/Pictures; this section is the explicit exception, and its data never goes to a coding-only target.
-**Out (source → buffer, before the wipe gate):**
-1. Exclude list for personal data, `~/.migration/data-excl.txt`: `.DS_Store`, `._*`, `/Photos Library.photoslibrary/` (an iCloud cache
-   on the Intel Mac — the photos live in iCloud Photos; check them on another device instead of copying), `.Trash/`.
-2. For each folder of the user's list (default: Documents, Downloads, Pictures, Movies, `migration-staging`, `git-bundles`,
-   `env-snapshots`; Dropbox only as a fallback copy — the Dropbox app re-syncs it), on the buffer:
-   `rsync -aH --partial --stats --exclude-from=data-excl.txt "$S:<folder>/" ~/handover/<folder>/` (`run_in_background`, log it).
+Everything flows OUT of the source: a Claude session **on the source** pushes to the buffer (only a source → buffer key is needed:
+`ssh-keygen -t ed25519 -f ~/.ssh/id_buffer -N ""` + 🙋 `ssh-copy-id -i ~/.ssh/id_buffer.pub <user>@<buffer-ip>`). The buffer stores
+the personal data under `~/handover/` — never mixed with the buffer's own files, and deleted later with one `rm -rf ~/handover`.
+On the source: `BUF=<user>@<buffer-ip>; R="ssh -i $HOME/.ssh/id_buffer -o IdentitiesOnly=yes -o BatchMode=yes"; $R "$BUF" 'mkdir -p ~/handover/home'`.
+Lists live in `~/migration-staging/` on the source (never in `~/Code`).
+
+**Out (source → buffer, before the wipe gate; every copy `run_in_background` and logged):**
+1. **Code mirror** (instead of 10b step 3, which pulls): the buffer will be the source of the personal machine, so it gets ALL of `~/Code`
+   — only the fixed exclude list (`code-excl-fixed.txt`: the regenerable dirs + the two dotfiles checkouts), not the user's 5b skips.
+   `rsync -aH --partial --delete -e "$R" --exclude-from=code-excl-fixed.txt -n --itemize-changes ~/Code/ "$BUF:Code/"` →
+   🙋 user reviews the `*deleting` count/list → same without `-n` and with `--stats`. Then tell the target's agent: "the buffer is
+   already mirrored from the source — skip 10b step 3, run step 4 only" (its exclude list still applies to every side of the proof).
+2. **Personal folders.** Exclude list `data-excl.txt`: `.DS_Store`, `._*`, `/Photos Library.photoslibrary/` (an iCloud cache — the
+   photos live in iCloud Photos; check them on another device), `.Trash/`. Folders (user's list; default Documents, Downloads,
+   Pictures, Movies, `migration-staging`, `git-bundles`, `env-snapshots`, `migration-snapshot`; Dropbox only as a fallback copy):
+   `rsync -aH --partial --stats -e "$R" --exclude-from=data-excl.txt ~/<folder>/ "$BUF:handover/<folder>/"`.
    Never open or describe files in `private_unopened` folders or `Downloads/to_drive`; copy them as-is.
-3. Proof per folder: `custom_scripts/code_manifest.pl <dir> --exclude-from data-excl.txt` on the source and on the buffer (remotely as
-   `perl - <dir> --exclude-b64 <b64> < code_manifest.pl`), `cmp` of the two outputs must be silent and both stderr end with `ERRORS 0`.
-4. Credentials (they are NOT taken from the buffer's own home — its `~/.ssh` is the buffer's): 🙋 on the source the user runs, with
-   OpenSSL 3 (`openssl version`; on the Intel Mac `/usr/local/bin/openssl`, not the system LibreSSL):
-   `cd ~ && tar -czf - .secrets .ssh .aws .config/gcloud .config/dotfiles .bigqueryrc | openssl enc -aes-256-cbc -pbkdf2 -salt -out ~/handover-credentials.tgz.enc`
-   (it asks for a passphrase twice), then copy that one file to `~/handover/` on the buffer and verify its sha256 on both sides.
-**In (buffer → personal machine, after its step 10/10b; the buffer is `$S`):**
-5. Round G1 for this machine: carry credentials from the archive, not from the buffer's home (drop `.ssh`, `.secrets`, `.aws`,
-   `.config/gcloud` from the trimmed `~/.migration/home-carry.txt`).
-6. `rsync -aH --partial "$S:handover/<folder>/" ~/<folder>/` for each folder — on Linux **Movies → `~/Videos`** — then the same
-   manifest `cmp` as in 3 (must be silent).
-7. 🙋 Decrypt: `openssl enc -d -aes-256-cbc -pbkdf2 -in handover-credentials.tgz.enc | tar -xzf - -C ~`; then `chmod 600 ~/.secrets`,
-   `chmod 700 ~/.ssh`, `chmod 600 ~/.ssh/id_*`, `chmod 644 ~/.ssh/*.pub`; delete the `.enc` file here once keys work.
-8. Dropbox: install the app and let it sync from the cloud (no folder copy → no conflict copies).
-9. Backup from day one (this machine is now the only full copy of the personal files): Déjà Dup or restic to an encrypted external
-   drive; the first full backup must finish before `~/handover` is deleted on the buffer.
+3. **Dev config of THIS machine** (non-secret part of `home-carry.txt`, light Claude history) into `handover/home/` — the personal
+   machine takes it from there, never from the buffer's own home (that one has the buffer's keys and Claude):
+   `printf '%s\n' .claude .codex/config.toml .gemini/antigravity .promptplot .aivss > home-plain.txt` and
+   `rsync -aHr --partial --stats -e "$R" --files-from=home-plain.txt --include-from=claude-include.txt --exclude-from=claude-exclude.txt --exclude .claude/settings.json --exclude .claude/statusline-command.sh ~/ "$BUF:handover/home/"`
+   (claude include/exclude = the light filter of step 1a; the dry run with `-n --stats` must show ≈ 80 MB).
+4. **Credentials + histories** — one encrypted archive (they are NOT taken from the buffer's home). Build the list of what exists:
+   `cd ~ && for p in .secrets .secrets-cheatsheet.md .engenious_university.env .ssh .ssh_backup_20241029 .aws .config/gcloud .bigqueryrc .config/dotfiles .claude.json "Library/Application Support/ngrok/ngrok.yml" .config/ngrok/ngrok.yml .zsh_history .psql_history .python_history; do [ -e "$p" ] && printf '%s\n' "$p"; done > ~/migration-staging/creds-list.txt`
+   then 🙋 the user runs, with OpenSSL 3 (`openssl version`; on the Intel Mac `/usr/local/bin/openssl`, not the system LibreSSL):
+   `cd ~ && tar -czf - -T migration-staging/creds-list.txt | /usr/local/bin/openssl enc -aes-256-cbc -pbkdf2 -salt -out ~/migration-staging/handover-credentials.tgz.enc`
+   (passphrase twice — store it in a password manager; without it the keys are gone). 🙋 **Test-decrypt before the wipe**:
+   `/usr/local/bin/openssl enc -d -aes-256-cbc -pbkdf2 -in ~/migration-staging/handover-credentials.tgz.enc | tar -tzf - | wc -l` (= the
+   file count, no error). The archive travels with `migration-staging` (step 2); check its `shasum -a 256` on both sides.
+5. **Proof** per folder of 2 and 3: `perl ~/Code/000-config/001-dotfiles/custom_scripts/code_manifest.pl <dir> --exclude-from data-excl.txt`
+   here vs on the buffer (`$R "$BUF" "perl - handover/<folder> --exclude-b64 <b64>" < code_manifest.pl`; for `home` use an exclude list of
+   just `.DS_Store`): `cmp` silent, both stderr end with `ERRORS 0`. For `~/Code`: the target's 3-way proof (10b step 4).
+
+**In (buffer → personal machine; the buffer is `$S`):** the target's agent runs the runbook with the buffer as the source, with these changes:
+6. **Step 6 (dev setup outside ~/Code)** takes `"$S:handover/home/"` as the rsync source instead of `"$S:"`, with `~/.migration/home-carry.txt`
+   reduced to the 5 plain entries of 3; skip the `rsync -a "$S:.claude.json"` line (it is in the archive). For the Claude-slug copy loop
+   (step 6) and the prompt-history rewrite (step 9) the old prefix is the ORIGINAL machine's home, not the buffer's:
+   `printf 'ORIG_HOME=/Users/juan-garassino\n' >> ~/.migration/env` and use `$ORIG_HOME` where those steps say `$SRC_HOME`.
+7. **Credentials** — never extract straight into `~` (it would overwrite this machine's new `~/.claude.json` and `~/.ssh`): 🙋 the user runs
+   `mkdir -p -m 700 ~/.migration/creds && rsync -a "$S:handover/migration-staging/handover-credentials.tgz.enc" ~/.migration/ && openssl enc -d -aes-256-cbc -pbkdf2 -in ~/.migration/handover-credentials.tgz.enc | tar -xzf - -C ~/.migration/creds`
+   then the agent places them:
+   ```bash
+   source ~/.migration/env; C=~/.migration/creds
+   rsync -a --exclude config --exclude 'known_hosts*' --exclude authorized_keys --exclude 'id_buffer*' --exclude 'id_migrate*' "$C/.ssh/" ~/.ssh/
+   for p in .secrets .secrets-cheatsheet.md .engenious_university.env .ssh_backup_20241029 .aws .config/gcloud .bigqueryrc .config/dotfiles .zsh_history .psql_history .python_history; do
+     [ -e "$C/$p" ] && mkdir -p "$HOME/$(dirname "$p")" && rsync -a "$C/$p" "$HOME/$(dirname "$p")/"; done
+   [ -f "$C/.claude.json" ] && cp "$C/.claude.json" ~/.claude.json.src          # merged in step 9 like a normal source
+   for n in "$C/Library/Application Support/ngrok/ngrok.yml" "$C/.config/ngrok/ngrok.yml"; do [ -f "$n" ] && mkdir -p ~/.config/ngrok && cp "$n" ~/.config/ngrok/ngrok.yml; done
+   chmod 700 ~/.ssh; chmod 600 ~/.ssh/id_* ~/.secrets 2>/dev/null; chmod 644 ~/.ssh/*.pub 2>/dev/null; chmod 600 ~/.config/ngrok/ngrok.yml 2>/dev/null
+   rm -rf "$C" ~/.migration/handover-credentials.tgz.enc
+   ```
+8. **Personal folders**: `rsync -aH --partial "$S:handover/<folder>/" ~/<folder>/` for each — on Linux **Movies → `~/Videos`** — then the
+   manifest `cmp` of 5 against the buffer (must be silent).
+9. Dropbox: install the app and let it sync from the cloud (no folder copy → no conflict copies).
+10. Backup from day one: Déjà Dup or restic to an encrypted external drive (or cloud). **`~/handover` on the buffer is deleted only after
+    the first full backup finished** — until then it is the second copy of the personal files. The buffer then keeps only `~/Code`.
 
 ### Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table)
 
