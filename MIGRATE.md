@@ -57,7 +57,7 @@ source with `--delete` (step 10b), so that work must come to the source first. T
 source — deliberately, before the freeze, with the user approving every item. Run it from a Claude session on the source:
 1. 🙋 Buffer on, `sshd` + `rsync` + `perl` + `git`; the source can ssh to it without a password (`ssh-copy-id <user>@<buffer-ip>`). `BUF=<user>@<buffer-ip>`.
 2. **Find what exists only on the buffer** (all read-only on both sides):
-   - Files: `rsync -ani --update --exclude-from=<code-excl.txt> "$BUF:Code/" ~/Code/` — lists files missing here or newer there.
+   - Files: `rsync -ani --update --exclude-from=<code-excl.txt> "${BUF}:Code/" ~/Code/` — lists files missing here or newer there.
    - Commits: per repo present on both, `git -C <repo> fetch --no-tags "ssh://$BUF/~/Code/<repo>" '+refs/heads/*:refs/remotes/buffer/*'`
      (adds only `refs/remotes/buffer/*`, which the proof ignores), then `git -C <repo> rev-list --count --remotes=buffer --not --branches --tags`
      → repos with buffer-only commits. Repos that exist only on the buffer: from the `rsync -ani` list.
@@ -92,6 +92,10 @@ On Linux, `bootstrap.sh` also installs `zsh` and `perl` (the verification needs 
   `openrsync`: 🙋 ask, then install Homebrew now (the line `install.sh` uses:
   `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`)
   and `brew install rsync` (it is in the Brewfile anyway). `rsync --version` must then say `rsync  3.x`.
+  Homebrew's bin is not on Claude's PATH until install.sh links the shell config, so after step 1a also run
+  `sed -i '' '1a\
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+' ~/.migration/env` — otherwise every later `rsync` is still openrsync.
 - Leftover from an interrupted run: `[ -e /etc/sudoers.d/99-migration ] && echo LEFTOVER`. If present,
   `sudo -n rm -f /etc/sudoers.d/99-migration` (the leftover itself makes it passwordless) — step 4 recreates it.
   Also `ls -d ~/.migration 2>/dev/null` → an earlier run: read `~/.migration/state` and **resume** from
@@ -104,7 +108,7 @@ On Linux, `bootstrap.sh` also installs `zsh` and `perl` (the verification needs 
 ## 1a. Create the migration state
 
 ```bash
-mkdir -p -m 700 ~/.migration/logs && cd ~/.migration
+mkdir -p ~/.migration/logs && chmod 700 ~/.migration ~/.migration/logs && cd ~/.migration   # -p -m only sets the LAST dir's mode
 cat > code-excl.txt <<'EOF'
 /000-config/001-dotfiles/
 /000-config/dotfiles-uv-worktree/
@@ -218,7 +222,8 @@ One at a time, wait for "done":
    + an Apple/Ubuntu name is a computer) and ask with **AskUserQuestion** which one is the source →
    `$SRC` (prefer the IP). Nothing found → re-check step 1, or 🙋 ask for the address the Sharing pane
    shows (`ssh user@<name>`), or the IP (Mac `ipconfig getifaddr en0`; Linux `hostname -I`).
-   Then record it: `printf 'SRC=%s\nS=%s@%s\n' "<ip>" "<user>" "<ip>" >> ~/.migration/env`.
+   Then record it: `printf 'export SRC=%s\nexport S=%s@%s\n' "<ip>" "<user>" "<ip>" >> ~/.migration/env`
+   (`export`, not a plain assignment: `verify_code.sh` and `check_setup.sh` are child processes and read `S` from the environment).
 3. 🙋 **Keep it awake:** Mac → `caffeinate -dis` in a Terminal window left open; Linux →
    `systemd-inhibit --what=sleep:idle sleep infinity`. On power, same network (ethernet = fastest).
 4. Verify from here: `source ~/.migration/env; ping -c 2 "$SRC" && nc -zv "$SRC" 22`.
@@ -230,14 +235,17 @@ Afterwards (step 10): remind the user to turn Remote Login off and stop caffeina
 source ~/.migration/env
 mkdir -p -m 700 ~/.ssh && ssh-keygen -t ed25519 -f ~/.ssh/id_migrate -N "" -C "migrate-$(hostname)"
 ```
-🙋 User runs in a normal terminal (asks the source password once):
+Trust the source's host key first — `ssh-copy-id` can't answer the `yes/no` prompt from Claude's `!` prompt and fails with
+`Host key verification failed`: `ssh-keyscan -t ed25519 "$SRC" 2>/dev/null | tee -a ~/.ssh/known_hosts | ssh-keygen -lf -`
+(show the fingerprint; the user may compare it on the source with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`).
+🙋 User runs in a **normal terminal window** (⌘N — not Claude's `!` prompt, which can't take a password; asks the source password once):
 `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<ip>` (no ssh-copy-id → `cat ~/.ssh/id_migrate.pub | ssh <user>@<ip> 'mkdir -p -m 700 ~/.ssh && cat >> ~/.ssh/authorized_keys'`).
 Then complete the env — `SRC_HOME` must be non-empty before anything uses it:
 ```bash
 source ~/.migration/env
 src 'echo ok; uname; echo "$HOME"; du -sh ~/Code'                  # must print ok
 h=$(src 'printf %s "$HOME"'); [ -n "$h" ] || { echo "SRC_HOME empty — STOP"; exit 1; }
-printf 'SRC_HOME=%s\n' "$h" >> ~/.migration/env
+printf 'export SRC_HOME=%s\n' "$h" >> ~/.migration/env
 cat >> ~/.migration/env <<'EOF'
 [ -n "$S" ] && [ -n "$SRC_HOME" ] || { echo "migration env incomplete — STOP"; return 1 2>/dev/null || exit 1; }
 EOF
@@ -294,7 +302,7 @@ out either way (fixed list in step 1a). `echo 5 > ~/.migration/state`.
 
 ## 6. Pull the dev setup outside ~/Code
 
-**Personal machine restored through a buffer (10d)?** Then the dev config comes from `"$S:handover/home/"` and the credentials from the
+**Personal machine restored through a buffer (10d)?** Then the dev config comes from `"${S}:handover/home/"` and the credentials from the
 encrypted archive — follow 10d steps 6–7 for this step, not the commands below as written.
 
 Gate first — the light filter must really be light (include file FIRST, then exclude):
@@ -302,7 +310,7 @@ Gate first — the light filter must really be light (include file FIRST, then e
 source ~/.migration/env
 rsync -arn --stats --files-from="$HOME/.migration/home-carry.txt" \
   --include-from="$HOME/.migration/claude-include.txt" --exclude-from="$HOME/.migration/claude-exclude.txt" \
-  "$S:" ~/ 2>/dev/null | grep -E 'Total transferred file size'     # light ≈ 77 MB; full ≈ 25 GB. GBs with light → filter wrong, STOP
+  "${S}:" ~/ 2>/dev/null | grep -E 'Total transferred file size'     # light ≈ 77 MB; full ≈ 25 GB. GBs with light → filter wrong, STOP
 ```
 Then the real copy:
 ```bash
@@ -310,8 +318,8 @@ source ~/.migration/env
 rsync -ar --stats --files-from="$HOME/.migration/home-carry.txt" \
   --include-from="$HOME/.migration/claude-include.txt" --exclude-from="$HOME/.migration/claude-exclude.txt" \
   --exclude .ssh/config --exclude .ssh/known_hosts --exclude .ssh/authorized_keys --exclude .claude/settings.json \
-  --exclude .claude/statusline-command.sh "$S:" ~/ 2>&1 | tee ~/.migration/logs/06-home.log   # exit 23 = some listed path absent: fine
-rsync -a "$S:.claude.json" ~/.claude.json.src            # MCP servers, merged in step 9
+  --exclude .claude/statusline-command.sh "${S}:" ~/ 2>&1 | tee ~/.migration/logs/06-home.log   # exit 23 = some listed path absent: fine
+rsync -a "${S}:.claude.json" ~/.claude.json.src            # MCP servers, merged in step 9
 ```
 - ngrok token (path has a space — don't let rsync/ssh split it): Mac source → Mac target
   `(umask 077; mkdir -p ~/Library/Application\ Support/ngrok; src 'cat "Library/Application Support/ngrok/ngrok.yml"' > ~/Library/Application\ Support/ngrok/ngrok.yml)`;
@@ -342,7 +350,7 @@ Long run: start it with the Bash tool's **`run_in_background`**, logging to `~/.
 and watch the log instead of blocking (Intel Mac → Apple Silicon over gigabit ethernet: expect 20–40 min; Wi-Fi: hours).
 ```bash
 source ~/.migration/env
-rsync -aH --partial --stats --exclude-from="$MIGRATE_EXCL" "$S:Code/" ~/Code/ > ~/.migration/logs/07-code.log 2>&1
+rsync -aH --partial --stats --exclude-from="$MIGRATE_EXCL" "${S}:Code/" ~/Code/ > ~/.migration/logs/07-code.log 2>&1
 echo "rsync exit $?" >> ~/.migration/logs/07-code.log
 ```
 When the log ends with `rsync exit 0` (24 = a file vanished on the source — re-run; anything else → read the log), `echo 7 > ~/.migration/state`.
@@ -390,8 +398,15 @@ source ~/.migration/env
 cd ~/Code/000-config/001-dotfiles
 git remote set-url origin git@github.com:juan-garassino/dotfiles.git && git fetch -q
 HOMEBREW_BUNDLE_CASK_SKIP="<declined casks from answers.md, space-separated>" BAUHAUS_ICONS=yes|no BAUHAUS_MAC_EXTRAS=yes|no \
-  ./install.sh > ~/.migration/logs/08-install.log 2>&1; echo "install exit $?" >> ~/.migration/logs/08-install.log
+  ./install.sh > ~/.migration/logs/08-install.log 2>&1 < /dev/null; echo "install exit $?" >> ~/.migration/logs/08-install.log
 ```
+`install.sh` writes nothing in `~/Code` outside this (excluded) clone, so it may run **in parallel with the 7b proof** to save ~30 min —
+but no re-login (it would kill the proof) and no `claude mcp list` (it starts stdio MCP servers, e.g. `uv run` inside `~/Code`) until
+the final proof passed. "Some bundle entries failed" with exit 0 is common — read the `Error:` lines:
+- `Refusing to load formula <tap>/<name> from untrusted tap` (Homebrew ≥ 7 tap trust): the Brewfile line needs `, trusted: true`;
+  until then `brew trust <tap>` + `brew install <tap>/<name>`.
+- [mac] a cask whose app is already in `/Applications` (e.g. preinstalled Chrome) fails on `chgrp … Operation not permitted`
+  (macOS App Management): the app is fine — leave it, or give the terminal App Management and `brew install --cask --force`.
 - **linux/wsl:** apt (core, build deps, ffmpeg, tesseract, git-lfs, go, mkcert, `postgresql-client`, `perl`, `rsync`, `jq`) +
   `linux-tools.sh` (docker+compose, gcloud, terraform, kubectl, helm, aws, minikube, k3d, act, runpodctl,
   cloud-sql-proxy, ngrok, rustup, Warp, llm, ollama). wsl: skips Warp (use Warp for Windows) and enables
@@ -408,7 +423,11 @@ HOMEBREW_BUNDLE_CASK_SKIP="<declined casks from answers.md, space-separated>" BA
   settings + 48 extensions, global git ignore, Claude status line/settings/skills/agents. Every file it replaces is kept
   next to the original as `<file>.<YYYYmmdd-HHMMSS>.backup` (the hygiene gate lists them).
 - **Postgres = containers only** (host gets `psql`/`pg_dump`). See step 9 for data.
-- After the log ends with `install exit 0`: `sudo chsh -s $(command -v zsh) $USER`; **write `echo 8 > ~/.migration/state` NOW**, then
+- [mac] No re-login needed: zsh is already the login shell and colima needs no group. 🙋 The user opens a **new** Warp window (new
+  fonts + PATH; decline the p10k wizard) and runs the guided logins there; this Claude session — and any running proof — stays alive.
+  Start Docker once with `colima start --ssh-config=false` (without the flag colima appends an `Include` to `~/.ssh/config`, which is
+  a symlink into this public repo; install.sh turns it off for later starts).
+- [linux]/[wsl] After the log ends with `install exit 0`: `sudo chsh -s $(command -v zsh) $USER`; **write `echo 8 > ~/.migration/state` NOW**, then
   🙋 **re-login** (zsh + docker group) — the re-login ends this Claude session. The user reopens Claude in
   `~/Code/000-config/001-dotfiles`; on restart read `~/.migration/state` (and `answers.md`) and **resume at step 8's guided logins** —
   don't redo earlier steps. First zsh: **decline** the p10k wizard. Open Warp → should look like the old machine.
@@ -436,15 +455,17 @@ HOMEBREW_BUNDLE_CASK_SKIP="<declined casks from answers.md, space-separated>" BA
                        | map_values({mcpServers: (.mcpServers // {})})))}' \
     ~/.claude.json ~/.claude.json.src > ~/.migration/cj.tmp && mv ~/.migration/cj.tmp ~/.claude.json && chmod 600 ~/.claude.json
   ```
-  Then restart Claude and check `claude mcp list` against the source (`src 'claude mcp list'`) and `claude/mcp-servers.md`.
+  Then restart Claude and check `claude mcp list` against the source (`src 'claude mcp list'`) and `claude/mcp-servers.md` — **after the
+  final proof**: it launches stdio servers (`uv run --directory ~/Code/…` creates a `.venv` there) on both machines.
 - **Prompt history (up-arrow)** — only when `$SRC_HOME` ≠ `$HOME`; append path-rewritten copies of the source entries:
   ```bash
   source ~/.migration/env; [ -n "$SRC_HOME" ] || exit 1
   jq -c --arg s "$SRC_HOME" --arg h "$HOME" 'select((.project // "") | startswith($s)) | .project |= sub("^"+$s; $h)' \
     ~/.claude/history.jsonl > ~/.migration/h.tmp && cat ~/.migration/h.tmp >> ~/.claude/history.jsonl && rm ~/.migration/h.tmp
   ```
-- **git, per repo** (Linux is case-sensitive; Mac paths moved) — allowed change 1:
+- **git, per repo** (Linux is case-sensitive; Mac paths moved) — allowed change 1, **[linux]/[wsl] only**:
   `find ~/Code -name .git -prune -exec sh -c 'git -C "$(dirname "$1")" config core.ignorecase false' _ {} \;`
+  [mac] skip it: APFS is case-insensitive like the source, so `core.ignorecase = true` is correct there.
   Allowed change 2: `git worktree repair` in every repo that has worktrees
   (`find ~/Code -path '*/.git/worktrees' -prune -print`). **No `git worktree prune` yet** — it happens in step 10c, after the final
   proof. First `git status` per repo rehashes — normal. Fresh WIP of every source worktree outside `~/Code` is captured in 10c too.
@@ -490,8 +511,10 @@ Three independent pairs must PASS: new Mac ↔ source, buffer ↔ source, new Ma
 was filled early, also right after 7b): the only post-copy differences the manifest tolerates are the step-9 ones.
 1. Buffer prerequisites (🙋 on the buffer, Ubuntu/Debian): `sudo apt install -y openssh-server rsync perl && perl -MDigest::SHA -e1 && echo perl-ok`
    (Debian/Ubuntu base images lack `Digest::SHA`; the full `perl` package has it). Its user@host → `BUF`.
-2. Authorize this machine's migration key on the buffer: 🙋 `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<buffer-ip>`; then
-   `printf 'BUF=%s\n' '<user>@<buffer-ip>' >> ~/.migration/env` (appending after the guard line is fine — it only tests `S`/`SRC_HOME`).
+2. Authorize this machine's migration key on the buffer — trust its host key first, as in step 3
+   (`ssh-keyscan -t ed25519 <buffer-ip> 2>/dev/null | tee -a ~/.ssh/known_hosts | ssh-keygen -lf -`), then 🙋 in a normal terminal
+   `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<buffer-ip>`; then
+   `printf 'export BUF=%s\n' '<user>@<buffer-ip>' >> ~/.migration/env` (appending after the guard line is fine — it only tests `S`/`SRC_HOME`).
    The buffer itself needs ssh to the source:
    🙋 on the buffer `ssh-keygen -t ed25519 -f ~/.ssh/id_migrate -N ""` + `ssh-copy-id -i ~/.ssh/id_migrate.pub <user>@<source-ip>`.
 3. Make the buffer an **exact mirror** of the source with the **same exclude list**. A buffer that already holds an older `~/Code` is
@@ -500,9 +523,9 @@ was filled early, also right after 7b): the only post-copy differences the manif
    `node_modules`, …) are protected from deletion; never use `--delete-excluded`. Dry run first, then the real run:
    ```bash
    source ~/.migration/env
-   scp -i ~/.ssh/id_migrate -o IdentitiesOnly=yes "$MIGRATE_EXCL" "$BUF:code-excl.txt"
+   scp -i ~/.ssh/id_migrate -o IdentitiesOnly=yes "$MIGRATE_EXCL" "${BUF}:code-excl.txt"
    B="mkdir -p ~/Code && rsync -aH --partial --delete -e 'ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes' --exclude-from=code-excl.txt"
-   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "$B -n --itemize-changes '$S:Code/' ~/Code/" > ~/.migration/logs/10b-buffer-dry.log 2>&1
+   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "$B -n --itemize-changes '${S}:Code/' ~/Code/" > ~/.migration/logs/10b-buffer-dry.log 2>&1
    grep -c '^\*deleting' ~/.migration/logs/10b-buffer-dry.log; grep '^\*deleting' ~/.migration/logs/10b-buffer-dry.log | head -50
    ```
    🙋 Show the user the number of deletions and the list (grouped by top-level folder) and wait for "go". Then the real run
@@ -510,7 +533,7 @@ was filled early, also right after 7b): the only post-copy differences the manif
    ```bash
    source ~/.migration/env
    B="mkdir -p ~/Code && rsync -aH --partial --delete --stats -e 'ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes' --exclude-from=code-excl.txt"
-   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "$B '$S:Code/' ~/Code/" > ~/.migration/logs/10b-buffer.log 2>&1
+   ssh -i ~/.ssh/id_migrate -o IdentitiesOnly=yes -o BatchMode=yes "$BUF" "$B '${S}:Code/' ~/Code/" > ~/.migration/logs/10b-buffer.log 2>&1
    ```
    `--delete` only ever points at the buffer (the destination); the source is never written.
    (`--exclude-from=code-excl.txt` is relative to the buffer's home, where the ssh command starts — never `=~/…`: a `~` after `=` is not
@@ -522,6 +545,11 @@ was filled early, also right after 7b): the only post-copy differences the manif
    ```
    Expected: three `PASS` lines (`PASS here=source`, `PASS here=peer1`, `PASS source=peer1`) and `3way exit 0`. Linux `core.ignorecase` noise in `.git/config` is
    normalised by the manifest; any other FAIL is real — re-sync that side and re-run. Record the three PASS lines in `answers.md`.
+   **One known Mac↔Linux exception:** a repo that tracks a path in one case while the disk has another (`makefile` in git,
+   `Makefile` on disk — seen in `lewagon/official-content/data-engineering/data-engineering-solutions`) reads ` M` on macOS
+   (case-insensitive) and ` D` on Linux. Only the `G … STATUS` line differs, never a file line, and no copy can remove it. Confirm it
+   rather than assume it: run `git --no-optional-locks status --porcelain` in that repo on both sides and `diff` — every differing
+   line must name a path that differs from a tracked one only by case. Anything else is real.
    The buffer is now a valid source for the next target (`S=<BUF>`, `SRC_HOME=/home/<user>` — step 5's symlink handles the different home).
 
 ### 10c. After the proof: worktree rescue + prune, `.DS_Store` restore, envs
@@ -529,15 +557,42 @@ was filled early, also right after 7b): the only post-copy differences the manif
 Only now `~/Code` may change. For every repo with worktrees: before any `git worktree prune`, save the commit each dangling worktree
 HEAD points to — one commit was reachable ONLY from a worktree HEAD (its branch had moved on):
 ```bash
+# zsh (save to a file and run `zsh <file>` — Claude's Bash shell disables extended globs)
+setopt extended_glob null_glob
 for wt in ~/Code/**/.git/worktrees/*(N); do
   repo="${wt%/.git/worktrees/*}"; name="${wt##*/}"
   gd="$(cat "$wt/gitdir" 2>/dev/null)"; [ -e "$gd" ] && continue            # worktree still exists (or repair fixed it)
-  head="$(git -C "$repo" rev-parse --verify -q "$(cat "$wt/HEAD")" 2>/dev/null || cat "$wt/HEAD")"
-  git -C "$repo" branch "rescue/$name" "$head" 2>/dev/null && echo "rescue/$name = $head ($repo)" | tee -a ~/.migration/answers.md
+  h="$(cat "$wt/HEAD")"
+  if [[ "$h" == "ref: "* ]]; then                                           # on a branch: the branch holds the commit
+    git -C "$repo" rev-parse --verify -q "${h#ref: }" >/dev/null || echo "MISSING BRANCH ${h#ref: } ($name, $repo)"
+  else                                                                       # detached: only the worktree holds it
+    git -C "$repo" branch "rescue/$name" "$h" 2>/dev/null && echo "rescue/$name = $h ($repo)" | tee -a ~/.migration/answers.md
+  fi
 done
 ```
-(Bash: `shopt -s globstar nullglob` and drop the `(N)`.) Fresh WIP of a source worktree that still exists there: `src "git -C <path> diff --binary HEAD"` >
-patch + `src "cd <path> && git ls-files -o --exclude-standard -z | tar -czf - --null -T -"` > untracked tgz — the carried snapshot may be stale.
+Any `MISSING BRANCH` line → STOP and ask. Then, **before the source is wiped**, check whether the dangling worktrees still exist **on
+the source** (Claude scratch worktrees live in `~/.claude-tmp/…/scratchpad/`, outside `~/Code` — in the 2026-10-24 run all 81 did, 20
+with uncommitted work). Their commits are already here (worktrees share the repo's `.git`); only uncommitted changes are at risk:
+```bash
+source ~/.migration/env
+cat > ~/.migration/wtpaths.zsh <<'EOF'
+setopt extended_glob null_glob
+for wt in ~/Code/**/.git/worktrees/*(N); do gd="$(cat "$wt/gitdir" 2>/dev/null)"; [ -e "$gd" ] || echo "${gd%/.git}"; done
+EOF
+zsh ~/.migration/wtpaths.zsh | sed "s|^$HOME|$SRC_HOME|" | sort -u > ~/.migration/wt-dangling.txt
+src 'while read -r p; do [ -d "$p" ] && { n=$(git -C "$p" --no-optional-locks status --porcelain | wc -l); [ "$n" -gt 0 ] && echo "$n $p"; }; done' \
+  < ~/.migration/wt-dangling.txt > ~/.migration/wt-dirty.txt                 # src reads the list on stdin here — intended
+D=~/Archive/migration/env-snapshots/worktree-wip-$(date +%F); mkdir -p "$D"; : > "$D/INDEX.txt"
+while read -r n p <&3; do                                                    # list on fd 3: every src below gets </dev/null,
+  tag="$(basename "$(dirname "$(dirname "$p")")" | cut -c1-8)-${p##*/}"     # otherwise ssh eats the rest of the list
+  hd="$(src "git -C '$p' rev-parse HEAD" </dev/null)"; br="$(src "git -C '$p' rev-parse --abbrev-ref HEAD" </dev/null)"
+  src "git -C '$p' --no-optional-locks diff --binary HEAD" </dev/null > "$D/$tag.patch"
+  src "cd '$p' && git ls-files -o --exclude-standard -z | tar -czf - --null -T -" </dev/null > "$D/$tag.untracked.tgz"
+  printf '%s\tbranch=%s\thead=%s\tpath=%s\tchanged=%s\n' "$tag" "$br" "$hd" "$p" "$n" >> "$D/INDEX.txt"
+done 3< ~/.migration/wt-dirty.txt
+wc -l < "$D/INDEX.txt"; wc -l < ~/.migration/wt-dirty.txt                  # must be equal
+```
+Check every `head=` commit exists here (`git -C <repo> cat-file -e <sha>^{commit}`) so each patch can be applied later.
 Then `git worktree prune` and check every rescued HEAD is reachable (`git branch --contains <sha>`). Then the `.DS_Store` restore and the
 `envup`/`mysandbox` runs from step 9. These are deliberate divergences from the source — list them in `answers.md`.
 
@@ -554,18 +609,18 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
 **Out (source → buffer, before the wipe gate; every copy `run_in_background` and logged):**
 1. **Code mirror** (instead of 10b step 3, which pulls): the buffer will be the source of the personal machine, so it gets ALL of `~/Code`
    — only the fixed exclude list (`code-excl-fixed.txt`: the regenerable dirs + the two dotfiles checkouts), not the user's 5b skips.
-   `rsync -aH --partial --delete -e "$R" --exclude-from=code-excl-fixed.txt -n --itemize-changes ~/Code/ "$BUF:Code/"` →
+   `rsync -aH --partial --delete -e "$R" --exclude-from=code-excl-fixed.txt -n --itemize-changes ~/Code/ "${BUF}:Code/"` →
    🙋 user reviews the `*deleting` count/list → same without `-n` and with `--stats`. Then tell the target's agent: "the buffer is
    already mirrored from the source — skip 10b step 3, run step 4 only" (its exclude list still applies to every side of the proof).
 2. **Personal folders.** Exclude list `data-excl.txt`: `.DS_Store`, `._*`, `/Photos Library.photoslibrary/` (an iCloud cache — the
    photos live in iCloud Photos; check them on another device), `.Trash/`. Folders (user's list; default Documents, Downloads,
    Pictures, Movies, `migration-staging`, `git-bundles`, `env-snapshots`, `migration-snapshot`; Dropbox only as a fallback copy):
-   `rsync -aH --partial --stats -e "$R" --exclude-from=data-excl.txt ~/<folder>/ "$BUF:handover/<folder>/"`.
+   `rsync -aH --partial --stats -e "$R" --exclude-from=data-excl.txt ~/<folder>/ "${BUF}:handover/<folder>/"`.
    Never open or describe files in `private_unopened` folders or `Downloads/to_drive`; copy them as-is.
 3. **Dev config of THIS machine** (non-secret part of `home-carry.txt`, light Claude history) into `handover/home/` — the personal
    machine takes it from there, never from the buffer's own home (that one has the buffer's keys and Claude):
    `printf '%s\n' .claude .codex/config.toml .gemini/antigravity .promptplot .aivss > home-plain.txt` and
-   `rsync -aHr --partial --stats -e "$R" --files-from=home-plain.txt --include-from=claude-include.txt --exclude-from=claude-exclude.txt --exclude .claude/settings.json --exclude .claude/statusline-command.sh ~/ "$BUF:handover/home/"`
+   `rsync -aHr --partial --stats -e "$R" --files-from=home-plain.txt --include-from=claude-include.txt --exclude-from=claude-exclude.txt --exclude .claude/settings.json --exclude .claude/statusline-command.sh ~/ "${BUF}:handover/home/"`
    (claude include/exclude = the light filter of step 1a; the dry run with `-n --stats` must show ≈ 80 MB).
 4. **Credentials + histories** — one encrypted archive (they are NOT taken from the buffer's home). Build the list of what exists:
    `cd ~ && for p in .secrets .secrets-cheatsheet.md .engenious_university.env .ssh .ssh_backup_20241029 .aws .config/gcloud .bigqueryrc .config/dotfiles .claude.json "Library/Application Support/ngrok/ngrok.yml" .config/ngrok/ngrok.yml .zsh_history .psql_history .python_history; do [ -e "$p" ] && printf '%s\n' "$p"; done > ~/migration-staging/creds-list.txt`
@@ -583,17 +638,17 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
    just `.DS_Store`): `cmp` silent, both stderr end with `ERRORS 0`. For `~/Code`: the target's 3-way proof (10b step 4).
 
 **In (buffer → personal machine; the buffer is `$S`):** the target's agent runs the runbook with the buffer as the source, with these changes:
-6. **Step 6 (dev setup outside ~/Code)** takes `"$S:handover/home/"` as the rsync source instead of `"$S:"`, with `~/.migration/home-carry.txt`
-   reduced to the 5 plain entries of 3; skip the `rsync -a "$S:.claude.json"` line (it is in the archive). For the Claude-slug copy loop
+6. **Step 6 (dev setup outside ~/Code)** takes `"${S}:handover/home/"` as the rsync source instead of `"${S}:"`, with `~/.migration/home-carry.txt`
+   reduced to the 5 plain entries of 3; skip the `rsync -a "${S}:.claude.json"` line (it is in the archive). For the Claude-slug copy loop
    (step 6) and the prompt-history rewrite (step 9) the old prefix is the ORIGINAL machine's home, not the buffer's:
    `printf 'ORIG_HOME=/Users/juan-garassino\n' >> ~/.migration/env` and use `$ORIG_HOME` where those steps say `$SRC_HOME`.
 7. **Credentials** — never extract straight into `~` (it would overwrite this machine's new `~/.claude.json` and `~/.ssh`). Use whichever
    archive exists on the buffer (`ls ~/handover/migration-staging/handover-credentials.tgz*` there):
    - **unencrypted `.tgz`** (what exists for the 2026-10-24 migration) — the agent runs, no passphrase:
-     `mkdir -p -m 700 ~/.migration/creds && rsync -a "$S:handover/migration-staging/handover-credentials.tgz" ~/.migration/ && tar -xzf ~/.migration/handover-credentials.tgz -C ~/.migration/creds`
+     `mkdir -p -m 700 ~/.migration/creds && rsync -a "${S}:handover/migration-staging/handover-credentials.tgz" ~/.migration/ && tar -xzf ~/.migration/handover-credentials.tgz -C ~/.migration/creds`
      (GNU tar prints `Ignoring unknown extended header keyword 'LIBARCHIVE.xattr…'` — harmless macOS metadata.)
    - encrypted `.tgz.enc` — 🙋 the user runs
-     `mkdir -p -m 700 ~/.migration/creds && rsync -a "$S:handover/migration-staging/handover-credentials.tgz.enc" ~/.migration/ && openssl enc -d -aes-256-cbc -pbkdf2 -in ~/.migration/handover-credentials.tgz.enc | tar -xzf - -C ~/.migration/creds`
+     `mkdir -p -m 700 ~/.migration/creds && rsync -a "${S}:handover/migration-staging/handover-credentials.tgz.enc" ~/.migration/ && openssl enc -d -aes-256-cbc -pbkdf2 -in ~/.migration/handover-credentials.tgz.enc | tar -xzf - -C ~/.migration/creds`
 
    then the agent places them:
    ```bash
@@ -610,7 +665,7 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
    `src 'rm -f ~/handover/migration-staging/handover-credentials.tgz ~/handover/migration-staging/handover-credentials.tgz.enc && ls ~/handover/migration-staging | grep -c handover-credentials || true'`
    → must print `0`. Record "credentials archive erased (buffer + here)" in `~/.migration/answers.md`. (The source machine's own copy in
    `~/migration-staging/` disappears with its wipe.)
-8. **Personal folders**: `rsync -aH --partial "$S:handover/<folder>/" ~/<folder>/` for each — on Linux **Movies → `~/Videos`** — then the
+8. **Personal folders**: `rsync -aH --partial "${S}:handover/<folder>/" ~/<folder>/` for each — on Linux **Movies → `~/Videos`** — then the
    manifest `cmp` of 5 against the buffer (must be silent).
 9. Dropbox: install the app and let it sync from the cloud (no folder copy → no conflict copies).
 10. Backup from day one: Déjà Dup or restic to an encrypted external drive (or cloud). **`~/handover` on the buffer is deleted only after

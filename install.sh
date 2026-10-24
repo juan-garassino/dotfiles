@@ -416,6 +416,12 @@ if [ "$OS" = "Darwin" ] && command -v brew &>/dev/null && [ -f "$DOTFILES_DIR/pa
         || echo "  ⚠️  rustup default stable failed — run it manually later"
     fi
   fi
+  # colima writes "Include ~/.colima/ssh_config" into ~/.ssh/config — a symlink into this PUBLIC repo — on every start
+  # unless sshConfig is false. The first start must pass --ssh-config=false; later starts read this setting.
+  _colima_yaml="$HOME/.colima/default/colima.yaml"
+  if [ -f "$_colima_yaml" ] && grep -q '^sshConfig: true' "$_colima_yaml"; then
+    sed -i '' 's/^sshConfig: true/sshConfig: false/' "$_colima_yaml" && echo "  🐳 colima: sshConfig off (keeps ~/.ssh/config = repo file clean)"
+  fi
   # editor settings again — VS Code / Cursor exist now (first run skipped them in step 3)
   echo ""
   echo "⚙️  VS Code / Cursor settings (post-install)..."

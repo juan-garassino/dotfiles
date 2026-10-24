@@ -261,7 +261,10 @@ if ($do_git) {
     if ($rc) { oops("git ls-files $repo: rc=$rc") } else {
       my @e = split /\0/, $out; push @g, "$tag INDEX " . scalar(@e) . " " . sha_str(join("\0", map { nfc_bytes($_) } @e));
     }
-    ($rc, $out) = $git->($repo, 'status', '--porcelain=v1', '-z', '--untracked-files=normal');
+    # --ignore-submodules=dirty: a submodule is its own repo above (its .git file is found too) with its own, filtered STATUS;
+    # without this the parent reports " M <sub>" for an excluded file inside it (a tracked .DS_Store) on every copy only.
+    # A submodule at a different commit still shows.
+    ($rc, $out) = $git->($repo, 'status', '--porcelain=v1', '-z', '--untracked-files=normal', '--ignore-submodules=dirty');
     if ($rc) { oops("git status $repo: " . ($out =~ /^(.*)$/m ? $1 : "rc=$rc")) } else {
       my @rec = split /\0/, $out; my @keep;
       while (@rec) {

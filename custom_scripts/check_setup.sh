@@ -40,11 +40,15 @@ chk()  { if eval "$2" >/dev/null 2>&1; then pass "$1"; else fail "$1"; fi; }   #
 perm() { if [ "$OS" = mac ]; then stat -f %Lp "$1"; else stat -c %a "$1"; fi 2>/dev/null; }
 sec()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
+# Homebrew comes from zprofile (login shells only) — load it so a plain `bash check_setup.sh` sees the same tools
+for b in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+  [ -x "$b" ] && { eval "$("$b" shellenv)"; break; }; done
 # nvm-managed node is lazy-loaded in zsh; load it here so node/npm checks are real
 export NVM_DIR="$HOME/.nvm"
 for n in "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/nvm.sh" /usr/local/opt/nvm/nvm.sh "$NVM_DIR/nvm.sh"; do
   [ -s "$n" ] && { . "$n" >/dev/null 2>&1; break; }; done
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/go/bin:$HOME/go/bin:$PATH"
+# rustup is keg-only on macOS (zprofile adds opt/rustup/bin) — add it so a non-login run doesn't report rustc/cargo missing
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:${HOMEBREW_PREFIX:-/opt/homebrew}/opt/rustup/bin:/usr/local/go/bin:$HOME/go/bin:$PATH"
 
 echo "✅ check_setup — $(hostname) · $OS · $(date '+%F %H:%M')"
 
@@ -115,6 +119,9 @@ chk "~/.engenious_university.env present"   'test -f ~/.engenious_university.env
 
 sec "Migration hygiene"
 [ -e /etc/sudoers.d/99-migration ] && fail "temporary NOPASSWD sudo still present (sudo rm /etc/sudoers.d/99-migration)" || pass "no leftover NOPASSWD sudo"
+# ~/.ssh/config is a symlink into this public repo: tools that append to it (colima's Include line) change the repo
+[ -z "$(git -C "$DOT" status --porcelain -- ssh/config 2>/dev/null)" ] && pass "repo ssh/config unchanged" \
+  || fail "repo ssh/config modified — a tool appended to ~/.ssh/config (colima: sshConfig: false); git -C $DOT diff ssh/config"
 if [ "$OS" != mac ]; then
   [ -L /Users/juan-garassino ] && pass "/Users/juan-garassino → $HOME (path compat)" || warn "no /Users/juan-garassino compat symlink (old absolute paths won't resolve)"
 fi

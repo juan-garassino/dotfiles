@@ -85,7 +85,7 @@ brew "rsync"
 # Internet file retriever
 brew "wget"
 # Terraform — show-and-destroy infra (was installed but missing from the dump)
-brew "hashicorp/tap/terraform"
+brew "hashicorp/tap/terraform", trusted: true
 # runpodctl is a CLI tool to manage your GPU pods on RunPod.
 brew "runpod/runpodctl/runpodctl", trusted: true
 cask "font-meslo-lg-nerd-font"
