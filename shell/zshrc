@@ -93,6 +93,11 @@ for _cmd in nvm node npm npx yarn pnpm corepack; do
   eval "${_cmd}() { if typeset -f _nvm_lazy_load >/dev/null 2>&1; then _nvm_lazy_load; ${_cmd} \"\$@\"; else command ${_cmd} \"\$@\"; fi }"
 done
 unset _cmd
+# npm-global CLIs (codex, gemini, mmdc, …) live in nvm's node bin, which is only on PATH after the lazy load.
+# Put the newest installed version's bin on PATH now (numeric glob sort; the default alias `lts/*` needs nvm to resolve).
+_nvm_bins=($NVM_DIR/versions/node/v*/bin(N/nOn))
+(( ${#_nvm_bins} )) && path=(${_nvm_bins[1]} $path)
+unset _nvm_bins
 
 #######################################################################
 # 🎨 Powerlevel10k Theme

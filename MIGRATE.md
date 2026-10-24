@@ -18,7 +18,7 @@ buffer machine exists (step 10b).
 
 | Target (this machine) | `$OS` | Notes |
 |---|---|---|
-| Ubuntu desktop / laptop (incl. a 2015 MacBook running Ubuntu) | linux | path-compat symlink; 2015 MBP Wi-Fi: `sudo apt install bcmwl-kernel-source` (tether USB first) |
+| Ubuntu desktop / laptop (incl. a 2015 MacBook running Ubuntu) | linux | path-compat symlink; 2015 MBP Wi-Fi: `sudo apt install bcmwl-kernel-source` (tether USB first). Installing Ubuntu 26.04 there (2026-10-24): the live session shows apport "Send problem report?" pop-ups — harmless, "Don't send"; the first install attempt failed, the retry worked **offline (Wi-Fi skipped) with third-party drivers unticked** (which of the two mattered is unknown). `CasperMD5CheckResult: pass` = the USB image is fine |
 | WSL2 (Ubuntu inside Windows) | wsl | `~/Code` in the WSL ext4 home, **never** `/mnt/c`; font + Warp on the Windows side; systemd for Docker |
 | Apple Silicon Mac | mac | Homebrew in `/opt/homebrew` + Brewfile; the account may differ (`garassino-juan` → `/Users/garassino-juan`), step 5 handles it |
 

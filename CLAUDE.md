@@ -88,6 +88,8 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
   `autoenv_activate` (a `cd` hook) activates a project `.venv` first, else the sandbox;
   legacy `.python-version` files naming old pyenv envs are quietly ignored (once per dir
   per session — many are tracked in pull-only Le Wagon repos and must not be edited).
+- **Node** — nvm is lazy-loaded (first `node`/`npm` call), but zshrc puts the newest installed
+  `~/.nvm/versions/node/v*/bin` on PATH at startup so npm-global CLIs (`codex`, `gemini`, `mmdc`) work in a fresh shell.
 - **Dual identity** — gitconfig `includeIf` sets commit identity by directory (`~/Code/`
   personal, `~/Code/002-engenious/` work); the `gh_auto_switch` cd-hook switches the gh CLI
   account; `workon`/`personal` switch GCP creds + `cd`. `whoami_dev` shows the active context.
