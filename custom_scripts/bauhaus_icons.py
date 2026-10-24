@@ -115,6 +115,11 @@ ICONS = {
                f'<polygon points="128,64 153,104 103,104" fill="{L}"/>',
     "pritunl": f'<path d="M128,54 L190,78 L190,130 Q190,180 128,206 Q66,180 66,130 L66,78 Z" fill="{R}"/>'
                f'<circle cx="128" cy="118" r="17" fill="{L}"/><rect x="121" y="122" width="14" height="40" rx="4" fill="{L}"/>',
+    "thunderbird": f'<circle cx="150" cy="102" r="52" fill="{C}"/>'
+                   f'<rect x="52" y="108" width="136" height="92" rx="10" fill="{L}"/>'
+                   f'<polyline points="56,114 120,160 184,114" fill="none" stroke="{M}" stroke-width="10" '
+                   f'stroke-linejoin="round" stroke-linecap="round"/>'
+                   f'<circle cx="172" cy="84" r="10" fill="{O}"/>',
     "inkscape": f'<line x1="62" y1="180" x2="96" y2="70" stroke="{M}" stroke-width="6"/>'
                 f'<line x1="194" y1="76" x2="160" y2="186" stroke="{M}" stroke-width="6"/>'
                 f'<path d="M62,180 C96,70 160,186 194,76" fill="none" stroke="{L}" stroke-width="12"/>'
@@ -276,7 +281,7 @@ APPS = {
     "org.gnome.Settings": "settings", "obsidian_obsidian": "obsidian", "notion-web": "notion",
     "gephi": "gephi", "balena-etcher": "etcher", "spotify_spotify": "spotify",
     "dropbox": "dropbox", "nordvpn-gui": "nordvpn", "pritunl-client-electron": "pritunl",
-    "inkscape_inkscape": "inkscape",
+    "inkscape_inkscape": "inkscape", "thunderbird_thunderbird": "thunderbird", "thunderbird": "thunderbird",
     "desktop-security-center_desktop-security-center": "security", "display-im7.q16": "imagemagick",
     "firmware-updater_firmware-updater": "firmware", "gnome-language-selector": "language",
     "info": "texinfo", "net.nokyan.Resources": "resources", "nm-connection-editor": "network",
