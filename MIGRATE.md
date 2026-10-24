@@ -574,6 +574,10 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
    (passphrase twice — store it in a password manager; without it the keys are gone). 🙋 **Test-decrypt before the wipe**:
    `/usr/local/bin/openssl enc -d -aes-256-cbc -pbkdf2 -in ~/migration-staging/handover-credentials.tgz.enc | tar -tzf - | wc -l` (= the
    file count, no error). The archive travels with `migration-staging` (step 2); check its `shasum -a 256` on both sides.
+   **Unencrypted variant (the user's choice on 2026-10-24 — this is the one that exists):** `cd ~ && (umask 077; tar -czf
+   ~/migration-staging/handover-credentials.tgz -T migration-staging/creds-list.txt)` → copied to the buffer as
+   `~/handover/migration-staging/handover-credentials.tgz` (file 600, `~/handover` 700). It holds plain SSH keys, `.secrets`, cloud
+   credentials and tokens, so it **must be erased** on the buffer and on the target right after step 7 (and the hygiene gate checks it).
 5. **Proof** per folder of 2 and 3: `perl ~/Code/000-config/001-dotfiles/custom_scripts/code_manifest.pl <dir> --exclude-from data-excl.txt`
    here vs on the buffer (`$R "$BUF" "perl - handover/<folder> --exclude-b64 <b64>" < code_manifest.pl`; for `home` use an exclude list of
    just `.DS_Store`): `cmp` silent, both stderr end with `ERRORS 0`. For `~/Code`: the target's 3-way proof (10b step 4).
@@ -583,8 +587,14 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
    reduced to the 5 plain entries of 3; skip the `rsync -a "$S:.claude.json"` line (it is in the archive). For the Claude-slug copy loop
    (step 6) and the prompt-history rewrite (step 9) the old prefix is the ORIGINAL machine's home, not the buffer's:
    `printf 'ORIG_HOME=/Users/juan-garassino\n' >> ~/.migration/env` and use `$ORIG_HOME` where those steps say `$SRC_HOME`.
-7. **Credentials** — never extract straight into `~` (it would overwrite this machine's new `~/.claude.json` and `~/.ssh`): 🙋 the user runs
-   `mkdir -p -m 700 ~/.migration/creds && rsync -a "$S:handover/migration-staging/handover-credentials.tgz.enc" ~/.migration/ && openssl enc -d -aes-256-cbc -pbkdf2 -in ~/.migration/handover-credentials.tgz.enc | tar -xzf - -C ~/.migration/creds`
+7. **Credentials** — never extract straight into `~` (it would overwrite this machine's new `~/.claude.json` and `~/.ssh`). Use whichever
+   archive exists on the buffer (`ls ~/handover/migration-staging/handover-credentials.tgz*` there):
+   - **unencrypted `.tgz`** (what exists for the 2026-10-24 migration) — the agent runs, no passphrase:
+     `mkdir -p -m 700 ~/.migration/creds && rsync -a "$S:handover/migration-staging/handover-credentials.tgz" ~/.migration/ && tar -xzf ~/.migration/handover-credentials.tgz -C ~/.migration/creds`
+     (GNU tar prints `Ignoring unknown extended header keyword 'LIBARCHIVE.xattr…'` — harmless macOS metadata.)
+   - encrypted `.tgz.enc` — 🙋 the user runs
+     `mkdir -p -m 700 ~/.migration/creds && rsync -a "$S:handover/migration-staging/handover-credentials.tgz.enc" ~/.migration/ && openssl enc -d -aes-256-cbc -pbkdf2 -in ~/.migration/handover-credentials.tgz.enc | tar -xzf - -C ~/.migration/creds`
+
    then the agent places them:
    ```bash
    source ~/.migration/env; C=~/.migration/creds
@@ -594,8 +604,12 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
    [ -f "$C/.claude.json" ] && cp "$C/.claude.json" ~/.claude.json.src          # merged in step 9 like a normal source
    for n in "$C/Library/Application Support/ngrok/ngrok.yml" "$C/.config/ngrok/ngrok.yml"; do [ -f "$n" ] && mkdir -p ~/.config/ngrok && cp "$n" ~/.config/ngrok/ngrok.yml; done
    chmod 700 ~/.ssh; chmod 600 ~/.ssh/id_* ~/.secrets 2>/dev/null; chmod 644 ~/.ssh/*.pub 2>/dev/null; chmod 600 ~/.config/ngrok/ngrok.yml 2>/dev/null
-   rm -rf "$C" ~/.migration/handover-credentials.tgz.enc
+   rm -rf "$C" ~/.migration/handover-credentials.tgz ~/.migration/handover-credentials.tgz.enc
    ```
+   **Then erase the archive on the buffer too** — it holds plain credentials (the unencrypted variant) and nothing needs it any more:
+   `src 'rm -f ~/handover/migration-staging/handover-credentials.tgz ~/handover/migration-staging/handover-credentials.tgz.enc && ls ~/handover/migration-staging | grep -c handover-credentials || true'`
+   → must print `0`. Record "credentials archive erased (buffer + here)" in `~/.migration/answers.md`. (The source machine's own copy in
+   `~/migration-staging/` disappears with its wipe.)
 8. **Personal folders**: `rsync -aH --partial "$S:handover/<folder>/" ~/<folder>/` for each — on Linux **Movies → `~/Videos`** — then the
    manifest `cmp` of 5 against the buffer (must be silent).
 9. Dropbox: install the app and let it sync from the cloud (no folder copy → no conflict copies).
@@ -605,6 +619,8 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
 ### Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table)
 
 Order matters: sudo is needed until the very last item.
+  0. **Credentials archive gone (10d):** `ls ~/.migration/handover-credentials.tgz* ~/.migration/creds 2>/dev/null` here and
+     `src 'ls ~/handover/migration-staging/handover-credentials.tgz* 2>/dev/null'` on the buffer must both print nothing — if not, erase them now.
   1. `<file>.<YYYYmmdd-HHMMSS>.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.
   2. Caches (Round G): [mac] `brew cleanup -s` · [linux]/[wsl] `sudo apt-get clean && sudo apt-get autoremove --purge` · all: `uv cache prune`, `docker system prune -af` only if no wanted container runs, `npm cache clean --force`.
   3. Software audit against the interview answers: [mac] `brew list --cask` + `brew leaves`, `ls ~/Library/LaunchAgents` (only what was
