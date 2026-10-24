@@ -226,7 +226,10 @@ if ($do_git) {
   # run git without a shell, stderr merged; returns (rc, output) — undef rc if git is missing
   my $git = sub {
     my ($repo, @a) = @_;
-    my @cmd = ('git', '-C', "./$repo", '--no-optional-locks', '-c', 'safe.directory=*', '-c', 'core.fsmonitor=false', @a);
+    # core.autocrlf=input = git/gitconfig's value, set explicitly: with the global config off, files committed LF but
+    # stored CRLF read as " M" on any copy whose stat cache is stale (every copy), and clean on the original.
+    my @cmd = ('git', '-C', "./$repo", '--no-optional-locks', '-c', 'safe.directory=*', '-c', 'core.fsmonitor=false',
+               '-c', 'core.autocrlf=input', @a);
     my $pid = open(my $fh, '-|');
     if (!defined $pid) { oops("fork: $!"); return (undef, '') }
     if ($pid == 0) { open(STDERR, '>&', \*STDOUT); open(STDIN, '<', '/dev/null'); exec { $cmd[0] } @cmd or exit 127 }
