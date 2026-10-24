@@ -226,6 +226,9 @@ elif [ "$OS" = "Linux" ]; then
   fi
   # uv (official installer) — the ONLY Python manager; no pyenv
   command -v uv >/dev/null 2>&1 || { echo "  📦 uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
+  # the installer puts uv in ~/.local/bin, which this run's PATH lacks — without this the uv Pythons,
+  # ruff and pre-commit below are silently skipped on a fresh Linux machine
+  export PATH="$HOME/.local/bin:$PATH"
   # MesloLGS NF — the p10k font (macOS gets it from the Brewfile cask). Without it the prompt
   # renders tofu boxes. Then point the desktop terminal at it (GNOME Terminal / Ptyxis).
   FONT_DIR="$HOME/.local/share/fonts"

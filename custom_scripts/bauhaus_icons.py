@@ -195,6 +195,10 @@ ICONS = {
     "virtualbox": f'<polygon points="128,52 194,90 128,128 62,90" fill="{L}"/>'
                   f'<polygon points="62,90 128,128 128,204 62,166" fill="{C}"/>'
                   f'<polygon points="194,90 128,128 128,204 194,166" fill="{M}"/>',
+    "input": f'<rect x="46" y="76" width="164" height="104" rx="14" fill="{M}"/>'
+             + "".join(f'<rect x="{62 + 24 * i + (12 if r == 1 else 0)}" y="{92 + 24 * r}" width="16" height="16" rx="3" '
+                       f'fill="{O if (r, i) == (0, 5) else L}"/>' for r in (0, 1) for i in range(6 if r == 0 else 5))
+             + f'<rect x="86" y="148" width="84" height="16" rx="3" fill="{L}"/>',
     # — macOS-only apps —
     "docker": f'<path d="M50,138 H206 Q200,198 122,198 Q64,198 50,138 Z" fill="{C}"/>'
               + "".join(f'<rect x="{x}" y="{y}" width="28" height="28" rx="4" fill="{c}"/>'
@@ -281,8 +285,13 @@ APPS = {
     "org.gnome.Papers": "papers", "org.gnome.seahorse.Application": "passwords",
     "org.gnome.Sysprof": "sysprof", "org.gnome.TextEditor": "text-editor", "org.gnome.Yelp": "help",
     "snap-store_snap-store": "app-center", "update-manager": "updater", "vim": "vim",
-    "virtualbox": "virtualbox",
+    "virtualbox": "virtualbox", "im-config": "input", "org.freedesktop.IBus.Setup": "input",
 }
+
+# desktop file ID → the window class/app_id the app really reports (measured 2026-10-24). Without it GNOME
+# can't tie the running window to the launcher and shows a second, stock-icon entry in the dock.
+WMCLASS = {"virtualbox": "VirtualBox Manager", "balena-etcher": "balenaEtcher", "chatgpt": "Chatgpt",
+           "inkscape_inkscape": "org.inkscape.Inkscape"}
 
 HOME = Path.home()
 ICON_DIR = HOME / ".local/share/icons/bauhaus"
@@ -299,7 +308,7 @@ FONT = "Jost, Futura, 'Ubuntu Sans', sans-serif"     # Jost = open Futura reviva
 
 INK = {C: L, R: L, O: BG}       # the gray drawn on each colored tile (charcoal on ochre for contrast)
 SWAP = {C: {C: L, L: BG}, R: {R: L, L: BG}, O: {O: BG, BG: L, L: BG}}   # per tile: keep every shape visible
-TILE = {**dict.fromkeys(["warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
+TILE = {**dict.fromkeys(["input", "warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
                          "zoom", "obsidian", "nordvpn", "dropbox", "network", "disks", "updater", "security",
                          "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher", "maps"], C),
         **dict.fromkeys(["claude", "chatgpt", "files", "etcher", "spotify", "notion", "firmware", "imagemagick",
@@ -332,10 +341,15 @@ def svg(glyph, label=None, name="", dark=False):
             f'<rect x="8" y="8" width="240" height="240" rx="52" fill="{tile}"/>{glyph}</svg>\n')
 
 
-def set_icon(text, icon):
+def set_icon(text, icon, wmclass=None):
     text = re.sub(r"^Icon=.*$", f"Icon={icon}", text, flags=re.M)
     if MARK not in text:
         text = text.replace("[Desktop Entry]\n", f"[Desktop Entry]\n{MARK}\n", 1)
+    if wmclass:     # only in the [Desktop Entry] group, which ends at the first [Desktop Action …]
+        head, sep, rest = text.partition("\n[Desktop Action")
+        head = re.sub(r"^StartupWMClass=.*\n", "", head, flags=re.M)
+        head = head.replace(f"{MARK}\n", f"{MARK}\nStartupWMClass={wmclass}\n", 1)
+        text = head + sep + rest
     return text
 
 
@@ -360,7 +374,7 @@ def apply(icon_dir):
         if not src:
             print(f"  ⏭️  {app} not installed")
             continue
-        local.write_text(set_icon(src.read_text(), icon_dir / f"{name}.svg"))
+        local.write_text(set_icon(src.read_text(), icon_dir / f"{name}.svg", WMCLASS.get(app)))
         print(f"  🎨 {app} → {name}")
     subprocess.run(["update-desktop-database", str(LOCAL_APPS)], check=False)
 

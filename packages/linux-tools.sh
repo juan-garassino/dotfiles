@@ -121,6 +121,9 @@ if ! have ngrok; then
 fi
 
 # llm CLI (uv tool, same as everything Python)
+# this script runs before install.sh installs uv: install it here if missing, and find it in ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"
+have uv || curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
 have llm || { have uv && uv tool install llm >/dev/null 2>&1 && echo "  ✅ llm (uv tool)"; }
 
 # ollama — heavy (systemd service + GPU libs): skipped in MINIMAL rehearsals

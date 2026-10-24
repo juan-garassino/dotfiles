@@ -380,7 +380,7 @@ if [ "$MODE" = check ]; then
 fi
 
 # ---------------------------------------------------------------- install mode
-sudo -v || { echo "sudo required" >&2; exit 1; }
+sudo -n true 2>/dev/null || sudo -v || { echo "sudo required" >&2; exit 1; }
 sudo install -m 0755 -d "$KEYRINGS"
 
 declare -a TODO=()

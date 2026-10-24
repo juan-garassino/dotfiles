@@ -18,7 +18,7 @@ buffer machine exists (step 10b).
 
 | Target (this machine) | `$OS` | Notes |
 |---|---|---|
-| Ubuntu desktop / laptop (incl. a 2015 MacBook running Ubuntu) | linux | path-compat symlink; 2015 MBP Wi-Fi: `sudo apt install bcmwl-kernel-source` (tether USB first). Installing Ubuntu 26.04 there (2026-10-24): the live session shows apport "Send problem report?" pop-ups — harmless, "Don't send"; the first install attempt failed, the retry worked **offline (Wi-Fi skipped) with third-party drivers unticked** (which of the two mattered is unknown). `CasperMD5CheckResult: pass` = the USB image is fine |
+| Ubuntu desktop / laptop (incl. a 2015 MacBook running Ubuntu) | linux | path-compat symlink. 2015 MBP: see **"2015 MacBook Pro → Ubuntu"** below — its SSD corrupts writes under Linux unless capped first |
 | WSL2 (Ubuntu inside Windows) | wsl | `~/Code` in the WSL ext4 home, **never** `/mnt/c`; font + Warp on the Windows side; systemd for Docker |
 | Apple Silicon Mac | mac | Homebrew in `/opt/homebrew` + Brewfile; the account may differ (`garassino-juan` → `/Users/garassino-juan`), step 5 handles it |
 
@@ -26,6 +26,25 @@ buffer machine exists (step 10b).
 |---|---|---|
 | Mac (e.g. the Intel today, later the Apple Silicon one) | System Settings/Preferences → Sharing → **Remote Login** | `/Users/juan-garassino` |
 | Linux (e.g. the Intel Mac once it runs Ubuntu, or the buffer) | `sudo apt install -y openssh-server` | `/home/<user>` |
+
+### 2015 MacBook Pro → Ubuntu (measured 2026-10-24, Ubuntu 26.04.1, APPLE SSD SM0512G)
+
+- **The SSD silently corrupts writes** under Linux: AHCI `host bus error` on large transfers (NCQ and non-NCQ), ext4 `potential data
+  loss`, broken files (`dpkg -V` → `??5??????`), a gnome-shell that segfaults in `libLLVM` (black screen after the passphrase), a
+  snap seed that fails (`cannot find signatures with metadata`, so no Firefox). SMART is clean — the disk is fine. Measured on a 2 GB
+  write: 4 MB transfers → 210 errors, 512 KB → 0.
+- **Install with the cap on:** in the live session ("Try Ubuntu", Ctrl+Alt+T), before starting the installer:
+  `for d in /sys/block/sd*; do grep -q APPLE $d/device/model && { echo 1 | sudo tee $d/device/queue_depth; echo 512 | sudo tee $d/queue/max_sectors_kb; }; done`
+  First boot: the same line, then make it permanent — udev rule
+  `ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd[a-z]", ATTRS{model}=="APPLE SSD*", ATTR{queue/max_sectors_kb}="512"` in
+  `/etc/udev/rules.d/60-apple-ssd-max-sectors.rules` + `update-initramfs -u`, and `libata.force=noncq` in `GRUB_CMDLINE_LINUX_DEFAULT`
+  + `update-grub`.
+- **Then verify:** `sudo dpkg -V | grep -v " c /"` must be empty (reinstall every package it names), and
+  `journalctl -k -b | grep -c -i -E "host bus error|I/O error"` must stay 0. A failed snap seed: stop snapd, move
+  `/var/lib/snapd/seed` and `state.json` aside, start snapd, `snap install` the snaps from the store.
+- Wi-Fi: the 15" (BCM43602) works out of the box (`brcmfmac`); `bcmwl-kernel-source` is only for the older BCM4360. An offline install
+  leaves stale apt lists — `sudo apt update` before the first `apt install`. Without `bootstrap.sh`: `sudo apt install -y zsh perl curl git`
+  first (`install.sh` is `#!/bin/zsh`). The GDM login may need Ctrl+Alt+F3 (text console) to get in until it's fixed.
 
 ## State across Bash calls — `~/.migration/` (read before step 1)
 
