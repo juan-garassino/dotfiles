@@ -45,6 +45,8 @@ buffer machine exists (step 10b).
 - Wi-Fi: the 15" (BCM43602) works out of the box (`brcmfmac`); `bcmwl-kernel-source` is only for the older BCM4360. An offline install
   leaves stale apt lists — `sudo apt update` before the first `apt install`. Without `bootstrap.sh`: `sudo apt install -y zsh perl curl git`
   first (`install.sh` is `#!/bin/zsh`). The GDM login may need Ctrl+Alt+F3 (text console) to get in until it's fixed.
+- Mac-style ⌘C/⌘V: `echo "options hid_apple swap_ctrl_cmd=1" | sudo tee /etc/modprobe.d/hid_apple.conf && sudo update-initramfs -u`
+  (live: `echo 1 | sudo tee /sys/module/hid_apple/parameters/swap_ctrl_cmd`). Terminals then copy/paste with ⌘⇧C / ⌘⇧V.
 
 ## State across Bash calls — `~/.migration/` (read before step 1)
 
