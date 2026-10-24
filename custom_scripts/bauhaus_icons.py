@@ -19,6 +19,7 @@ Overrides are per-user copies of each app's .desktop file in ~/.local/share/appl
 (same file name → same dock pin) with Icon= pointing at our SVG. Apps that aren't
 installed are skipped. Re-run after an app update rewrites its launcher.
 """
+import json
 import plistlib
 import re
 import subprocess
@@ -353,6 +354,33 @@ def set_icon(text, icon, wmclass=None):
     return text
 
 
+def chrome_profiles():
+    """(directory, name, email) per Chrome profile, Default first — read from Chrome's own Local State."""
+    try:
+        cache = json.loads((HOME / ".config/google-chrome/Local State").read_text())["profile"]["info_cache"]
+    except (OSError, ValueError, KeyError):
+        return []
+    return sorted(((d, v.get("name", d), v.get("user_name", "")) for d, v in cache.items()), key=lambda t: t[0] != "Default")
+
+
+def add_chrome_profiles(text):
+    """Right-click (dock) entry per Chrome profile, like the macOS dock menu. Re-read on every run."""
+    profiles = chrome_profiles()
+    if not profiles:
+        return text
+    exe = re.search(r"^Exec=(\S+)", text, flags=re.M).group(1)
+    ids = [f"profile-{re.sub(r'[^a-z0-9]+', '-', d.lower())}" for d, _, _ in profiles]
+    head, sep, rest = text.partition("\n[Desktop Action")
+    old = re.search(r"^Actions=(.*)$", head, flags=re.M)
+    keep = [a for a in (old.group(1).split(";") if old else []) if a and not a.startswith("profile-")]
+    line = "Actions=" + ";".join(ids + keep) + ";"
+    head = re.sub(r"^Actions=.*$", line, head, flags=re.M) if old else head.rstrip("\n") + "\n" + line + "\n"
+    rest = re.sub(r"\n\[Desktop Action profile-[^\]]*\][^\[]*", "\n", sep + rest)
+    actions = "".join(f"\n[Desktop Action {i}]\nName={n}" + (f" ({e})" if e else "") +
+                      f"\nExec={exe} \"--profile-directory={d}\"\n" for i, (d, n, e) in zip(ids, profiles))
+    return head.rstrip("\n") + "\n" + actions + rest
+
+
 def write_svgs():
     for d in (ICON_DIR, LABEL_DIR):
         d.mkdir(parents=True, exist_ok=True)
@@ -374,7 +402,8 @@ def apply(icon_dir):
         if not src:
             print(f"  ⏭️  {app} not installed")
             continue
-        local.write_text(set_icon(src.read_text(), icon_dir / f"{name}.svg", WMCLASS.get(app)))
+        text = set_icon(src.read_text(), icon_dir / f"{name}.svg", WMCLASS.get(app))
+        local.write_text(add_chrome_profiles(text) if app == "google-chrome" else text)
         print(f"  🎨 {app} → {name}")
     subprocess.run(["update-desktop-database", str(LOCAL_APPS)], check=False)
 
