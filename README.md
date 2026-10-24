@@ -8,8 +8,10 @@ into `$HOME` by `install.sh`. **No secrets ever live in this repo** — API keys
 ## 🚀 Fresh machine — one command
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh)"
 ```
+(The older `curl -fsSL …/bootstrap.sh | bash` still works on Linux; on macOS it installs everything and then prints the
+command above, because Claude's runtime can't re-open the terminal there.)
 
 [`bootstrap.sh`](./bootstrap.sh) does **git → clone → claude**: installs git/curl (Linux: also zsh + perl), clones this
 repo to `~/Code/000-config/001-dotfiles`, installs Claude Code, and opens it with the setup

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # bootstrap.sh — git, clone, claude. The only command a fresh machine needs:
 #
-#   curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh | bash
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh)"
+#
+# (Linux also accepts the older `curl -fsSL … | bash`; on macOS that form installs everything but
+#  then prints the line above instead of starting Claude — Bun can't re-open /dev/tty there.)
 #
 # Installs git + curl + zsh + perl (+ openssh-server on Linux), clones this repo to its canonical
 # path, installs Claude Code (native installer), then opens Claude in the repo with the setup
@@ -66,6 +69,18 @@ export PATH="$HOME/.local/bin:$PATH"
 PROMPT="Read CLAUDE.md and README.md in this repo. Then ask me (one question) whether this is (a) a fresh setup of an empty machine or (b) a migration from another machine (Mac or Linux), and run the matching runbook end to end: (a) the 'Full machine setup' checklist in CLAUDE.md, (b) MIGRATE.md. Verify each step and stop only for passwords, logins and secrets."
 
 cd "$DEST"
-echo "🤖 Starting Claude Code (log in when asked)..."
-# stdin is this piped script — hand Claude the real terminal
-exec claude "$PROMPT" < /dev/tty
+URL="https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh"
+if [ -t 0 ]; then
+  # run as /bin/bash -c "$(curl -fsSL …)" — stdin is already the terminal
+  echo "🤖 Starting Claude Code (log in when asked)..."
+  exec claude "$PROMPT"
+elif [ "$(uname)" = Linux ]; then
+  # curl | bash on Linux: stdin is this piped script — hand Claude the real terminal (works with epoll)
+  echo "🤖 Starting Claude Code (log in when asked)..."
+  exec claude "$PROMPT" < /dev/tty
+else
+  # curl | bash on macOS: Claude's runtime (Bun) can't watch a re-opened /dev/tty with kqueue
+  # (EINVAL) — don't crash; everything above is installed, so re-running the terminal form is quick.
+  echo "✅ Installed. Start Claude with the setup prompt by running (re-running is safe and quick):"
+  echo "   /bin/bash -c \"\$(curl -fsSL $URL)\""
+fi

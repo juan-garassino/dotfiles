@@ -70,13 +70,13 @@ source — deliberately, before the freeze, with the user approving every item. 
 
 ## 0. Bootstrap (human, one command — done if you are reading this inside Claude)
 
-Pinned to the tag the migration was reviewed on (the coordinator creates it after merging):
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/migration-2026-10-24/bootstrap.sh | DOTFILES_BRANCH=migration-2026-10-24 bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/main/bootstrap.sh)"
 ```
-
-The clone is left on that tag (detached HEAD). After the migration: `git checkout main`.
+Pinned to a reviewed tag instead of `main` (the clone is then left on that tag, detached HEAD; after the migration `git checkout main`):
+`DOTFILES_BRANCH=<tag> /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/juan-garassino/dotfiles/<tag>/bootstrap.sh)"`.
+Use the `/bin/bash -c "$(curl …)"` form, not `curl … | bash`: on macOS the piped form can't start Claude (Bun can't re-open
+`/dev/tty` with kqueue — EINVAL) and only prints this line; on Linux both forms work.
 On Linux, `bootstrap.sh` also installs `zsh` and `perl` (the verification needs `Digest::SHA`).
 
 ## 1. Preflight (read-only)
