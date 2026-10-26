@@ -56,7 +56,10 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
    symlinks all dotfiles, installs Oh-My-Zsh + Powerlevel10k, runs `uv python install 3.11 3.12 3.13`
    + `uv tool install ruff pre-commit`, wires the Claude statusline, restores
    `skills/` + `agents/`, and seeds `~/.secrets` from `.secrets.sample`. Verify: `ls -la ~/.zshrc`
-   is a symlink into `shell/zshrc`; `brew bundle check --file=<repo>/Brewfile` is satisfied;
+   is a symlink into `shell/zshrc`; macOS: `brew bundle check --file=<repo>/packages/Brewfile` is satisfied;
+   Linux: `packages/linux-apps.sh --check` exits 0 and
+   `grep -vE '^\s*(#|$)' packages/apt.txt | xargs dpkg-query -W -f='${Package} ${Status}\n' 2>&1 | grep -v 'install ok installed'`
+   lists only names install.sh reported as "not in this release, skipped";
    `which uv` is a brew path on macOS (`~/.local/bin/uv` on Linux), never a `.pyenv/shims` one. **Icons are opt-in:** before running
    `install.sh`, ask the user whether to use the new Bauhaus app icons (and on a Mac, whether to also swap
    the Dock tiles and re-apply icons after app updates), then run `BAUHAUS_ICONS=yes|no BAUHAUS_MAC_EXTRAS=yes|no ./install.sh`.
@@ -65,7 +68,7 @@ points (marked 🙋 — secrets and keys a machine can't fabricate).
    keys (password manager) into `~/.secrets`, then `chmod 600 ~/.secrets`. Expected keys: see
    `.secrets.sample`. **Never echo a key value; never commit `~/.secrets`.**
 4. 🙋 **SSH keys** — ask the user to place `~/.ssh/id_ed25519_personal` and
-   `~/.ssh/id_ed25519_work` (chmod 600), then `ssh-add --apple-use-keychain` each. Verify:
+   `~/.ssh/id_ed25519_work` (chmod 600), then `ssh-add` each (macOS: `ssh-add --apple-use-keychain`). Verify:
    `ssh -T git@github.com` → "Hi juan-garassino"; `ssh -T git@github-work` → work account.
 5. 🙋 **GitHub CLI** — `gh auth login` for both accounts (personal `juan-garassino`, work
    `j-garassino-engenious`). Verify `gh auth status` shows both.

@@ -39,7 +39,7 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 | Layer | Setup | Where |
 |---|---|---|
 | **Shell** | zsh + Oh-My-Zsh · plugins `git gitfast last-working-dir common-aliases zsh-autosuggestions zsh-syntax-highlighting history-substring-search` · lazy-loaded nvm/rbenv/kubectl (fast startup) | `shell/zshrc` |
-| **Prompt** | Powerlevel10k, Bauhaus palette (cobalt / ochre / burgundy + grays), custom `gh_identity` segment: ochre `personal` / burgundy `work` | `prompt/p10k.zsh` |
+| **Prompt** | Powerlevel10k, Bauhaus triad (purple / green / orange + grays), custom `gh_identity` segment: green `personal` / orange `work` | `prompt/p10k.zsh` |
 | **Font** | **MesloLGS NF**: Brewfile cask on macOS; on Linux `install.sh` downloads it to `~/.local/share/fonts` and sets GNOME Terminal / Ptyxis to `MesloLGS NF 12` | `install.sh` |
 | **Terminal** | **Warp** on both (Brewfile cask / Warp apt repo), same settings: theme `dracula`, MesloLGS NF 14, `honor_ps1` so the p10k prompt shows. Default Ubuntu terminal also set to MesloLGS NF 14 | `terminal/warp-settings.toml` |
 | **App icons** | Linux GNOME: one Bauhaus/Kandinsky icon set for every launcher — colored tiles (cobalt / ochre / burgundy), gray glyphs, optional name labels in Jost. `bauhaus_icons.py` (`--labels` / plain / `--dark` / `--undo`), offered by `install.sh` as an opt-in question (`BAUHAUS_ICONS=yes|no`; skipped without a terminal). macOS: `bauhaus_icons.py --mac [--undo]` sets each app's custom icon (re-run after app updates) and builds look-alike launchers for Apple's own apps (sealed volume) in `~/Applications/Bauhaus`; `--mac-dock [--undo]` swaps them into the Dock; `--mac-watch` installs a LaunchAgent that re-applies icons after app updates. In-bundle icons invalidate the app's signature, so signature-sensitive apps (`MAC_LAUNCH_ONLY`, currently Docker) keep their stock icon and get a Bauhaus launcher instead | `custom_scripts/bauhaus_icons.py` |
@@ -59,8 +59,8 @@ Claude stops only for what a machine can't fabricate: passwords, `gh auth login`
 `~/.claude` hand-carry.
 
 **Check it matches:** `custom_scripts/check_setup.sh` (PASS/FAIL scorecard of the whole dev setup;
-add `--code user@old-machine` to also prove `~/Code` — every repo, branch, stash and file — equals the source). Or by eye: `exec zsh` → the prompt shows clean icons (no boxes) and an ochre
-`personal` badge; `cd ~/Code/002-engenious` → it turns burgundy `work`; `which uv` →
+add `--code user@old-machine` to also prove `~/Code` — every repo, branch, stash and file — equals the source). Or by eye: `exec zsh` → the prompt shows clean icons (no boxes) and a green
+`personal` badge; `cd ~/Code/002-engenious` → it turns orange `work`; `which uv` →
 `~/.local/bin/uv`; `claude` → the status line renders.
 
 > New machine? Two ways to set up:
@@ -160,7 +160,7 @@ Everything under `~/Code/` is personal except `~/Code/002-engenious/` (work).
 
 Commit identity switches automatically by directory (gitconfig `includeIf`); the gh CLI
 account switches on `cd` (`gh_auto_switch`); the active account shows in the p10k prompt
-(`gh_identity` segment — ochre `personal` / burgundy `work`).
+(`gh_identity` segment — green `personal` / orange `work`).
 
 ### Handy aliases & scripts
 
