@@ -285,7 +285,7 @@ envup() {
 mysandbox() {
   local sandbox="$HOME/.venv-sandbox"
   local req="$HOME/Code/000-config/001-dotfiles/packages/mysandbox-requirements.txt"
-  command -v uv >/dev/null 2>&1 || { echo "⚠️  uv missing — brew install uv"; return 1; }
+  command -v uv >/dev/null 2>&1 || { [[ "$OSTYPE" == darwin* ]] && echo "⚠️  uv missing — brew install uv" || echo "⚠️  uv missing — curl -LsSf https://astral.sh/uv/install.sh | sh"; return 1; }
 
   if [ "$1" = "reset" ]; then
     echo "⚠️  Resetting ~/.venv-sandbox..."
@@ -297,6 +297,11 @@ mysandbox() {
   fi
   if [ -f "$req" ] && [ ! -f "$sandbox/.seeded" ]; then
     echo "📦 Seeding from mysandbox-requirements.txt..."
+    # Linux: CPU-only torch first (PyPI's Linux wheel drags ~3 GB of CUDA libs); the -r install then sees it satisfied
+    local torch_pin=$(grep -m1 -E '^torch==' "$req")
+    if [[ "$OSTYPE" == linux* && -n "$torch_pin" ]]; then
+      uv pip install --python "$sandbox/bin/python" --index-url https://download.pytorch.org/whl/cpu "$torch_pin" || return 1
+    fi
     if uv pip install --python "$sandbox/bin/python" -r "$req"; then
       touch "$sandbox/.seeded"
     else
