@@ -47,6 +47,15 @@ buffer machine exists (step 10b).
   first (`install.sh` is `#!/bin/zsh`). The GDM login may need Ctrl+Alt+F3 (text console) to get in until it's fixed.
 - Mac-style ⌘C/⌘V: `echo "options hid_apple swap_ctrl_cmd=1" | sudo tee /etc/modprobe.d/hid_apple.conf && sudo update-initramfs -u`
   (live: `echo 1 | sudo tee /sys/module/hid_apple/parameters/swap_ctrl_cmd`). Terminals then copy/paste with ⌘⇧C / ⌘⇧V.
+- Battery shows e.g. 13% at 94% (upower caches a bogus `energy-full` ~712 Wh from the SBS gauge at boot; `/sys/class/power_supply/BAT0/capacity`
+  is right). Fix: `/etc/systemd/system/upower-refresh.service` — oneshot, `ExecStartPre=/bin/sleep 20`, `ExecStart=systemctl try-restart upower`,
+  `After=`+`WantedBy=` multi-user + suspend/hibernate/hybrid-sleep/suspend-then-hibernate targets; `systemctl enable` it. Sitting at 93–95% on
+  AC with charging/discharging flapping is normal (Apple SMC hysteresis + trickle charge).
+- FaceTime HD camera (`14e4:1570`): no in-tree driver — needs `patjak/facetimehd-firmware` (`make && sudo make install`) +
+  `patjak/facetimehd` via DKMS (`sudo dkms install .`; builds on kernel 7.0, driver 0.7.0.1). Build deps: `dkms build-essential
+  linux-headers-$(uname -r) curl xz-utils cpio`. The sensor set-file extraction fails its hash check (2026-10) — `sudo make install` still
+  installs `firmware.bin`; the camera runs without calibration. DKMS ignores the driver's `MODULES_CONF`, so add
+  `echo "blacklist bdc_pci" | sudo tee /etc/modprobe.d/facetimehd.conf && sudo update-initramfs -u`.
 
 ## State across Bash calls — `~/.migration/` (read before step 1)
 
