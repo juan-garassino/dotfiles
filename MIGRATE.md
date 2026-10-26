@@ -39,7 +39,9 @@ buffer machine exists (step 10b).
   `ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd[a-z]", ATTRS{model}=="APPLE SSD*", ATTR{queue/max_sectors_kb}="512"` in
   `/etc/udev/rules.d/60-apple-ssd-max-sectors.rules` + `update-initramfs -u`, and `libata.force=noncq` in `GRUB_CMDLINE_LINUX_DEFAULT`
   + `update-grub`.
-- **Then verify:** `sudo dpkg -V | grep -v " c /"` must be empty (reinstall every package it names), and
+- **Then verify:** `sudo dpkg -V | grep -v " c /"` must be empty (reinstall every package it names; files written before the cap
+  are suspect — e.g. `ubuntu-wallpapers-resolute` needed a reinstall). If it aborts on `pritunl-client-electron` "md5sums … missing
+  final newline" (vendor bug, hides later packages): `echo | sudo tee -a /var/lib/dpkg/info/pritunl-client-electron.md5sums`. And
   `journalctl -k -b | grep -c -i -E "host bus error|I/O error"` must stay 0. A failed snap seed: stop snapd, move
   `/var/lib/snapd/seed` and `state.json` aside, start snapd, `snap install` the snaps from the store.
 - Wi-Fi: the 15" (BCM43602) works out of the box (`brcmfmac`); `bcmwl-kernel-source` is only for the older BCM4360. An offline install
@@ -526,7 +528,7 @@ same code proof by delegating to `verify_code.sh` (honours `MIGRATE_EXCL`/`MIGRA
 it. Exit code = FAIL count (capped at 125). Fix every FAIL (or explain it), re-run until clean. The bullets below are the manual equivalents/extras.
 
 - `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (OS-specific checks → N/A with reason).
-- Look: p10k icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`; Warp `dracula`.
+- Look: p10k icons + green `personal`; `cd ~/Code/002-engenious` → orange `work`; Warp `dracula`.
 - Tools: `docker compose version`, `minikube version`, `kubectl version --client`, `psql --version`,
   `terraform -version`, `gcloud --version`, `rustc --version`, `ngrok version`, `claude mcp list`.
 - Fingerprint by eye: `custom_scripts/code_fingerprint.sh --exclude-from "$MIGRATE_EXCL"` here; on the source the same script
@@ -703,7 +705,8 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
 
 ### Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table)
 
-Order matters: sudo is needed until the very last item.
+Order matters: sudo is needed until the very last item. The zshrc aliases `mv -i` / `cp -i` apply inside Claude's Bash and block on a
+prompt when overwriting — use `command mv -f` / `command cp -f` here.
   0. **Credentials archive gone (10d):** `ls ~/.migration/handover-credentials.tgz* ~/.migration/creds 2>/dev/null` here and
      `src 'ls ~/handover/migration-staging/handover-credentials.tgz* 2>/dev/null'` on the buffer must both print nothing — if not, erase them now.
   1. `<file>.<YYYYmmdd-HHMMSS>.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.
