@@ -47,8 +47,23 @@ buffer machine exists (step 10b).
 - Wi-Fi: the 15" (BCM43602) works out of the box (`brcmfmac`); `bcmwl-kernel-source` is only for the older BCM4360. An offline install
   leaves stale apt lists — `sudo apt update` before the first `apt install`. Without `bootstrap.sh`: `sudo apt install -y zsh perl curl git`
   first (`install.sh` is `#!/bin/zsh`). The GDM login may need Ctrl+Alt+F3 (text console) to get in until it's fixed.
-- Mac-style ⌘C/⌘V: `echo "options hid_apple swap_ctrl_cmd=1" | sudo tee /etc/modprobe.d/hid_apple.conf && sudo update-initramfs -u`
-  (live: `echo 1 | sudo tee /sys/module/hid_apple/parameters/swap_ctrl_cmd`). Terminals then copy/paste with ⌘⇧C / ⌘⇧V.
+- Mac-style keys: **Toshy** (`git clone https://github.com/RedBearAK/toshy.git ~/src/toshy && cd ~/src/toshy && ./setup_toshy.py install`,
+  in a real terminal — it prompts) — ⌘C/⌘V copy/paste everywhere incl. terminals, physical Ctrl+C still interrupts. GNOME Wayland needs a
+  window-info extension first (`window-calls-extended@hseliger.eu` has a GNOME 50 build). Don't combine with `hid_apple swap_ctrl_cmd=1`
+  (the older approach; terminals then needed ⌘⇧C/⌘⇧V). Toshy moves the overview to ⌘Space. Reboot after (it adds you to `input`). Pin the built-in keyboard's type in
+  `~/.config/toshy/toshy_config.py` → `keyboards_UserCustom_dct`: `'Apple Inc. Apple Internal Keyboard / Trackpad': 'Apple'`, then
+  `systemctl --user restart toshy-config` (not `toshy-config-restart`, which stops the service and runs Toshy outside it). At login Toshy can start before the extension answers and then never learns the focused app (⌘V fails in terminals): add `~/.config/systemd/user/toshy-config.service.d/wait-for-gnome-extension.conf` with an `ExecStartPre=` that polls `gdbus call … /org/gnome/Shell/Extensions/WindowsExt …FocusClass` for up to 30 s. Screenshots into Claude Code with ⌘V: a `user_custom_functions` helper that runs `wl-paste --list-types` and sends `C-v` for `image/*` else `C-Shift-v`, bound to `C("RC-V")` in a "User overrides terminals" keymap in the `user_apps` slice.
+- Bluetooth (BCM20703, `05ac:8290`) on kernel 7.0.0-38 fails its reset at boot (`hci0: BCM: Reset failed (-110)`, adapter DOWN,
+  address 00:00:…) — 7.0.0-30 didn't; a full power-off doesn't help, `sudo usbreset 05ac:8290` does. Fix: `options btusb
+  enable_autosuspend=0` in `/etc/modprobe.d/btusb.conf` + `/usr/local/sbin/bt-recover` (sleep 10, then up to 3× `bluetoothctl list |
+  grep -q Controller || usbreset 05ac:8290`, logged as `bt-recover`) run by a oneshot `bt-recover.service` with the same
+  `After=`/`WantedBy=` targets as `upower-refresh`.
+- Reverse the 3-finger workspace swipe (GNOME 50 has no setting; it follows `natural-scroll`): a local extension
+  `~/.local/share/gnome-shell/extensions/reverse-workspace-swipe@garassino/` that hands `Main.wm._workspaceAnimation._swipeTracker`
+  and `Main.overview._overview.controls._workspacesDisplay._swipeTracker`'s `_touchpadGesture._touchpadSettings` an inverted
+  `natural-scroll`. Uses shell internals — re-check after GNOME upgrades.
+- Cooling: this unit idles at 86–92°C with both fans maxed and thermald caps it to 800 MHz under load (dust / dried paste — needs a
+  clean + repaste). Software help: `sudo apt install mbpfan` with `/etc/mbpfan.conf` low/high/max_temp 55/65/80 (min/max fan1 2160/6156, fan2 2000/5700, polling 1) — the SMC only ramps near 95°C; with it idle drops to ~78°C at full clock and full load holds 1.4–2.8 GHz instead of 800 MHz. Battery (11 yrs, 116 cycles) sags to ~10.5 V at ~50% under a ~70 W load and the Mac hard-powers-off (journal just stops, RTC resets to 2023-01-01) — run heavy work (Blender, Ollama) on AC; replace the battery with the repaste. Guard: `/usr/local/sbin/battery-turbo` (AC → `no_turbo=0` first, then max freq — with turbo off `cpuinfo_max_freq` reads only 2.5 GHz; battery → `no_turbo=1` + `scaling_max_freq=2500000`), oneshot `battery-turbo.service` (WantedBy multi-user + sleep targets) and `/etc/udev/rules.d/90-battery-turbo.rules` (`SUBSYSTEM=="power_supply", KERNEL=="ADP1", ACTION=="change", RUN+="/usr/bin/systemctl start --no-block battery-turbo.service"`). Local LLMs: Ollama runs CPU-only; prefer small-active MoE (`lfm2.5:8b`, ~12 tok/s) over dense 9B (~1 tok/s throttled).
 - Battery shows e.g. 13% at 94% (upower caches a bogus `energy-full` ~712 Wh from the SBS gauge at boot; `/sys/class/power_supply/BAT0/capacity`
   is right). Fix: `/etc/systemd/system/upower-refresh.service` — oneshot, `ExecStartPre=/bin/sleep 20`, `ExecStart=systemctl try-restart upower`,
   `After=`+`WantedBy=` multi-user + suspend/hibernate/hybrid-sleep/suspend-then-hibernate targets; `systemctl enable` it. Sitting at 93–95% on
@@ -202,10 +217,10 @@ iCloud / Find My (Activation Lock), the App Store and Messages on it, and revoke
 (1) *Editors + AI*: visual-studio-code · cursor · antigravity / antigravity-ide · claude + chatgpt.
 (2) *Data + dev tools*: dbeaver-community · pgadmin4 · elasticvue · postman · gephi · balenaetcher.
 (3) *Comms + notes*: slack · discord · zoom · telegram · spotify · obsidian · notion.
-(4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · gcloud-cli.
+(4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · blender · gcloud-cli.
 [linux] by group, then `packages/linux-apps.sh <chosen groups>` (amd64 only — on arm64 say nothing is installed):
 (1) *core* (dbeaver pritunl slack antigravity discord obsidian cursor postman notion claude chatgpt) · *dev* (pgadmin elasticvue gephi etcher);
-(2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape).
+(2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape blender — Blender LTS snap; Sverchok + MCP: `claude/mcp-servers.md`).
 [wsl] no desktop apps inside WSL: 🙋 the user runs `packages/windows-apps.txt` with winget in PowerShell — ask which lines first.
 
 **Round C — toolchain.** (1) *Containers*: [mac] colima (the deliberate default, in the Brewfile) vs Docker Desktop (cask, ask) —
