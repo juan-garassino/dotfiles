@@ -170,6 +170,7 @@ default_session_mode = "agent"
 [code]
 
 [code.editor]
+use_warp_as_default_editor = false
 show_code_review_button = true
 show_project_explorer = true
 show_global_search = true
