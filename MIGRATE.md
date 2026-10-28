@@ -29,6 +29,11 @@ buffer machine exists (step 10b).
 
 ### 2015 MacBook Pro → Ubuntu (measured 2026-10-24, Ubuntu 26.04.1, APPLE SSD SM0512G)
 
+**Scripted:** after `install.sh` (and Toshy, below), run `machines/mbp2015/setup.sh` — it installs every file below from
+`machines/mbp2015/{root,home}/`, merges the Toshy user slices, purges kdump, trims services and enables the units; `--check`
+lists what differs. The SSD cap must still be done by hand in the live session (it protects the install itself), and the
+FaceTime camera driver stays manual. The bullets explain why each piece exists.
+
 - **The SSD silently corrupts writes** under Linux: AHCI `host bus error` on large transfers (NCQ and non-NCQ), ext4 `potential data
   loss`, broken files (`dpkg -V` → `??5??????`), a gnome-shell that segfaults in `libLLVM` (black screen after the passphrase), a
   snap seed that fails (`cannot find signatures with metadata`, so no Firefox). SMART is clean — the disk is fine. Measured on a 2 GB
@@ -56,8 +61,14 @@ buffer machine exists (step 10b).
 - Bluetooth (BCM20703, `05ac:8290`) on kernel 7.0.0-38 fails its reset at boot (`hci0: BCM: Reset failed (-110)`, adapter DOWN,
   address 00:00:…) — 7.0.0-30 didn't; a full power-off doesn't help, `sudo usbreset 05ac:8290` does. Fix: `options btusb
   enable_autosuspend=0` in `/etc/modprobe.d/btusb.conf` + `/usr/local/sbin/bt-recover` (sleep 10, then up to 3× `bluetoothctl list |
-  grep -q Controller || usbreset 05ac:8290`, logged as `bt-recover`) run by a oneshot `bt-recover.service` with the same
-  `After=`/`WantedBy=` targets as `upower-refresh`.
+  grep -q Controller || usbreset 05ac:8290`, logged as `bt-recover`) run by a `Type=exec` `bt-recover.service` with the same
+  `After=`/`WantedBy=` targets as `upower-refresh` (exec, not oneshot: a oneshot holds `multi-user.target` through its sleeps).
+- Memory: 16 GB fills up (Chrome + several Claude sessions) and the 4 GB swap file is slow on this SSD (NCQ off). zram:
+  `systemd-zram-generator` with `/etc/systemd/zram-generator.conf` (`zram-size = ram / 2`, zstd, `swap-priority = 100`) +
+  `/etc/sysctl.d/99-zram.conf` (`vm.swappiness = 180`, `vm.page-cluster = 0`); the swap file stays as overflow. Installing the package
+  starts zram0 with its defaults (4 GB lzo-rle) — the config applies at the next reboot. Purge `kdump-tools` (its `crashkernel=` reserves
+  512 MB) and disable `docker.service`/`containerd.service` (docker.socket starts them on demand), `ModemManager`, `cups-browsed`
+  (deb + `snap stop --disable cups.cups-browsed`).
 - Reverse the 3-finger workspace swipe (GNOME 50 has no setting; it follows `natural-scroll`): a local extension
   `~/.local/share/gnome-shell/extensions/reverse-workspace-swipe@garassino/` that hands `Main.wm._workspaceAnimation._swipeTracker`
   and `Main.overview._overview.controls._workspacesDisplay._swipeTracker`'s `_touchpadGesture._touchpadSettings` an inverted
@@ -65,7 +76,8 @@ buffer machine exists (step 10b).
 - Cooling: this unit idles at 86–92°C with both fans maxed and thermald caps it to 800 MHz under load (dust / dried paste — needs a
   clean + repaste). Software help: `sudo apt install mbpfan` with `/etc/mbpfan.conf` low/high/max_temp 55/65/80 (min/max fan1 2160/6156, fan2 2000/5700, polling 1) — the SMC only ramps near 95°C; with it idle drops to ~78°C at full clock and full load holds 1.4–2.8 GHz instead of 800 MHz. Battery (11 yrs, 116 cycles) sags to ~10.5 V at ~50% under a ~70 W load and the Mac hard-powers-off (journal just stops, RTC resets to 2023-01-01) — run heavy work (Blender, Ollama) on AC; replace the battery with the repaste. Guard: `/usr/local/sbin/battery-turbo` (AC → `no_turbo=0` first, then max freq — with turbo off `cpuinfo_max_freq` reads only 2.5 GHz; battery → `no_turbo=1` + `scaling_max_freq=2500000`), oneshot `battery-turbo.service` (WantedBy multi-user + sleep targets) and `/etc/udev/rules.d/90-battery-turbo.rules` (`SUBSYSTEM=="power_supply", KERNEL=="ADP1", ACTION=="change", RUN+="/usr/bin/systemctl start --no-block battery-turbo.service"`). Local LLMs: Ollama runs CPU-only; prefer small-active MoE (`lfm2.5:8b`, ~12 tok/s) over dense 9B (~1 tok/s throttled).
 - Battery shows e.g. 13% at 94% (upower caches a bogus `energy-full` ~712 Wh from the SBS gauge at boot; `/sys/class/power_supply/BAT0/capacity`
-  is right). Fix: `/etc/systemd/system/upower-refresh.service` — oneshot, `ExecStartPre=/bin/sleep 20`, `ExecStart=systemctl try-restart upower`,
+  is right). Fix: `/etc/systemd/system/upower-refresh.service` — `Type=exec`, `ExecStart=/bin/sh -c 'sleep 20; exec systemctl try-restart upower.service'`
+  (the sleep inside ExecStart — in `ExecStartPre` it holds boot 20 s even with exec),
   `After=`+`WantedBy=` multi-user + suspend/hibernate/hybrid-sleep/suspend-then-hibernate targets; `systemctl enable` it. Sitting at 93–95% on
   AC with charging/discharging flapping is normal (Apple SMC hysteresis + trickle charge).
 - FaceTime HD camera (`14e4:1570`): no in-tree driver — needs `patjak/facetimehd-firmware` (`make && sudo make install`) +

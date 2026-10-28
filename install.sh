@@ -623,6 +623,11 @@ else
   echo "      API keys live there only; they are deliberately NOT in this repo."
 fi
 
+case "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" in
+  MacBookPro11,4|MacBookPro11,5)
+    [[ "$(uname)" == "Linux" ]] && echo "" && echo "💻 2015 MacBook Pro on Linux — machine fixes: $DOTFILES_DIR/machines/mbp2015/setup.sh (--check to compare)" ;;
+esac
+
 ###############################################################################
 # Done
 ###############################################################################

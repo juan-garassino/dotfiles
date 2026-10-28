@@ -82,6 +82,7 @@ add `--code user@old-machine` to also prove `~/Code` — every repo, branch, sta
 ├── editor/     settings.json (VS Code / Cursor)
 ├── claude/     statusline · settings · skills/ · agents/ · mcp-servers.md
 ├── custom_scripts/  code_manager · repo_scan · backup_env · ai_git_commit · …
+├── machines/   per-machine fixes (mbp2015/: 2015 MacBook Pro on Ubuntu · setup.sh)
 ├── legacy/     retired configs (kept for reference)
 ├── packages/   Brewfile (macOS) · apt.txt / dnf.txt (Linux) · mysandbox-requirements.txt
 ├── .secrets.sample   expected API-key names (no values)

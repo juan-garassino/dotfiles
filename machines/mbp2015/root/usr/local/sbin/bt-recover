@@ -1,0 +1,12 @@
+#!/bin/sh
+# The Apple Broadcom Bluetooth chip (05ac:8290) sometimes misses its reset at
+# boot ("BCM: Reset failed (-110)") and stays down until a power-off.
+# A USB reset makes btusb probe it again.
+sleep 10
+for try in 1 2 3; do
+    bluetoothctl list | grep -q Controller && exit 0
+    logger -t bt-recover "no Bluetooth controller, USB-resetting 05ac:8290 (try $try)"
+    usbreset 05ac:8290
+    sleep 10
+done
+bluetoothctl list | grep -q Controller
