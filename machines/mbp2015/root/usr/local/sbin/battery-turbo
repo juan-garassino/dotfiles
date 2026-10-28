@@ -1,31 +1,47 @@
 #!/bin/sh
-# Turbo off on battery — and on AC while the battery is low — on again once it has charge.
+# Turbo off on battery — and on AC while the battery is low or still draining — on again once it has charge.
 # The weak battery sags below its minimum voltage under a full-turbo load and the Mac powers
 # off; on AC too, when the load outruns the charger and the battery covers the rest.
+# A charger too small for the load (anything under the 85 W MagSafe 2): each minute the battery
+# still loses charge on AC the clock steps down (2.5 → 2.0 → 1.6 → 1.2 GHz) until the charger keeps up;
+# that holds until 95 % or the charger is unplugged.
 # Run by udev on plug/unplug and by battery-turbo.timer every minute.
 cpu=/sys/devices/system/cpu
-cap=2500000
-flag=/run/battery-turbo.capped
+bat=/sys/class/power_supply/BAT0
+flag=/run/battery-turbo.capped   # the current cap in kHz
+drain=/run/battery-turbo.drain   # capped because the charger can't keep up
+last=/run/battery-turbo.charge   # charge_now at the previous run
 ac=$(cat /sys/class/power_supply/ADP1/online 2>/dev/null || echo 1)
-pct=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 100)
-capped=0; [ -e $flag ] && capped=1
+pct=$(cat $bat/capacity 2>/dev/null || echo 100)
+now=$(cat $bat/charge_now 2>/dev/null || echo 0)
+prev=$(cat $last 2>/dev/null || echo "$now"); echo "$now" > $last
+cap=0; [ -e $flag ] && cap=$(cat $flag); [ -n "$cap" ] || cap=2500000
+[ "$ac" = 0 ] && rm -f $drain
+want=0
 # low battery: cap below 40 %, release at 50 % (hysteresis, so it doesn't flap at the edge)
-if [ "$ac" = 0 ] || [ "$pct" -lt 40 ] || { [ $capped = 1 ] && [ "$pct" -lt 50 ]; }; then want=1; else want=0; fi
-if [ $want = 1 ]; then
-    touch $flag
+if [ "$ac" = 0 ] || [ "$pct" -lt 40 ] || { [ "$cap" != 0 ] && [ "$pct" -lt 50 ]; }; then want=2500000; fi
+# still draining on AC: over 10 mAh lost since the last run (~0.6 A net over a minute)
+if [ "$ac" = 1 ] && [ $((prev - now)) -gt 10000 ]; then
+    case $cap in 0) want=2500000 ;; 2500000) want=2000000 ;; 2000000) want=1600000 ;; *) want=1200000 ;; esac
+    touch $drain
+elif [ -e $drain ]; then
+    if [ "$pct" -ge 95 ]; then rm -f $drain; else want=$cap; fi
+fi
+if [ "$want" != 0 ]; then
+    echo "$want" > $flag
     # re-assert every run: power-profiles-daemon can flip no_turbo back
     [ "$(cat $cpu/intel_pstate/no_turbo)" = 1 ] || echo 1 > $cpu/intel_pstate/no_turbo
-    # only ever lower the limit here, so thermald's throttling stays in place
     for f in $cpu/cpu*/cpufreq/scaling_max_freq; do
-        [ "$(cat "$f")" -gt $cap ] && echo $cap > "$f"
+        # a new cap is written as is; otherwise only ever lower it, so thermald's throttling stays
+        if [ "$want" != "$cap" ] || [ "$(cat "$f")" -gt "$want" ]; then echo "$want" > "$f"; fi
     done
-    max=$cap
+    max=$want
 else
-    [ $capped = 0 ] && exit 0
+    [ "$cap" = 0 ] && exit 0
     rm -f $flag
     # no_turbo goes first: while turbo is off, cpuinfo_max_freq reports only the base clock.
     echo 0 > $cpu/intel_pstate/no_turbo; max=$(cat $cpu/cpu0/cpufreq/cpuinfo_max_freq)
-    for f in $cpu/cpu*/cpufreq/scaling_max_freq; do echo $max > "$f"; done
+    for f in $cpu/cpu*/cpufreq/scaling_max_freq; do echo "$max" > "$f"; done
 fi
-[ $capped = $want ] || logger -t battery-turbo "AC=$ac battery=$pct% no_turbo=$want max_freq=$max"
+[ "$cap" = "$want" ] || logger -t battery-turbo "AC=$ac battery=$pct% no_turbo=$([ "$want" = 0 ] && echo 0 || echo 1) max_freq=$max"
 exit 0

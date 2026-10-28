@@ -75,13 +75,15 @@ FaceTime camera driver stays manual. The bullets explain why each piece exists.
   `natural-scroll`. Uses shell internals — re-check after GNOME upgrades.
 - Cooling: this unit idles at 86–92°C with both fans maxed and thermald caps it to 800 MHz under load (dust / dried paste — needs a
   clean + repaste). Software help: `sudo apt install mbpfan` with `/etc/mbpfan.conf` low/high/max_temp 55/65/80 (min/max fan1 2160/6156, fan2 2000/5700, polling 1) — the SMC only ramps near 95°C; with it idle drops to ~78°C at full clock and full load holds 1.4–2.8 GHz instead of 800 MHz. Battery (11 yrs, 116 cycles) sags to ~10.5 V at ~50% under a ~70 W load and the Mac hard-powers-off (journal just stops, RTC resets to 2023-01-01) — run heavy work (Blender, Ollama) on AC; replace the battery with the repaste. Guard: `/usr/local/sbin/battery-turbo` (AC → `no_turbo=0` first, then max freq — with turbo off `cpuinfo_max_freq` reads only 2.5 GHz; battery → `no_turbo=1` + `scaling_max_freq=2500000`; on AC too while the battery is < 40 %, released at 50 %, state in
-`/run/battery-turbo.capped` — a heavy load can outrun the charger and the battery then covers the rest; it only ever lowers
+`/run/battery-turbo.capped` — a heavy load can outrun the charger and the battery then covers the rest; and on AC while the battery
+still loses > 10 mAh/min (a charger too small for the load) it steps the cap down 2.5 → 2.0 → 1.6 → 1.2 GHz a minute at a time and holds
+until 95 % or unplug, state in `/run/battery-turbo.{drain,charge}`; between cap changes it only ever lowers
 `scaling_max_freq` so thermald's throttling stays), oneshot `battery-turbo.service` (WantedBy multi-user + sleep targets) re-run every
 minute by `battery-turbo.timer` (power-profiles-daemon can flip `no_turbo` back), and `/etc/udev/rules.d/90-battery-turbo.rules` (`SUBSYSTEM=="power_supply", KERNEL=="ADP1", ACTION=="change", RUN+="/usr/bin/systemctl start --no-block battery-turbo.service"`). Local LLMs: Ollama runs CPU-only; prefer small-active MoE (`lfm2.5:8b`, ~12 tok/s) over dense 9B (~1 tok/s throttled).
 - Battery shows e.g. 13% at 94% (upower caches a bogus `energy-full` ~712 Wh from the SBS gauge at boot; `/sys/class/power_supply/BAT0/capacity`
   is right). Draining while plugged in (status flapping Charging/Discharging with a net loss under load) = an undersized charger:
   this 15" needs the 85 W MagSafe 2 — a weaker charger ran it down to 6 % / 10.0 V even with the CPU capped at 2.2 GHz (2026-10-28);
-  the 85 W one charged at once. Fix: `/etc/systemd/system/upower-refresh.service` — `Type=exec`, `ExecStart=/bin/sh -c 'sleep 20; exec systemctl try-restart upower.service'`
+  the 85 W one charged at once. The guard's drain step-down now lets a smaller charger keep up, at a lower clock. Fix: `/etc/systemd/system/upower-refresh.service` — `Type=exec`, `ExecStart=/bin/sh -c 'sleep 20; exec systemctl try-restart upower.service'`
   (the sleep inside ExecStart — in `ExecStartPre` it holds boot 20 s even with exec),
   `After=`+`WantedBy=` multi-user + suspend/hibernate/hybrid-sleep/suspend-then-hibernate targets; `systemctl enable` it. Sitting at 93–95% on
   AC with charging/discharging flapping is normal (Apple SMC hysteresis + trickle charge).

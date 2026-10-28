@@ -1,5 +1,5 @@
 [Unit]
-Description=Turbo off on battery, on with AC
+Description=Turbo off on battery or while the charger can't keep up, on with AC
 After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
 
 [Service]
