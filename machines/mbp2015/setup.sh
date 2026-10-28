@@ -78,6 +78,7 @@ echo "▶ services"
 sudo systemctl daemon-reload
 sudo systemctl enable upower-refresh.service bt-recover.service battery-turbo.service mbpfan.service >/dev/null 2>&1
 sudo systemctl restart mbpfan.service
+sudo systemctl enable --now battery-turbo.timer >/dev/null 2>&1
 sudo systemctl start battery-turbo.service
 systemctl is-active -q systemd-zram-setup@zram0.service || sudo systemctl start systemd-zram-setup@zram0.service
 sudo sysctl --system >/dev/null

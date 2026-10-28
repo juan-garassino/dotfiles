@@ -1,14 +1,31 @@
 #!/bin/sh
-# Turbo off on battery, on again on AC. The 11-year-old battery sags below its minimum
-# voltage under a full-turbo load and the Mac powers off; capping at the 2.5 GHz base
-# clock keeps the peak draw down. scaling_max_freq holds the cap even if thermald later
-# rewrites no_turbo.
+# Turbo off on battery — and on AC while the battery is low — on again once it has charge.
+# The weak battery sags below its minimum voltage under a full-turbo load and the Mac powers
+# off; on AC too, when the load outruns the charger and the battery covers the rest.
+# Run by udev on plug/unplug and by battery-turbo.timer every minute.
 cpu=/sys/devices/system/cpu
-# no_turbo goes first: while turbo is off, cpuinfo_max_freq reports only the base clock.
-if [ "$(cat /sys/class/power_supply/ADP1/online 2>/dev/null || echo 1)" = 1 ]; then
-    no_turbo=0; echo 0 > $cpu/intel_pstate/no_turbo; max=$(cat $cpu/cpu0/cpufreq/cpuinfo_max_freq)
+cap=2500000
+flag=/run/battery-turbo.capped
+ac=$(cat /sys/class/power_supply/ADP1/online 2>/dev/null || echo 1)
+pct=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 100)
+capped=0; [ -e $flag ] && capped=1
+# low battery: cap below 40 %, release at 50 % (hysteresis, so it doesn't flap at the edge)
+if [ "$ac" = 0 ] || [ "$pct" -lt 40 ] || { [ $capped = 1 ] && [ "$pct" -lt 50 ]; }; then want=1; else want=0; fi
+if [ $want = 1 ]; then
+    touch $flag
+    # re-assert every run: power-profiles-daemon can flip no_turbo back
+    [ "$(cat $cpu/intel_pstate/no_turbo)" = 1 ] || echo 1 > $cpu/intel_pstate/no_turbo
+    # only ever lower the limit here, so thermald's throttling stays in place
+    for f in $cpu/cpu*/cpufreq/scaling_max_freq; do
+        [ "$(cat "$f")" -gt $cap ] && echo $cap > "$f"
+    done
+    max=$cap
 else
-    no_turbo=1; echo 1 > $cpu/intel_pstate/no_turbo; max=2500000
+    [ $capped = 0 ] && exit 0
+    rm -f $flag
+    # no_turbo goes first: while turbo is off, cpuinfo_max_freq reports only the base clock.
+    echo 0 > $cpu/intel_pstate/no_turbo; max=$(cat $cpu/cpu0/cpufreq/cpuinfo_max_freq)
+    for f in $cpu/cpu*/cpufreq/scaling_max_freq; do echo $max > "$f"; done
 fi
-for f in $cpu/cpu*/cpufreq/scaling_max_freq; do echo $max > "$f"; done
-logger -t battery-turbo "AC=$((1 - no_turbo)) no_turbo=$no_turbo max_freq=$max"
+[ $capped = $want ] || logger -t battery-turbo "AC=$ac battery=$pct% no_turbo=$want max_freq=$max"
+exit 0
