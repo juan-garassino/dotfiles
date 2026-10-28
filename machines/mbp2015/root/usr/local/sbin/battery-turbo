@@ -1,0 +1,14 @@
+#!/bin/sh
+# Turbo off on battery, on again on AC. The 11-year-old battery sags below its minimum
+# voltage under a full-turbo load and the Mac powers off; capping at the 2.5 GHz base
+# clock keeps the peak draw down. scaling_max_freq holds the cap even if thermald later
+# rewrites no_turbo.
+cpu=/sys/devices/system/cpu
+# no_turbo goes first: while turbo is off, cpuinfo_max_freq reports only the base clock.
+if [ "$(cat /sys/class/power_supply/ADP1/online 2>/dev/null || echo 1)" = 1 ]; then
+    no_turbo=0; echo 0 > $cpu/intel_pstate/no_turbo; max=$(cat $cpu/cpu0/cpufreq/cpuinfo_max_freq)
+else
+    no_turbo=1; echo 1 > $cpu/intel_pstate/no_turbo; max=2500000
+fi
+for f in $cpu/cpu*/cpufreq/scaling_max_freq; do echo $max > "$f"; done
+logger -t battery-turbo "AC=$((1 - no_turbo)) no_turbo=$no_turbo max_freq=$max"

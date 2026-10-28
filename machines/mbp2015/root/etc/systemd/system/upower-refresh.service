@@ -1,0 +1,13 @@
+# 2015 MBP: the SBS battery gauge returns a bogus charge_full right after boot/resume;
+# upowerd caches it and shows e.g. 13% at 94%. Re-read once the gauge has settled.
+# The sleep is in ExecStart (not ExecStartPre) so multi-user.target doesn't wait 20 s for it.
+[Unit]
+Description=Restart upower after the Apple battery gauge settles
+After=upower.service suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=exec
+ExecStart=/bin/sh -c 'sleep 20; exec /usr/bin/systemctl try-restart upower.service'
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

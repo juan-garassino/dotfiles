@@ -75,7 +75,7 @@ whoami_dev
   📧 Git email : jgarassino@engenious.io
   🐙 gh account: j-garassino-engenious
   ☁️  GCP creds : ~/Code/000-config/002-gcp-credentials/<work>.json
-  🐍 Python    : Python 3.10.6
+  🐍 Python    : Python 3.12.9
   📦 Venv      : ~/Code/002-engenious/<repo>/.venv
 ```
 
@@ -87,40 +87,68 @@ whoami_dev
 
 ---
 
-### `usevenv`
+> Python is **uv-only** (no pyenv since 2026-09-18). uv downloads and manages every Python version.
 
-Create or activate a **uv-based virtual environment** with a specific Python version.
+### `envup`
+
+Build + activate **this project's env from whatever manifest exists**.
 
 ```zsh
-usevenv                          # Python 3.10.6, venv name .venv
-usevenv 3.11.4                   # Python 3.11.4, venv name .venv
-usevenv 3.10.6 .venv-alt         # custom venv name
-usevenv 3.10.6 .venv reset       # destroy and recreate
+envup            # pyproject.toml / uv.lock → uv sync
+envup 3.11       # requirements.txt → uv venv (3.11) + uv pip install -r
 ```
 
 **What it does:**
-- Sets the pyenv shell to the requested version
-- Creates the venv with `uv` if it doesn't exist
-- Activates it
-- Writes `.python-version` for `autoenv` to pick up next time
+- `pyproject.toml` / `uv.lock` → `uv sync`, activates `.venv`
+- `requirements.txt` → creates `.venv` (version: arg, else `.python-version`, else 3.12) and installs into it
+- Nothing → bare `.venv`
+- Never writes `.python-version` (safe inside pull-only upstream repos)
 
 ---
 
-### `usepyenv`
+### `usevenv`
 
-Activate a **named pyenv virtualenv** (not a local `.venv`).
+Create or activate a **uv virtual environment** at a specific Python version.
 
 ```zsh
-usepyenv my-ml-env
+usevenv                          # Python 3.12, venv name .venv
+usevenv 3.11                     # Python 3.11, venv name .venv
+usevenv 3.12 .venv-alt           # custom venv name
+usevenv 3.12 .venv reset         # destroy and recreate
 ```
 
-> ⚠️ When using pyenv venvs, `uv` requires the `--active` flag.
+**What it does:**
+- Creates the venv with `uv venv --python <ver>` if it doesn't exist (uv downloads the Python if missing)
+- Activates it
+- Writes `.python-version` only if the dir has none (never overwrites)
+
+---
+
+### `mysandbox`
+
+Create/activate the **global uv playground** `~/.venv-sandbox` (Python 3.12), seeded once from `packages/mysandbox-requirements.txt`.
+
+```zsh
+mysandbox        # create + seed on first use, then activate
+mysandbox reset  # destroy and rebuild
+```
+
+> A `.seeded` marker makes the big install retry-safe — re-run if seeding was interrupted.
+
+---
+
+### `u`, `pip`, `python`
+
+uv conveniences that never intercept `uv` itself:
+- `u pytest -q` == `uv run pytest -q` (project-aware)
+- `pip` / `pip3` → `uv pip` (uv venvs ship without pip). Real binary: `command pip`
+- `python` → the active venv's python if any; else `uv run python` in a project, else an ephemeral uv 3.12
 
 ---
 
 ### `lsenvs`
 
-List all **pyenv versions**, virtualenvs, and local `.venv` directories.
+List **uv-managed Pythons**, the global sandbox, and local `.venv` directories.
 
 ```zsh
 lsenvs
@@ -183,28 +211,6 @@ envcheck
 
 ---
 
-### `pyswitch`
-
-Interactively **select and switch Python versions**.
-
-```zsh
-pyswitch
-```
-
-**Output:**
-```
-🐍 Available Python versions:
-  1) 3.10.6
-  2) 3.11.4
-  3) 3.12.0
-Select version (or press Enter to cancel): 2
-✅ Switched to Python 3.11.4
-```
-
-**When to use:** When you need to test with a different Python version without remembering exact version strings.
-
----
-
 ### `pkgupdate`
 
 Upgrade specific packages **and automatically update** `requirements.txt`.
@@ -256,10 +262,10 @@ dev-reset
 ```
 
 **What it does:**
-- Deactivates all active venvs and pyenv environments
+- Deactivates the active venv
 - Removes `.python-version` file
 - Removes `.venv` folder
-- Resets to clean slate
+- Next `cd` re-runs autoenv detection
 
 **When to use:** When your environment gets into a weird state and you need to start fresh.
 
@@ -315,12 +321,13 @@ newproject rl-experiment 006    # creates ~/Code/006-research-prototypes/rl-expe
 ```
 my-api/
 ├── README.md           # prefilled with project name
-├── requirements.txt
 ├── .env
 ├── .env.example
 ├── .gitignore          # includes .venv, .env, __pycache__
-└── .python-version     # defaults to 3.10.6
+└── .python-version     # 3.12.9
 ```
+
+No `requirements.txt` — add deps with `uv init` / `uv add` (pyproject).
 
 Also runs `git init` so it's immediately a repo.
 
@@ -433,10 +440,11 @@ These run automatically — no manual invocation needed.
 
 Every time you `cd` into a directory, the shell automatically:
 
-1. **Activates `.venv`** if one exists in the directory
-2. **Activates a pyenv virtualenv** if `.python-version` contains a named env
-3. **Sets the pyenv Python version** if `.python-version` contains a version number
-4. **Falls back to global pyenv** if nothing is found
+1. **Activates `.venv`** if one exists in the directory (+ a once-per-session `uv sync` hint if `uv.lock` is newer)
+2. **Hints `envup`** (once per dir, never mutates) if there's a manifest or a version in `.python-version` but no `.venv`; a legacy pyenv env name is quietly ignored
+3. **Falls back to `~/.venv-sandbox`** if built, else deactivates to plain `python3`
+
+The same `cd` hook also runs `gh_auto_switch` (work gh account inside `002-engenious/`, personal elsewhere).
 
 This means you never need to manually `source .venv/bin/activate` again.
 
@@ -464,16 +472,16 @@ export OPENAI_API_KEY=sk-...
 
 ### Autoenv Smart Logging
 
-The `autoenv_activate` function now clearly indicates **which tool activated your environment**:
+`autoenv_activate` says what it did (interactive shells only — scripts and Claude Code stay quiet):
 
 ```zsh
-▶ Activated .venv with uv (Python 3.10.6)              # uv-based venv
-▶ Activated pyenv virtualenv: my-env (Python 3.10.6)   # pyenv virtualenv
-▶ Using pyenv Python 3.11.4 (no venv) (Python 3.11.4)  # pyenv version only
-⚠️  .python-version contains invalid entry: 'garbage'   # invalid .python-version
+▶ Activated .venv (🐍 3.12.9)                          # project .venv
+🔄 uv.lock is newer than .venv — run: uv sync          # stale env
+📦 Project detected, no .venv — run: envup             # manifest, no env
+📦 .python-version=3.11, no .venv — run: envup         # version file, no env
+ℹ️  Ignoring legacy pyenv env 'my-env' (uv-only setup) # old pyenv name
+▶ No project env — using ~/.venv-sandbox               # fallback
 ```
-
-This makes it immediately clear what's managing your Python environment — no more guessing.
 
 ---
 
@@ -503,4 +511,4 @@ This makes it immediately clear what's managing your Python environment — no m
 
 ---
 
-*Last updated: March 2026*
+*Last updated: October 2026*

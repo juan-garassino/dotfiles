@@ -1,7 +1,7 @@
 # Debian/Ubuntu packages — installed by install.sh on Linux (apt).
 # Adapted from Le Wagon data-setup LINUX.md. One package per line; # comments ignored.
 # NOTE: gh and VS Code are installed from their official apt repos in install.sh.
-#       docker / minikube / kubectl need their own installers (see SETUP.md).
+#       docker / minikube / kubectl / helm: packages/linux-tools.sh (run by install.sh).
 
 # Core tools
 curl
@@ -33,6 +33,7 @@ ghostscript
 git-lfs
 git-filter-repo
 golang-go
+# tldr: no candidate on 26.04 (install.sh skips it); there `tealdeer` (Rust client, same `tldr` command) is available.
 tldr
 mkcert
 
@@ -50,7 +51,7 @@ libreadline-dev
 sqlite3
 libsqlite3-dev
 llvm
-libncursesw5-dev
+libncurses-dev
 xz-utils
 tk-dev
 libxml2-dev

@@ -34,7 +34,7 @@ declare -A GROUP_APPS=(
   [dev]="pgadmin elasticvue gephi etcher"
   [comms]="zoom telegram spotify"
   [sync]="dropbox nordvpn"
-  [graphics]="inkscape"
+  [graphics]="inkscape blender"
 )
 GROUP_ORDER=(core dev comms sync graphics)
 
@@ -46,14 +46,15 @@ declare -A LABEL=(
   [pgadmin]="pgAdmin 4"         [elasticvue]="elasticvue"    [gephi]="Gephi"
   [etcher]="balenaEtcher"       [zoom]="Zoom"                [telegram]="Telegram"
   [spotify]="Spotify"           [dropbox]="Dropbox"          [nordvpn]="NordVPN"
-  [inkscape]="Inkscape"
+  [inkscape]="Inkscape"         [blender]="Blender (LTS)"
 )
 
-# kind: snap:<name>[:classic] | apt:<pkgs> (vendor repo) | deb:<pkg> (vendor .deb) | local (~/.local)
+# kind: snap:<name>[:classic][@<channel>] | apt:<pkgs> (vendor repo) | deb:<pkg> (vendor .deb) | local (~/.local)
 declare -A KIND=(
   [dbeaver]="snap:dbeaver-ce:classic"  [slack]="snap:slack"   [obsidian]="snap:obsidian:classic"
   [postman]="snap:postman"            [telegram]="snap:telegram-desktop"
   [spotify]="snap:spotify"            [inkscape]="snap:inkscape"
+  [blender]="snap:blender:classic@5.2lts/stable"
   [pritunl]="apt:pritunl-client-electron" [pgadmin]="apt:pgadmin4-desktop"
   [nordvpn]="apt:nordvpn nordvpn-gui"     [claude]="apt:claude-desktop"
   [discord]="deb:discord"   [cursor]="deb:cursor"     [chatgpt]="deb:chatgpt"
@@ -178,10 +179,11 @@ repo_claude() {
 
 # ---------------------------------------------------------------- installers
 install_snap() {
-  local spec="${KIND[$1]#snap:}" name classic=()
+  local spec="${KIND[$1]#snap:}" name classic=() channel=()
+  [[ $spec == *@* ]] && { channel=(--channel="${spec#*@}"); spec="${spec%@*}"; }
   name="${spec%%:*}"
   [ "$spec" != "$name" ] && classic=(--classic)
-  sudo snap install "$name" "${classic[@]}"
+  sudo snap install "$name" "${classic[@]}" "${channel[@]}"
 }
 
 install_apt() { local pkgs; read -ra pkgs <<<"${KIND[$1]#apt:}"; "${APT_ENV[@]}" apt-get install -y "${pkgs[@]}"; }

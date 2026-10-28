@@ -29,6 +29,11 @@ buffer machine exists (step 10b).
 
 ### 2015 MacBook Pro → Ubuntu (measured 2026-10-24, Ubuntu 26.04.1, APPLE SSD SM0512G)
 
+**Scripted:** after `install.sh` (and Toshy, below), run `machines/mbp2015/setup.sh` — it installs every file below from
+`machines/mbp2015/{root,home}/`, merges the Toshy user slices, purges kdump, trims services and enables the units; `--check`
+lists what differs. The SSD cap must still be done by hand in the live session (it protects the install itself), and the
+FaceTime camera driver stays manual. The bullets explain why each piece exists.
+
 - **The SSD silently corrupts writes** under Linux: AHCI `host bus error` on large transfers (NCQ and non-NCQ), ext4 `potential data
   loss`, broken files (`dpkg -V` → `??5??????`), a gnome-shell that segfaults in `libLLVM` (black screen after the passphrase), a
   snap seed that fails (`cannot find signatures with metadata`, so no Firefox). SMART is clean — the disk is fine. Measured on a 2 GB
@@ -39,12 +44,47 @@ buffer machine exists (step 10b).
   `ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd[a-z]", ATTRS{model}=="APPLE SSD*", ATTR{queue/max_sectors_kb}="512"` in
   `/etc/udev/rules.d/60-apple-ssd-max-sectors.rules` + `update-initramfs -u`, and `libata.force=noncq` in `GRUB_CMDLINE_LINUX_DEFAULT`
   + `update-grub`.
-- **Then verify:** `sudo dpkg -V | grep -v " c /"` must be empty (reinstall every package it names), and
+- **Then verify:** `sudo dpkg -V | grep -v " c /"` must be empty (reinstall every package it names; files written before the cap
+  are suspect — e.g. `ubuntu-wallpapers-resolute` needed a reinstall). If it aborts on `pritunl-client-electron` "md5sums … missing
+  final newline" (vendor bug, hides later packages): `echo | sudo tee -a /var/lib/dpkg/info/pritunl-client-electron.md5sums`. And
   `journalctl -k -b | grep -c -i -E "host bus error|I/O error"` must stay 0. A failed snap seed: stop snapd, move
   `/var/lib/snapd/seed` and `state.json` aside, start snapd, `snap install` the snaps from the store.
 - Wi-Fi: the 15" (BCM43602) works out of the box (`brcmfmac`); `bcmwl-kernel-source` is only for the older BCM4360. An offline install
   leaves stale apt lists — `sudo apt update` before the first `apt install`. Without `bootstrap.sh`: `sudo apt install -y zsh perl curl git`
   first (`install.sh` is `#!/bin/zsh`). The GDM login may need Ctrl+Alt+F3 (text console) to get in until it's fixed.
+- Mac-style keys: **Toshy** (`git clone https://github.com/RedBearAK/toshy.git ~/src/toshy && cd ~/src/toshy && ./setup_toshy.py install`,
+  in a real terminal — it prompts) — ⌘C/⌘V copy/paste everywhere incl. terminals, physical Ctrl+C still interrupts. GNOME Wayland needs a
+  window-info extension first (`window-calls-extended@hseliger.eu` has a GNOME 50 build). Don't combine with `hid_apple swap_ctrl_cmd=1`
+  (the older approach; terminals then needed ⌘⇧C/⌘⇧V). Toshy moves the overview to ⌘Space. Reboot after (it adds you to `input`). Pin the built-in keyboard's type in
+  `~/.config/toshy/toshy_config.py` → `keyboards_UserCustom_dct`: `'Apple Inc. Apple Internal Keyboard / Trackpad': 'Apple'`, then
+  `systemctl --user restart toshy-config` (not `toshy-config-restart`, which stops the service and runs Toshy outside it). At login Toshy can start before the extension answers and then never learns the focused app (⌘V fails in terminals): add `~/.config/systemd/user/toshy-config.service.d/wait-for-gnome-extension.conf` with an `ExecStartPre=` that polls `gdbus call … /org/gnome/Shell/Extensions/WindowsExt …FocusClass` for up to 30 s. Screenshots into Claude Code with ⌘V: a `user_custom_functions` helper that runs `wl-paste --list-types` and sends `C-v` for `image/*` else `C-Shift-v`, bound to `C("RC-V")` in a "User overrides terminals" keymap in the `user_apps` slice.
+- Bluetooth (BCM20703, `05ac:8290`) on kernel 7.0.0-38 fails its reset at boot (`hci0: BCM: Reset failed (-110)`, adapter DOWN,
+  address 00:00:…) — 7.0.0-30 didn't; a full power-off doesn't help, `sudo usbreset 05ac:8290` does. Fix: `options btusb
+  enable_autosuspend=0` in `/etc/modprobe.d/btusb.conf` + `/usr/local/sbin/bt-recover` (sleep 10, then up to 3× `bluetoothctl list |
+  grep -q Controller || usbreset 05ac:8290`, logged as `bt-recover`) run by a `Type=exec` `bt-recover.service` with the same
+  `After=`/`WantedBy=` targets as `upower-refresh` (exec, not oneshot: a oneshot holds `multi-user.target` through its sleeps).
+- Memory: 16 GB fills up (Chrome + several Claude sessions) and the 4 GB swap file is slow on this SSD (NCQ off). zram:
+  `systemd-zram-generator` with `/etc/systemd/zram-generator.conf` (`zram-size = ram / 2`, zstd, `swap-priority = 100`) +
+  `/etc/sysctl.d/99-zram.conf` (`vm.swappiness = 180`, `vm.page-cluster = 0`); the swap file stays as overflow. Installing the package
+  starts zram0 with its defaults (4 GB lzo-rle) — the config applies at the next reboot. Purge `kdump-tools` (its `crashkernel=` reserves
+  512 MB) and disable `docker.service`/`containerd.service` (docker.socket starts them on demand), `ModemManager`, `cups-browsed`
+  (deb + `snap stop --disable cups.cups-browsed`).
+- Reverse the 3-finger workspace swipe (GNOME 50 has no setting; it follows `natural-scroll`): a local extension
+  `~/.local/share/gnome-shell/extensions/reverse-workspace-swipe@garassino/` that hands `Main.wm._workspaceAnimation._swipeTracker`
+  and `Main.overview._overview.controls._workspacesDisplay._swipeTracker`'s `_touchpadGesture._touchpadSettings` an inverted
+  `natural-scroll`. Uses shell internals — re-check after GNOME upgrades.
+- Cooling: this unit idles at 86–92°C with both fans maxed and thermald caps it to 800 MHz under load (dust / dried paste — needs a
+  clean + repaste). Software help: `sudo apt install mbpfan` with `/etc/mbpfan.conf` low/high/max_temp 55/65/80 (min/max fan1 2160/6156, fan2 2000/5700, polling 1) — the SMC only ramps near 95°C; with it idle drops to ~78°C at full clock and full load holds 1.4–2.8 GHz instead of 800 MHz. Battery (11 yrs, 116 cycles) sags to ~10.5 V at ~50% under a ~70 W load and the Mac hard-powers-off (journal just stops, RTC resets to 2023-01-01) — run heavy work (Blender, Ollama) on AC; replace the battery with the repaste. Guard: `/usr/local/sbin/battery-turbo` (AC → `no_turbo=0` first, then max freq — with turbo off `cpuinfo_max_freq` reads only 2.5 GHz; battery → `no_turbo=1` + `scaling_max_freq=2500000`), oneshot `battery-turbo.service` (WantedBy multi-user + sleep targets) and `/etc/udev/rules.d/90-battery-turbo.rules` (`SUBSYSTEM=="power_supply", KERNEL=="ADP1", ACTION=="change", RUN+="/usr/bin/systemctl start --no-block battery-turbo.service"`). Local LLMs: Ollama runs CPU-only; prefer small-active MoE (`lfm2.5:8b`, ~12 tok/s) over dense 9B (~1 tok/s throttled).
+- Battery shows e.g. 13% at 94% (upower caches a bogus `energy-full` ~712 Wh from the SBS gauge at boot; `/sys/class/power_supply/BAT0/capacity`
+  is right). Fix: `/etc/systemd/system/upower-refresh.service` — `Type=exec`, `ExecStart=/bin/sh -c 'sleep 20; exec systemctl try-restart upower.service'`
+  (the sleep inside ExecStart — in `ExecStartPre` it holds boot 20 s even with exec),
+  `After=`+`WantedBy=` multi-user + suspend/hibernate/hybrid-sleep/suspend-then-hibernate targets; `systemctl enable` it. Sitting at 93–95% on
+  AC with charging/discharging flapping is normal (Apple SMC hysteresis + trickle charge).
+- FaceTime HD camera (`14e4:1570`): no in-tree driver — needs `patjak/facetimehd-firmware` (`make && sudo make install`) +
+  `patjak/facetimehd` via DKMS (`sudo dkms install .`; builds on kernel 7.0, driver 0.7.0.1). Build deps: `dkms build-essential
+  linux-headers-$(uname -r) curl xz-utils cpio`. The sensor set-file extraction fails its hash check (2026-10) — `sudo make install` still
+  installs `firmware.bin`; the camera runs without calibration. DKMS ignores the driver's `MODULES_CONF`, so add
+  `echo "blacklist bdc_pci" | sudo tee /etc/modprobe.d/facetimehd.conf && sudo update-initramfs -u`.
 
 ## State across Bash calls — `~/.migration/` (read before step 1)
 
@@ -189,10 +229,10 @@ iCloud / Find My (Activation Lock), the App Store and Messages on it, and revoke
 (1) *Editors + AI*: visual-studio-code · cursor · antigravity / antigravity-ide · claude + chatgpt.
 (2) *Data + dev tools*: dbeaver-community · pgadmin4 · elasticvue · postman · gephi · balenaetcher.
 (3) *Comms + notes*: slack · discord · zoom · telegram · spotify · obsidian · notion.
-(4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · gcloud-cli.
+(4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · blender · gcloud-cli.
 [linux] by group, then `packages/linux-apps.sh <chosen groups>` (amd64 only — on arm64 say nothing is installed):
 (1) *core* (dbeaver pritunl slack antigravity discord obsidian cursor postman notion claude chatgpt) · *dev* (pgadmin elasticvue gephi etcher);
-(2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape).
+(2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape blender — Blender LTS snap; Sverchok + MCP: `claude/mcp-servers.md`).
 [wsl] no desktop apps inside WSL: 🙋 the user runs `packages/windows-apps.txt` with winget in PowerShell — ask which lines first.
 
 **Round C — toolchain.** (1) *Containers*: [mac] colima (the deliberate default, in the Brewfile) vs Docker Desktop (cask, ask) —
@@ -515,7 +555,7 @@ same code proof by delegating to `verify_code.sh` (honours `MIGRATE_EXCL`/`MIGRA
 it. Exit code = FAIL count (capped at 125). Fix every FAIL (or explain it), re-run until clean. The bullets below are the manual equivalents/extras.
 
 - `zsh -i -c 'source custom_scripts/preflight_gauntlet.sh'` (OS-specific checks → N/A with reason).
-- Look: p10k icons + ochre `personal`; `cd ~/Code/002-engenious` → burgundy `work`; Warp `dracula`.
+- Look: p10k icons + green `personal`; `cd ~/Code/002-engenious` → orange `work`; Warp `dracula`.
 - Tools: `docker compose version`, `minikube version`, `kubectl version --client`, `psql --version`,
   `terraform -version`, `gcloud --version`, `rustc --version`, `ngrok version`, `claude mcp list`.
 - Fingerprint by eye: `custom_scripts/code_fingerprint.sh --exclude-from "$MIGRATE_EXCL"` here; on the source the same script
@@ -692,7 +732,8 @@ Lists live in `~/migration-staging/` on the source (never in `~/Code`).
 
 ### Hygiene gate — leave nothing behind (run even if a step above failed or the run was interrupted; print a residue table)
 
-Order matters: sudo is needed until the very last item.
+Order matters: sudo is needed until the very last item. The zshrc aliases `mv -i` / `cp -i` apply inside Claude's Bash and block on a
+prompt when overwriting — use `command mv -f` / `command cp -f` here.
   0. **Credentials archive gone (10d):** `ls ~/.migration/handover-credentials.tgz* ~/.migration/creds 2>/dev/null` here and
      `src 'ls ~/handover/migration-staging/handover-credentials.tgz* 2>/dev/null'` on the buffer must both print nothing — if not, erase them now.
   1. `<file>.<YYYYmmdd-HHMMSS>.backup` files install.sh made (`find ~ -maxdepth 4 -name '*.backup' -not -path '*/Code/*'`) → list, then delete if Round G said so.

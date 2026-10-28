@@ -115,12 +115,23 @@ ICONS = {
                f'<polygon points="128,64 153,104 103,104" fill="{L}"/>',
     "pritunl": f'<path d="M128,54 L190,78 L190,130 Q190,180 128,206 Q66,180 66,130 L66,78 Z" fill="{R}"/>'
                f'<circle cx="128" cy="118" r="17" fill="{L}"/><rect x="121" y="122" width="14" height="40" rx="4" fill="{L}"/>',
+    "thunderbird": f'<circle cx="150" cy="102" r="52" fill="{C}"/>'
+                   f'<rect x="52" y="108" width="136" height="92" rx="10" fill="{L}"/>'
+                   f'<polyline points="56,114 120,160 184,114" fill="none" stroke="{M}" stroke-width="10" '
+                   f'stroke-linejoin="round" stroke-linecap="round"/>'
+                   f'<circle cx="172" cy="84" r="10" fill="{O}"/>',
     "inkscape": f'<line x1="62" y1="180" x2="96" y2="70" stroke="{M}" stroke-width="6"/>'
                 f'<line x1="194" y1="76" x2="160" y2="186" stroke="{M}" stroke-width="6"/>'
                 f'<path d="M62,180 C96,70 160,186 194,76" fill="none" stroke="{L}" stroke-width="12"/>'
                 f'<circle cx="96" cy="70" r="10" fill="{M}"/><circle cx="160" cy="186" r="10" fill="{M}"/>'
                 f'<rect x="50" y="168" width="24" height="24" fill="{C}"/>'
                 f'<rect x="182" y="64" width="24" height="24" fill="{O}"/>',
+    "blender": f'<polygon points="50,74 124,100 98,134" fill="{O}"/>'
+               f'<circle cx="144" cy="138" r="50" fill="none" stroke="{O}" stroke-width="20"/>'
+               f'<circle cx="144" cy="138" r="20" fill="{C}"/>',
+    "toshy": f'<rect x="96" y="96" width="64" height="64" fill="none" stroke="{C}" stroke-width="14"/>'
+             + "".join(f'<circle cx="{x}" cy="{y}" r="22" fill="none" stroke="{c}" stroke-width="14"/>'
+                       for x, y, c in ((74, 74, O), (182, 74, C), (74, 182, C), (182, 182, C))),
     # — system / GNOME apps (the "Show Apps" grid) —
     "security": f'<path d="M128,54 L190,78 L190,130 Q190,180 128,206 Q66,180 66,130 L66,78 Z" fill="{C}"/>'
                 f'<polyline points="98,128 120,150 160,104" fill="none" stroke="{L}" stroke-width="16" '
@@ -276,7 +287,7 @@ APPS = {
     "org.gnome.Settings": "settings", "obsidian_obsidian": "obsidian", "notion-web": "notion",
     "gephi": "gephi", "balena-etcher": "etcher", "spotify_spotify": "spotify",
     "dropbox": "dropbox", "nordvpn-gui": "nordvpn", "pritunl-client-electron": "pritunl",
-    "inkscape_inkscape": "inkscape",
+    "inkscape_inkscape": "inkscape", "thunderbird_thunderbird": "thunderbird", "thunderbird": "thunderbird",
     "desktop-security-center_desktop-security-center": "security", "display-im7.q16": "imagemagick",
     "firmware-updater_firmware-updater": "firmware", "gnome-language-selector": "language",
     "info": "texinfo", "net.nokyan.Resources": "resources", "nm-connection-editor": "network",
@@ -287,6 +298,7 @@ APPS = {
     "org.gnome.Sysprof": "sysprof", "org.gnome.TextEditor": "text-editor", "org.gnome.Yelp": "help",
     "snap-store_snap-store": "app-center", "update-manager": "updater", "vim": "vim",
     "virtualbox": "virtualbox", "im-config": "input", "org.freedesktop.IBus.Setup": "input",
+    "blender_blender": "blender", "app.toshy.preferences": "toshy", "Toshy_Tray": "toshy",
 }
 
 # desktop file ID → the window class/app_id the app really reports (measured 2026-10-24). Without it GNOME
@@ -311,10 +323,12 @@ INK = {C: L, R: L, O: BG}       # the gray drawn on each colored tile (charcoal 
 SWAP = {C: {C: L, L: BG}, R: {R: L, L: BG}, O: {O: BG, BG: L, L: BG}}   # per tile: keep every shape visible
 TILE = {**dict.fromkeys(["input", "warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
                          "zoom", "obsidian", "nordvpn", "dropbox", "network", "disks", "updater", "security",
-                         "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher", "maps"], C),
+                         "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher", "maps",
+                         "toshy"], C),
         **dict.fromkeys(["claude", "chatgpt", "files", "etcher", "spotify", "notion", "firmware", "imagemagick",
                          "nvidia", "fonts", "passwords", "papers", "app-center", "vim", "calculator", "characters",
-                         "clocks", "texinfo", "whatsapp", "deepl", "omniplayer", "unarchiver", "idle", "launchpad", "photos"], O)}
+                         "clocks", "texinfo", "whatsapp", "deepl", "omniplayer", "unarchiver", "idle", "launchpad", "photos",
+                         "blender"], O)}
 # everything else → burgundy (terminal, postman, slack, discord, firefox, chrome, settings, gephi, pritunl, …)
 
 
@@ -444,7 +458,7 @@ MAC_APPS = {"Warp": "warp", "Visual Studio Code": "vscode", "Cursor": "cursor", 
             "Discord": "discord", "Telegram": "telegram", "zoom.us": "zoom", "Firefox": "firefox",
             "Google Chrome": "chrome", "Obsidian": "obsidian", "Notion": "notion", "Gephi": "gephi",
             "balenaEtcher": "etcher", "Spotify": "spotify", "Dropbox": "dropbox", "NordVPN": "nordvpn",
-            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox",
+            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox", "Blender": "blender",
             "GitHub Desktop": "github", "WhatsApp": "whatsapp", "Microsoft Outlook": "outlook",
             "OneDrive": "onedrive", "DeepL": "deepl", "Comet": "comet", "MKPlayer": "mkplayer",
             "OmniPlayerStore": "omniplayer", "PokerStarsDE": "pokerstars", "The Unarchiver": "unarchiver",

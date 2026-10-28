@@ -17,14 +17,14 @@ This repo is **public-safe by design**: every config is clean, and all secrets l
 ## 0. Quick start (new machine)
 
 ```bash
-# 1. Homebrew
+# 1. Homebrew (macOS only — install.sh also installs it if missing; Linux/WSL: skip)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2. Clone this repo to the canonical path
 git clone git@github.com:juan-garassino/dotfiles.git ~/Code/000-config/001-dotfiles
 cd ~/Code/000-config/001-dotfiles
 
-# 3. Run the installer — symlinks dotfiles, brew bundle, Oh-My-Zsh + p10k, Claude statusline
+# 3. Run the installer — symlinks dotfiles, brew bundle (Linux: apt.txt + linux-tools.sh), Oh-My-Zsh + p10k, Claude statusline
 ./install.sh
 
 # 4. Restore secrets (NOT in any repo)
@@ -55,7 +55,7 @@ exec zsh
 2. any manifest (`pyproject.toml`/`uv.lock`/`requirements.txt`) or plain-version
    `.python-version` but no `.venv` → one-line hint to run `envup` (a legacy pyenv env
    NAME is quietly ignored — once per dir per session). **Hints never mutate.**
-3. fallback to the global uv sandbox `~/.venv-sandbox` (if built; else plain brew python).
+3. fallback to the global uv sandbox `~/.venv-sandbox` (if built; else plain `python3` — brew on macOS, system on Linux).
 Messages print only in interactive shells.
 
 **Per-repo full-auto (opt-in):** `echo "layout uv" > .envrc && direnv allow` — direnv
@@ -79,7 +79,7 @@ hint-only.
 | `envcheck` | compare `.env` vs `.env.example`, report missing | — |
 | `lsenvs` | list uv Pythons + sandbox + project `.venv` dirs | — |
 
-**Reproduce:** `brew install uv direnv` (Linux: the uv installer) + `uv python install 3.11 3.12 3.13`; direnv hook is in
+**Reproduce:** macOS `brew install uv direnv`; Linux `curl -LsSf https://astral.sh/uv/install.sh | sh` + direnv from `packages/apt.txt`; then `uv python install 3.11 3.12 3.13`; direnv hook is in
 zshrc; per-project `.envrc` needs `direnv allow .`. Existing projects: `uv sync` (pyproject)
 or `usevenv 3.12 && uv pip install -r requirements.txt` (legacy manifests).
 
@@ -95,7 +95,7 @@ Directory-aware across three layers — everything under `~/Code/` is personal *
 
 **SSH** (`ssh/config` → `~/.ssh/config`): `github.com` → `id_ed25519_personal`; `github-work` alias → `id_ed25519_work`.
 
-**Reproduce:** `gh auth login` for both accounts; drop both SSH keys (chmod 600) + `ssh-add --apple-use-keychain`; place GCP JSONs.
+**Reproduce:** `gh auth login` for both accounts; drop both SSH keys (chmod 600) + `ssh-add` each (macOS: `ssh-add --apple-use-keychain`); place GCP JSONs.
 
 > **Gotcha:** `gh_auto_switch` and `autoenv_activate` have **no** `_` prefix on purpose — Claude Code's shell snapshot drops `_`-prefixed functions, which would break the cd-hook. The lazy-load helpers that *are* `_`-prefixed (`_nvm_lazy_load`) guard with `typeset -f <helper> >/dev/null || command <cmd>` to avoid infinite recursion.
 
@@ -104,15 +104,15 @@ Directory-aware across three layers — everything under `~/Code/` is personal *
 ## 3. Containers & local services
 
 - **Docker** — `colima` is the deliberate default on macOS (Brewfile: `docker docker-compose colima`; Docker Desktop is an interview option in `MIGRATE.md`, not in the Brewfile); native Docker Engine on Linux. `docker compose` (v2 plugin) works because `install.sh` merges `cliPluginsExtraDirs` into `~/.docker/config.json` (the formula's caveat). Aliases `dk`, `dkc`, `dkcu`, `dkcd`, `dkcb`, `dkps`, `dklogs`, `dkclean`.
-- **Kubernetes / minikube**: completions load lazily on first TAB (`compdef <lazy> kubectl/minikube`) to save startup time. `brew install kubernetes-cli minikube helm`.
-- **Postgres**: client only on the host (`psql`, `pg_dump` from `libpq`, linked so they are on PATH); servers run in Docker (`docker run postgres:16` / compose). No custom psql helpers.
+- **Kubernetes / minikube**: completions load lazily on first TAB (`compdef <lazy> kubectl/minikube`) to save startup time. macOS: `brew install kubernetes-cli minikube helm` (in the Brewfile); Linux: `packages/linux-tools.sh` (kubectl from pkgs.k8s.io, helm script, minikube `.deb`; run by `install.sh`).
+- **Postgres**: client only on the host (`psql`, `pg_dump` — macOS: brew `libpq`, linked so they are on PATH; Linux: `postgresql-client` from `apt.txt`); servers run in Docker (`docker run postgres:16` / compose). No custom psql helpers.
 - **custom_scripts/**: `code_manager.sh` (`cm`/`cmr`/`cmn` — manage/rename/scan `~/Code`), `repo_scan.sh` (emit repo-tree JSON), `build_dashboard.sh` (`dashboard` — repo dashboard), `unprefix.sh` (strip `NNN-` prefixes), `ai_git_commit.sh` (AI commit messages via `llm`), `backup_env.sh` (this kit's backup, see §6).
 
 ---
 
 ## 4. Prompt, theme & status lines
 
-**Powerlevel10k** (`source ~/.powerlevel10k/powerlevel10k.zsh-theme`, instant-prompt cached): left = `os_icon` + `dir` + `vcs`; right = status/time/RAM + env tools (virtualenv/direnv) + a **custom `gh_identity` segment** (ochre `personal` / burgundy `work`, read from `~/.config/gh/hosts.yml`, no CLI exec). Font: **MesloLGS NF** (the p10k build) — `install.sh` downloads the four `.ttf` files into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux); it is not the Homebrew Nerd Font cask.
+**Powerlevel10k** (`source ~/.powerlevel10k/powerlevel10k.zsh-theme`, instant-prompt cached): left = `os_icon` + `dir` + `vcs`; right = status/time/RAM + env tools (virtualenv/direnv) + a **custom `gh_identity` segment** (green `personal` / orange `work`, read from `~/.config/gh/hosts.yml`, no CLI exec). Font: **MesloLGS NF** (the p10k build) — `install.sh` downloads the four `.ttf` files into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` (Linux); it is not the Homebrew Nerd Font cask.
 
 **Claude Code status line** (`claude/statusline-command.sh`, wired via `settings.json` → `statusLine.command`): Bauhaus 3-zone palette — **place**=cobalt blue (path/branch), **session**=gray (model/perm/context), **env/accounts**=ochre (python/gcloud/k8s/gh), **system**=burgundy (clock/RAM). State markers `● ▲ ■` (calm/caution/alarm) for context% and free RAM; permission modes `rw/auto/plan/yolo`. Reads JSON from stdin (`cwd`, `model.display_name`, `context_window.used_percentage`, `permission_mode`, `model.thinking_budget`). **Emoji only — no Nerd Font glyphs** (Claude Code strips them).
 

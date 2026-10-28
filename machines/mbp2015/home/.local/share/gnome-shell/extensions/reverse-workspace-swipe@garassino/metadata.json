@@ -1,0 +1,6 @@
+{
+  "uuid": "reverse-workspace-swipe@garassino",
+  "name": "Reverse Workspace Swipe",
+  "description": "Inverts the touchpad swipe direction for switching workspaces, without touching normal scrolling.",
+  "shell-version": ["50"]
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Recover the Apple Bluetooth chip if it failed to start
+After=bluetooth.service suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+Wants=bluetooth.service
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/bt-recover
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

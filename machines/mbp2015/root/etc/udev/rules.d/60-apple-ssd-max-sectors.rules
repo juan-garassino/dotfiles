@@ -1,0 +1,2 @@
+# Apple SSD SM0512G (MacBook Pro 2015): AHCI host bus errors on transfers > 512 KB under Linux (measured 2026-10-24)
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd[a-z]", ATTRS{model}=="APPLE SSD*", ATTR{queue/max_sectors_kb}="512"
