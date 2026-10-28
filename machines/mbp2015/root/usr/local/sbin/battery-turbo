@@ -20,8 +20,8 @@ cap=0; [ -e $flag ] && cap=$(cat $flag); [ -n "$cap" ] || cap=2500000
 want=0
 # low battery: cap below 40 %, release at 50 % (hysteresis, so it doesn't flap at the edge)
 if [ "$ac" = 0 ] || [ "$pct" -lt 40 ] || { [ "$cap" != 0 ] && [ "$pct" -lt 50 ]; }; then want=2500000; fi
-# still draining on AC: over 10 mAh lost since the last run (~0.6 A net over a minute)
-if [ "$ac" = 1 ] && [ $((prev - now)) -gt 10000 ]; then
+# still draining on AC: over 3 mAh lost since the last run (~0.2 A net over a minute)
+if [ "$ac" = 1 ] && [ $((prev - now)) -gt 3000 ]; then
     case $cap in 0) want=2500000 ;; 2500000) want=2000000 ;; 2000000) want=1600000 ;; *) want=1200000 ;; esac
     touch $drain
 elif [ -e $drain ]; then
