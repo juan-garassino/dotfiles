@@ -94,7 +94,8 @@ minute by `battery-turbo.timer` (power-profiles-daemon can flip `no_turbo` back)
   `echo "blacklist bdc_pci" | sudo tee /etc/modprobe.d/facetimehd.conf && sudo update-initramfs -u`.
   Chrome (Meet, every site) finds no camera: 0.7.0.1 reports its sizes as one STEPWISE range and Chrome's V4L2 capture
   skips those (crbug.com/249953); Zoom and ffmpeg work. Fix: `machines/mbp2015/facetimehd-discrete-sizes.patch` (1280×720, 640×480,
-  320×240) — `setup.sh` patches `/usr/src/facetimehd-*`, rebuilds via DKMS for every kernel and reloads the module.
+  320×240) — `setup.sh` patches `/usr/src/facetimehd-*`, rebuilds via DKMS for every kernel, refreshes the initramfs (boot loads the
+  driver from it, so a stale copy there brings the old one back after a reboot) and reloads the module.
 
 ## State across Bash calls — `~/.migration/` (read before step 1)
 

@@ -55,7 +55,7 @@ if [ "$mode" = --check ]; then
   if [ -n "$fthd_src" ]; then
     grep -q crbug.com/249953 "$fthd_src/fthd_v4l2.c" || { echo "missing  facetimehd discrete-sizes patch (Chrome/Meet see no camera)"; rc=1; }
     [ "$(cat /sys/module/facetimehd/srcversion 2>/dev/null)" = "$(modinfo -F srcversion facetimehd 2>/dev/null)" ] \
-      || { echo "stale    loaded facetimehd module (reboot, or close camera apps and reload it)"; rc=1; }
+      || { echo "stale    loaded facetimehd module (close camera apps, re-run setup.sh)"; rc=1; }
   fi
   [ $rc = 0 ] && echo "✓ machine matches machines/mbp2015"
   exit $rc
@@ -89,11 +89,16 @@ if [ -n "$fthd_src" ] && ! grep -q crbug.com/249953 "$fthd_src/fthd_v4l2.c"; the
       sudo dkms build --force "facetimehd/$v" -k "$k" >/dev/null && sudo dkms install --force "facetimehd/$v" -k "$k" >/dev/null \
         && echo "  → rebuilt for $k"
     done
-    { sudo modprobe -r facetimehd && sudo modprobe facetimehd; } 2>/dev/null \
-      && echo "  → reloaded (restart Chrome)" || echo "  ! camera in use — reboot to load the new driver"
   else
     echo "  ! patch didn't apply to $fthd_src — new driver version? check machines/mbp2015/facetimehd-discrete-sizes.patch"
   fi
+fi
+# the initramfs carries its own copy of the driver and boot loads that one: refresh it, then reload
+if [ -n "$fthd_src" ] && [ "$(cat /sys/module/facetimehd/srcversion 2>/dev/null)" != "$(modinfo -F srcversion facetimehd 2>/dev/null)" ]; then
+  echo "▶ camera driver: initramfs + reload"
+  sudo update-initramfs -u -k all >/dev/null 2>&1
+  { sudo modprobe -r facetimehd && sudo modprobe facetimehd; } 2>/dev/null \
+    && echo "  → reloaded (restart Chrome)" || echo "  ! camera in use — reboot to load the new driver"
 fi
 
 echo "▶ services"
