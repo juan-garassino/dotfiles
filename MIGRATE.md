@@ -92,6 +92,9 @@ minute by `battery-turbo.timer` (power-profiles-daemon can flip `no_turbo` back)
   linux-headers-$(uname -r) curl xz-utils cpio`. The sensor set-file extraction fails its hash check (2026-10) — `sudo make install` still
   installs `firmware.bin`; the camera runs without calibration. DKMS ignores the driver's `MODULES_CONF`, so add
   `echo "blacklist bdc_pci" | sudo tee /etc/modprobe.d/facetimehd.conf && sudo update-initramfs -u`.
+  Chrome (Meet, every site) finds no camera: 0.7.0.1 reports its sizes as one STEPWISE range and Chrome's V4L2 capture
+  skips those (crbug.com/249953); Zoom and ffmpeg work. Fix: `machines/mbp2015/facetimehd-discrete-sizes.patch` (1280×720, 640×480,
+  320×240) — `setup.sh` patches `/usr/src/facetimehd-*`, rebuilds via DKMS for every kernel and reloads the module.
 
 ## State across Bash calls — `~/.migration/` (read before step 1)
 

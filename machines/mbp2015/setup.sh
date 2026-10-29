@@ -19,6 +19,7 @@ esac
 # file list: <repo path under root/ or home/>  →  live path
 root_files() { (cd "$here/root" && find . -type f | sed 's|^\./||' | sort); }
 home_files() { (cd "$here/home" && find . -type f | sed 's|^\./||' | sort); }
+fthd_src="$(ls -d /usr/src/facetimehd-* 2>/dev/null | sort -V | tail -1)"
 
 # merge_toshy_slices [--dry-run] — copy each slice body in toshy-slices.py into the live toshy_config.py
 merge_toshy_slices() {
@@ -51,6 +52,11 @@ if [ "$mode" = --check ]; then
   else echo "missing  Toshy (~/.config/toshy/toshy_config.py)"; rc=1; fi
   grep -q 'libata.force=noncq' /proc/cmdline || { echo "missing  libata.force=noncq on the kernel command line"; rc=1; }
   dpkg -s kdump-tools >/dev/null 2>&1 && { echo "present  kdump-tools (reserves 512 MB)"; rc=1; }
+  if [ -n "$fthd_src" ]; then
+    grep -q crbug.com/249953 "$fthd_src/fthd_v4l2.c" || { echo "missing  facetimehd discrete-sizes patch (Chrome/Meet see no camera)"; rc=1; }
+    [ "$(cat /sys/module/facetimehd/srcversion 2>/dev/null)" = "$(modinfo -F srcversion facetimehd 2>/dev/null)" ] \
+      || { echo "stale    loaded facetimehd module (reboot, or close camera apps and reload it)"; rc=1; }
+  fi
   [ $rc = 0 ] && echo "✓ machine matches machines/mbp2015"
   exit $rc
 fi
@@ -73,6 +79,22 @@ if ! grep -q 'libata.force=noncq' /etc/default/grub; then
 fi
 sudo update-grub >/dev/null 2>&1
 [ $initramfs = 1 ] && sudo update-initramfs -u
+
+# facetimehd lists one STEPWISE size range, which Chrome skips: patch it to discrete sizes, rebuild for every kernel
+if [ -n "$fthd_src" ] && ! grep -q crbug.com/249953 "$fthd_src/fthd_v4l2.c"; then
+  echo "▶ camera driver"
+  if sudo patch -s -p1 -d "$fthd_src" < "$here/facetimehd-discrete-sizes.patch"; then
+    v="${fthd_src##*/facetimehd-}"
+    for k in $(dkms status "facetimehd/$v" 2>/dev/null | sed -n 's|^facetimehd/[^,]*, \([^,]*\),.*installed.*|\1|p'); do
+      sudo dkms build --force "facetimehd/$v" -k "$k" >/dev/null && sudo dkms install --force "facetimehd/$v" -k "$k" >/dev/null \
+        && echo "  → rebuilt for $k"
+    done
+    { sudo modprobe -r facetimehd && sudo modprobe facetimehd; } 2>/dev/null \
+      && echo "  → reloaded (restart Chrome)" || echo "  ! camera in use — reboot to load the new driver"
+  else
+    echo "  ! patch didn't apply to $fthd_src — new driver version? check machines/mbp2015/facetimehd-discrete-sizes.patch"
+  fi
+fi
 
 echo "▶ services"
 sudo systemctl daemon-reload
