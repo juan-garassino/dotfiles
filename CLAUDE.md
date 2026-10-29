@@ -39,7 +39,7 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 | `custom_scripts/` | code_manager, repo_scan, backup_env, ai_git_commit, … | run via `$CUSTOM` aliases |
 | `packages/` | `Brewfile` (macOS `brew bundle`, incl. app casks) · `apt.txt`/`dnf.txt` + `linux-apps.sh` (Linux desktop apps) · `windows-apps.txt` (WSL → winget) · `mysandbox-requirements.txt` | — |
 | `.secrets.sample` | expected API-key names (no values) | seeds `~/.secrets` |
-| `machines/mbp2015/` | 2015 MacBook Pro on Ubuntu: `root/` (`/etc`, `/usr/local/sbin`) + `home/` copies, Toshy slices, `setup.sh` (`--check` diffs live vs repo) | installed by `setup.sh` |
+| `machines/mbp2015/` | 2015 MacBook Pro on Ubuntu: `root/` (`/etc`, `/usr/local/sbin`) + `home/` copies, Toshy slices, facetimehd patch, `setup.sh` (`--check` diffs live vs repo) | installed by `setup.sh` |
 | `legacy/` | retired configs kept for reference | — |
 
 ## Full machine setup — Claude Code, follow this end-to-end

@@ -1,0 +1,36 @@
+--- a/fthd_v4l2.c
++++ b/fthd_v4l2.c
+@@ -688,24 +688,23 @@
+ 	return 0;
+ }
+ 
++/* Discrete sizes, not one STEPWISE range: Chrome's V4L2 capture skips devices
++ * that only report a range (crbug.com/249953), so Meet finds no camera. */
++static const struct v4l2_frmsize_discrete fthd_frame_sizes[] = {
++	{ 1280, 720 }, { 640, 480 }, { 320, 240 },
++};
++
+ static int fthd_v4l2_ioctl_enum_framesizes(struct file *filp, void *priv,
+ 		struct v4l2_frmsizeenum *sizes)
+ {
+-	struct fthd_private *dev_priv = video_drvdata(filp);
+-
+-	if (sizes->index)
++	if (sizes->index >= ARRAY_SIZE(fthd_frame_sizes))
+ 		return -EINVAL;
+ 
+ 	if (sizes->pixel_format != V4L2_PIX_FMT_YUYV)
+ 		return -EINVAL;
+ 
+-	sizes->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+-	sizes->stepwise.min_width  = FTHD_MIN_WIDTH;
+-	sizes->stepwise.max_width  = dev_priv->sensor_width  ? : FTHD_MAX_WIDTH;
+-	sizes->stepwise.step_width = 8;
+-	sizes->stepwise.min_height  = FTHD_MIN_HEIGHT;
+-	sizes->stepwise.max_height  = dev_priv->sensor_height ? : FTHD_MAX_HEIGHT;
+-	sizes->stepwise.step_height = 1;
++	sizes->type = V4L2_FRMSIZE_TYPE_DISCRETE;
++	sizes->discrete = fthd_frame_sizes[sizes->index];
+ 
+ 	return 0;
+ }
