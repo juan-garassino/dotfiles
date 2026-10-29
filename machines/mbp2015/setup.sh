@@ -133,6 +133,6 @@ if [ -f ~/.config/toshy/toshy_config.py ]; then
 else
   echo "  ! Toshy not installed — see MIGRATE.md (Mac-style keys), then re-run this script"
 fi
-lsmod | grep -q facetimehd || echo "  ! FaceTime camera driver missing — see MIGRATE.md (facetimehd via DKMS)"
+grep -q "^facetimehd " /proc/modules || echo "  ! FaceTime camera driver missing — see MIGRATE.md (facetimehd via DKMS)"
 
 echo "✓ done — reboot once if this was the first run"
