@@ -19,7 +19,8 @@ any repo); GCP keys in `~/Code/000-config/002-gcp-credentials/`.
 > outputs unasked. Save the answers in `~/.migration/answers.md`, never inside `~/Code`; all migration state lives in
 > `~/.migration/` (every Bash call starts with `source ~/.migration/env`). A Linux buffer that already holds an older `~/Code`
 > may have its own work: reconcile it into the source first (`MIGRATE.md` section P, on the source, before the freeze), then mirror
-> it with the reviewed `--delete` dry run (10b). Personal data (Documents, Pictures, …) moves only via 10d, only to a personal machine.
+> it with the reviewed `--delete` dry run (10b). A company (work-only) machine gets only `~/Code/002-engenious` + work credentials:
+> `MIGRATE.md` → "Work-only target". Personal data (Documents, Pictures, …) moves only via 10d, only to a personal machine.
 > Routine fresh setup → go straight to
 > **[Full machine setup](#full-machine-setup--claude-code-follow-this-end-to-end)**
 > and run it end-to-end, pausing only at the 🙋 (human-only) steps. The other most common

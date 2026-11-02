@@ -97,6 +97,40 @@ minute by `battery-turbo.timer` (power-profiles-daemon can flip `no_turbo` back)
   320×240) — `setup.sh` patches `/usr/src/facetimehd-*`, rebuilds via DKMS for every kernel, refreshes the initramfs (boot loads the
   driver from it, so a stale copy there brings the old one back after a reboot) and reloads the module.
 
+### Work-only target (a company-owned machine)
+
+Round A answer **"Work only"** (e.g. the engenious Mac, 2026-11): same dev setup, but **only `~/Code/002-engenious`** and **nothing
+personal** on it. Applies on top of the normal steps — ask the rounds as usual, with these defaults:
+
+- **`~/Code` (step 5b):** append every top-level folder except `002-engenious/` to `~/.migration/code-excl.txt` (`/<dir>/` form, sizes in
+  `skipped.md`): `src 'cd Code && for d in */; do [ "$d" = 002-engenious/ ] || du -sk "$d"; done'`. That includes `000-config/` (personal
+  GCP JSON, MCP configs) — the dotfiles clone comes from `bootstrap.sh`. Loose files at the `~/Code` root (workspace `CLAUDE.md`) stay.
+  Then the usual 5b question on the big `002-engenious/*/*` folders.
+- **Credentials (Round G, edit `~/.migration/home-carry.txt`):** replace `.ssh` with `.ssh/id_ed25519_work` + `.ssh/id_ed25519_work.pub`;
+  drop `.ssh_backup_*`, `.config/gcloud`, `.bigqueryrc`, `Archive/migration`, shell histories, `.codex`/`.gemini`/`.promptplot`/`.aivss`;
+  keep `.engenious_university.env`, `.config/dotfiles`; 🙋 ask about `.aws`. **`~/.secrets`:** drop it from the list, show the user the key
+  *names* only (`src "sed -n 's/^export \([A-Za-z0-9_]*\)=.*/\1/p' .secrets"`), ask which are work, then copy just those lines without
+  printing them: `(umask 077; src "grep -E '^export (KEY_A|KEY_B)=' .secrets" > ~/.secrets)`.
+- **Claude history:** engenious project memory only — write the filter files instead of the light ones:
+  `printf '%s\n' '.claude/projects/' '.claude/projects/*002-engenious*/' '.claude/projects/*002-engenious*/memory/***' '.claude/projects/*002-engenious*/standing/***' > ~/.migration/claude-include.txt`
+  and `printf '%s\n' '.claude/projects/*/*' '.claude/projects/*' '.claude/*' > ~/.migration/claude-exclude.txt` (skills + agents come
+  from `install.sh`, plugins in step 8). Re-key every `-Users-juan-garassino-*` and `-home-<user>-*` slug to this `$HOME`'s slug (step 6 loop, run once per old prefix).
+  Step 9 MCP merge: only the work servers from `~/.claude.json.src` — ask.
+- **Accounts (Round E):** `gh` work account (`j-garassino-engenious`) only; no personal ssh key, gcloud, Drive or Dropbox. Apps (Round B):
+  work ones (pritunl, slack, zoom, editors, DB tools); no Spotify, Discord, Telegram, NordVPN, Dropbox. Bauhaus icons: ask.
+- **Pritunl profiles** (VPN keys — never into a repo, never echoed). Linux source: system profiles live root-only in
+  `/var/lib/pritunl-client/`. 🙋 On the source: `sudo ls -R /var/lib/pritunl-client` (show it), then
+  `sudo tar -C /var/lib/pritunl-client -czf ~/pritunl-profiles.tgz profiles && sudo chown "$USER" ~/pritunl-profiles.tgz && chmod 600 ~/pritunl-profiles.tgz`
+  (the one file this runbook writes on the source — deleted in the hygiene gate). Mac source: `~/Library/Application Support/pritunl/profiles/`.
+  Here: `(umask 077; mkdir -p ~/.migration/pritunl && rsync -a "${S}:pritunl-profiles.tgz" ~/.migration/pritunl/ && tar -C ~/.migration/pritunl -xzf ~/.migration/pritunl/pritunl-profiles.tgz)`,
+  then 🙋 the user imports each profile in the Pritunl app (Import → the `.ovpn`/`.tar` file) and connects once. Not importable → re-download
+  it from the Pritunl web portal. Hygiene gate: `rm -rf ~/.migration/pritunl` here, `src 'rm -f ~/pritunl-profiles.tgz'` on the source.
+- **Linux source → Mac target (step 5):** macOS `/home` is an autofs mount — don't symlink `$SRC_HOME` there. The engenious code mostly
+  carries `/Users/juan-garassino` paths (from the Macs): if this Mac's account has another name, `sudo ln -s "$HOME" /Users/juan-garassino`
+  (step 5's mac rule). After step 7, `grep -rIl "$SRC_HOME" ~/Code/002-engenious --include=gitdir --include=.git 2>/dev/null` → report any
+  worktree that still points at the Linux home.
+- Source sshd (Linux): `sudo systemctl start ssh` now, `sudo systemctl stop ssh` in the hygiene gate (it was off before).
+
 ## State across Bash calls — `~/.migration/` (read before step 1)
 
 Every Bash call Claude makes is a fresh `zsh -c`: shell variables, arrays and `export`s vanish
