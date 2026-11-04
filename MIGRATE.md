@@ -277,7 +277,7 @@ iCloud / Find My (Activation Lock), the App Store and Messages on it, and revoke
 (4) *Sync + network + design*: dropbox · google-drive · nordvpn · pritunl · ngrok · inkscape · blender · gcloud-cli.
 [linux] by group, then `packages/linux-apps.sh <chosen groups>` (amd64 only — on arm64 say nothing is installed):
 (1) *core* (dbeaver pritunl slack antigravity discord obsidian cursor postman notion claude chatgpt) · *dev* (pgadmin elasticvue gephi etcher);
-(2) *comms* (zoom telegram spotify) · *sync* (dropbox nordvpn) · *graphics* (inkscape blender — Blender LTS snap; Sverchok + MCP: `claude/mcp-servers.md`).
+(2) *comms* (zoom telegram spotify mailspring) · *sync* (dropbox nordvpn) · *graphics* (inkscape blender — Blender LTS snap; Sverchok + MCP: `claude/mcp-servers.md`).
 [wsl] no desktop apps inside WSL: 🙋 the user runs `packages/windows-apps.txt` with winget in PowerShell — ask which lines first.
 
 **Round C — toolchain.** (1) *Containers*: [mac] colima (the deliberate default, in the Brewfile) vs Docker Desktop (cask, ask) —
