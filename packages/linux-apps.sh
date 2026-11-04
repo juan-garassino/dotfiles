@@ -32,7 +32,7 @@ fi
 declare -A GROUP_APPS=(
   [core]="dbeaver pritunl slack antigravity discord obsidian cursor postman notion claude chatgpt"
   [dev]="pgadmin elasticvue gephi etcher"
-  [comms]="zoom telegram spotify"
+  [comms]="zoom telegram spotify mailspring"
   [sync]="dropbox nordvpn"
   [graphics]="inkscape blender"
 )
@@ -46,7 +46,7 @@ declare -A LABEL=(
   [pgadmin]="pgAdmin 4"         [elasticvue]="elasticvue"    [gephi]="Gephi"
   [etcher]="balenaEtcher"       [zoom]="Zoom"                [telegram]="Telegram"
   [spotify]="Spotify"           [dropbox]="Dropbox"          [nordvpn]="NordVPN"
-  [inkscape]="Inkscape"         [blender]="Blender (LTS)"
+  [inkscape]="Inkscape"         [blender]="Blender (LTS)"    [mailspring]="Mailspring"
 )
 
 # kind: snap:<name>[:classic][@<channel>] | apt:<pkgs> (vendor repo) | deb:<pkg> (vendor .deb) | local (~/.local)
@@ -59,7 +59,7 @@ declare -A KIND=(
   [nordvpn]="apt:nordvpn nordvpn-gui"     [claude]="apt:claude-desktop"
   [discord]="deb:discord"   [cursor]="deb:cursor"     [chatgpt]="deb:chatgpt"
   [zoom]="deb:zoom"         [etcher]="deb:balena-etcher" [elasticvue]="deb:elasticvue"
-  [dropbox]="deb:dropbox"
+  [dropbox]="deb:dropbox"   [mailspring]="deb:mailspring"
   [antigravity]="local"     [gephi]="local"           [notion]="local"
 )
 
@@ -200,6 +200,7 @@ install_deb_url() {
 install_discord() { install_deb_url "https://discord.com/api/download?platform=linux&format=deb" discord.deb; }
 install_zoom()    { install_deb_url https://zoom.us/client/latest/zoom_amd64.deb zoom_amd64.deb; }
 install_cursor()  { install_deb_url "https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest" cursor.deb; }
+install_mailspring() { install_deb_url "https://updates.getmailspring.com/download?platform=linuxDeb" mailspring.deb; }
 # Official ChatGPT Linux app (includes Codex); its postinst adds OpenAI's signed apt repo.
 install_chatgpt() { install_deb_url https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_amd64.deb chatgpt_amd64.deb; }
 
