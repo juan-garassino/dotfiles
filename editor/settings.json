@@ -20,7 +20,7 @@
   "editor.formatOnPaste": false,
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
-    "source.organizeImports": "explicit"
+    "source.organizeImports": "explicit",
   },
   "editor.multiCursorModifier": "ctrlCmd",
   "editor.suggestSelection": "first",
@@ -36,8 +36,8 @@
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.fixAll": "explicit",
-      "source.organizeImports": "explicit"
-    }
+      "source.organizeImports": "explicit",
+    },
   },
   "python.languageServer": "Pylance",
   "python.analysis.typeCheckingMode": "basic",
@@ -85,7 +85,7 @@
     "**/dist": true,
     "**/build": true,
     "**/coverage": true,
-    "**/.venv": true
+    "**/.venv": true,
   },
   "files.watcherExclude": {
     "**/node_modules/**": true,
@@ -94,7 +94,7 @@
     "**/build/**": true,
     "**/coverage/**": true,
     "**/log/**": true,
-    "**/tmp/**": true
+    "**/tmp/**": true,
   },
 
   // ─────────────────────────────────────────────────────────
@@ -105,8 +105,8 @@
   "terminal.integrated.profiles.osx": {
     "zsh": {
       "path": "/bin/zsh",
-      "args": ["-l"]
-    }
+      "args": ["-l"],
+    },
   },
 
   // ─────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@
   // ─────────────────────────────────────────────────────────
   "emmet.includeLanguages": {
     "erb": "html",
-    "jinja-html": "html"
+    "jinja-html": "html",
   },
   "emmet.triggerExpansionOnTab": true,
 
@@ -143,9 +143,12 @@
   "git.openRepositoryInParentFolders": "never",
   "makefile.configureOnOpen": false,
   "yaml.disableSchemaDetection": [
-    "**/.github/workflows/*.yml", "**/.github/workflows/*.yaml",
-    "**/.gitea/workflows/*.yml", "**/.gitea/workflows/*.yaml"
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml",
+    "**/.gitea/workflows/*.yaml",
   ],
   // uv-only: the global sandbox venv (was a pyenv path)
-  "python.defaultInterpreterPath": "${userHome}/.venv-sandbox/bin/python"
+  "python.defaultInterpreterPath": "${userHome}/.venv-sandbox/bin/python",
+  "claudeCode.preferredLocation": "panel",
 }
