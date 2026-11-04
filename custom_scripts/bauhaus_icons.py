@@ -120,6 +120,11 @@ ICONS = {
                    f'<polyline points="56,114 120,160 184,114" fill="none" stroke="{M}" stroke-width="10" '
                    f'stroke-linejoin="round" stroke-linecap="round"/>'
                    f'<circle cx="172" cy="84" r="10" fill="{O}"/>',
+    "mailspring": f'<rect x="52" y="50" width="152" height="96" rx="10" fill="{C}"/>'
+                  f'<polyline points="58,58 128,108 198,58" fill="none" stroke="{BG}" stroke-width="10" '
+                  f'stroke-linejoin="round" stroke-linecap="round"/>'
+                  f'<polyline points="128,146 176,158 80,172 176,186 128,198" fill="none" stroke="{O}" stroke-width="12" '
+                  f'stroke-linejoin="round" stroke-linecap="round"/>',
     "inkscape": f'<line x1="62" y1="180" x2="96" y2="70" stroke="{M}" stroke-width="6"/>'
                 f'<line x1="194" y1="76" x2="160" y2="186" stroke="{M}" stroke-width="6"/>'
                 f'<path d="M62,180 C96,70 160,186 194,76" fill="none" stroke="{L}" stroke-width="12"/>'
@@ -288,6 +293,7 @@ APPS = {
     "gephi": "gephi", "balena-etcher": "etcher", "spotify_spotify": "spotify",
     "dropbox": "dropbox", "nordvpn-gui": "nordvpn", "pritunl-client-electron": "pritunl",
     "inkscape_inkscape": "inkscape", "thunderbird_thunderbird": "thunderbird", "thunderbird": "thunderbird",
+    "Mailspring": "mailspring",
     "desktop-security-center_desktop-security-center": "security", "display-im7.q16": "imagemagick",
     "firmware-updater_firmware-updater": "firmware", "gnome-language-selector": "language",
     "info": "texinfo", "net.nokyan.Resources": "resources", "nm-connection-editor": "network",
@@ -324,7 +330,7 @@ SWAP = {C: {C: L, L: BG}, R: {R: L, L: BG}, O: {O: BG, BG: L, L: BG}}   # per ti
 TILE = {**dict.fromkeys(["input", "warp", "vscode", "cursor", "antigravity", "dbeaver", "pgadmin", "elasticvue", "telegram",
                          "zoom", "obsidian", "nordvpn", "dropbox", "network", "disks", "updater", "security",
                          "images", "text-editor", "docker", "outlook", "onedrive", "comet", "pylauncher", "maps",
-                         "toshy"], C),
+                         "toshy", "mailspring"], C),
         **dict.fromkeys(["claude", "chatgpt", "files", "etcher", "spotify", "notion", "firmware", "imagemagick",
                          "nvidia", "fonts", "passwords", "papers", "app-center", "vim", "calculator", "characters",
                          "clocks", "texinfo", "whatsapp", "deepl", "omniplayer", "unarchiver", "idle", "launchpad", "photos",
@@ -458,7 +464,7 @@ MAC_APPS = {"Warp": "warp", "Visual Studio Code": "vscode", "Cursor": "cursor", 
             "Discord": "discord", "Telegram": "telegram", "zoom.us": "zoom", "Firefox": "firefox",
             "Google Chrome": "chrome", "Obsidian": "obsidian", "Notion": "notion", "Gephi": "gephi",
             "balenaEtcher": "etcher", "Spotify": "spotify", "Dropbox": "dropbox", "NordVPN": "nordvpn",
-            "Pritunl": "pritunl", "Inkscape": "inkscape", "VirtualBox": "virtualbox", "Blender": "blender",
+            "Pritunl": "pritunl", "Mailspring": "mailspring", "Inkscape": "inkscape", "VirtualBox": "virtualbox", "Blender": "blender",
             "GitHub Desktop": "github", "WhatsApp": "whatsapp", "Microsoft Outlook": "outlook",
             "OneDrive": "onedrive", "DeepL": "deepl", "Comet": "comet", "MKPlayer": "mkplayer",
             "OmniPlayerStore": "omniplayer", "PokerStarsDE": "pokerstars", "The Unarchiver": "unarchiver",
